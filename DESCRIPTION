@@ -1,12 +1,10 @@
 Package: containr
-Title: What the Package Does (One Line, Title Case)
+Title: Containerize your R project
 Version: 0.0.0.9000
 Authors@R: 
-    person("Erwin", "Lares", , "erwin.lares@wisc.edu", role = c("aut", "cre"),
-           comment = c(ORCID = "000000023284828X"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Erwin", "Lares", , "erwin.lares@wisc.edu", role = c("aut", "cre"))
+Description: process of containerizing R projects. Its core function, generate_dockerfile(), analyzes an R project’s environment and dependencies—via renv::renv.lock—and generates a ready-to-use Dockerfile that encapsulates the computational setup. The package is designed to assist researchers in building portable and consistent workflows, ensuring that analyses can be reliably shared, archived, and rerun across systems.
+License: Apache License (>= 2)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
