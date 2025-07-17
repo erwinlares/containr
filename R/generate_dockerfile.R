@@ -1,3 +1,30 @@
+#' Generate a Dockerfile for your R project
+#'
+#' @param verbose logical (TRUE or FALSE). Should generate_dockerfile() print out progress? By default, it will silently create a Dockerfile
+#' @param r_version a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the latest version of R available
+#' @param data_file a character string indication an optional name of a data file to copied into the container
+#' @param code_file a character string indication an optional name of a script file to copied into the container
+#' @param home_dir a character string specifying the home directory inside the container
+#' @param install_quarto logical (TRUE or FALSE). If TRUE it will include supporting packages and system libraries to support Quarto and RMarkdown.
+#' @param expose_port a character string indicating in which port will RStudio Server be accessible. It defaults to 8787
+#' @param r_mode a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, tidyverse, rstudio for RStudio Server, tidystudio which is tidyverse plus TeX Live and some publishing-related R packages
+#' @param comments a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.
+#'
+#' @return invisibly returns NULL. This function is called for its side effects and does not return a value.
+#' @export
+#' @examples
+#' Basic Usage
+#' \dontrun{
+#' generate_dockerfile()
+#' }
+#' Specify a tidyverse ready image
+#' \dontrun{
+#' generate_dockerfile(r_mode = "tidyverse")
+#' }
+#' Specify an image with R 4.2.0 installed
+#' \dontrun{
+#' generate_dockerfile(r_version = "4.2.0")
+#' }
 generate_dockerfile <- function(
         verbose = FALSE,
         r_version = "latest",
