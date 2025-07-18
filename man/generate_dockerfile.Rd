@@ -42,16 +42,10 @@ invisibly returns NULL. This function is called for its side effects and does no
 Generate a Dockerfile for your R project
 }
 \examples{
-Basic Usage
-\dontrun{
-generate_dockerfile()
-}
-Specify a tidyverse ready image
-\dontrun{
-generate_dockerfile(r_mode = "tidyverse")
-}
-Specify an image with R 4.2.0 installed
-\dontrun{
-generate_dockerfile(r_version = "4.2.0")
-}
+# Basic Usage
+\dontrun{generate_dockerfile()}
+# Specify a tidyverse ready image
+\dontrun{generate_dockerfile(r_mode = "tidyverse")}
+# Specify an image with R 4.2.0 installed
+\dontrun{generate_dockerfile(r_version = "4.2.0")}
 }

@@ -13,18 +13,12 @@
 #' @return invisibly returns NULL. This function is called for its side effects and does not return a value.
 #' @export
 #' @examples
-#' Basic Usage
-#' \dontrun{
-#' generate_dockerfile()
-#' }
-#' Specify a tidyverse ready image
-#' \dontrun{
-#' generate_dockerfile(r_mode = "tidyverse")
-#' }
-#' Specify an image with R 4.2.0 installed
-#' \dontrun{
-#' generate_dockerfile(r_version = "4.2.0")
-#' }
+#' # Basic Usage
+#' \dontrun{generate_dockerfile()}
+#' # Specify a tidyverse ready image
+#' \dontrun{generate_dockerfile(r_mode = "tidyverse")}
+#' # Specify an image with R 4.2.0 installed
+#' \dontrun{generate_dockerfile(r_version = "4.2.0")}
 generate_dockerfile <- function(
         verbose = FALSE,
         r_version = "latest",
