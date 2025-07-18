@@ -36,23 +36,23 @@ generate_dockerfile <- function(
     # Start from the latest RStudio Server image with R pre-installed
 
 base_line <- case_when(
-    r_mode == "base" ~ glue("FROM rocker/r-ver:{r_version}"),
-    r_mode == "tidyverse" ~ glue("FROM rocker/tidyverse:{r_version}"),
-    r_mode == "rstudio" ~ glue("FROM rocker/rstudio:{r_version}"),
-    r_mode == "tidystudio" ~ glue("FROM rocker/verse:{r_version}"),
+    r_mode == "base" ~ glue:glue("FROM rocker/r-ver:{r_version}"),
+    r_mode == "tidyverse" ~ glue:glue("FROM rocker/tidyverse:{r_version}"),
+    r_mode == "rstudio" ~ glue:glue("FROM rocker/rstudio:{r_version}"),
+    r_mode == "tidystudio" ~ glue:glue("FROM rocker/verse:{r_version}"),
         is.na(r_mode) ~ "base",
     .default = "base")
 
-# base_line <- glue("FROM rocker/rstudio:{r_version}")
+# base_line <- glue:glue("FROM rocker/rstudio:{r_version}")
 # Prevent interactive prompts during package installation
 
-non_interactive_line <- glue("ENV DEBIAN_FRONTEND=noninteractive")
+non_interactive_line <- glue:glue("ENV DEBIAN_FRONTEND=noninteractive")
 
 # Set the working directory inside the container
-working_dir_line <- glue("WORKDIR {home_dir}")
+working_dir_line <- glue:glue("WORKDIR {home_dir}")
 
 # Install system libraries required for common R packages and Quarto rendering
-system_lib_line <- glue("RUN apt-get update && apt-get install -y \\
+system_lib_line <- glue:glue("RUN apt-get update && apt-get install -y \\
     cmake \\
     libcurl4-openssl-dev \\
     libssl-dev \\
@@ -71,22 +71,22 @@ system_lib_line <- glue("RUN apt-get update && apt-get install -y \\
     && rm -rf /var/lib/apt/lists/*")
 
 # Download and install the Quarto CLI for rendering .qmd files
-ifelse(install_quarto == TRUE, quarto_install_line <- glue("RUN wget -q https://quarto.org/download/latest/quarto-linux-amd64.deb \
+ifelse(install_quarto == TRUE, quarto_install_line <- glue:glue("RUN wget -q https://quarto.org/download/latest/quarto-linux-amd64.deb \
     && gdebi --non-interactive quarto-linux-amd64.deb \
     && rm quarto-linux-amd64.deb"), quarto_install_line <- "")
 
 # Copy the renv lockfile for reproducible R package environments
-renv_lock_line <- glue("COPY renv.lock /home/renv.lock")
+renv_lock_line <- glue:glue("COPY renv.lock /home/renv.lock")
 
 # Copy the dataset used in the analysis
 
-data_line <- ifelse(is_null(data_file), "", glue("COPY {data_file} /home/data/{data_file}"))
+data_line <- ifelse(is_null(data_file), "", glue:glue("COPY {data_file} /home/data/{data_file}"))
 
 # Copy the code files (e.g., report or documentation)
-code_line <- ifelse(is_null(code_file), "", glue("COPY {code_file} /home/{code_file}"))
+code_line <- ifelse(is_null(code_file), "", glue:glue("COPY {code_file} /home/{code_file}"))
 
 # Expose the default port used by RStudio Server
-expose_line <- glue("EXPOSE {expose_port}")
+expose_line <- glue:glue("EXPOSE {expose_port}")
 
 ##########################
 # Building the Dockerfile
@@ -109,7 +109,7 @@ if(comments == TRUE) {
 
 
 if(verbose == TRUE) {
-    print(glue("Set working directory to {home_dir}"))
+    print(glue:glue("Set working directory to {home_dir}"))
     Sys.sleep(0.5)}
 readr::write_lines(working_dir_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE) {
@@ -156,7 +156,7 @@ readr::write_lines(read_lines("install_and_restore_packages.sh"), file = "Docker
 if(comments == TRUE) {readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
-    print(glue("Expose port{expose_port} for the IDE"))
+    print(glue:glue("Expose port{expose_port} for the IDE"))
     Sys.sleep(0.5)}
 readr::write_lines(expose_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE) {readr::write_lines("# Expose port 8787, commonly used by RStudio Server", file = "Dockerfile", append = TRUE)}
