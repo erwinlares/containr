@@ -12,6 +12,7 @@ containr helps the process of containerizing R projects. Its core function, gene
 Useful links:
 \itemize{
   \item \url{https://github.com/erwinlares/containr}
+  \item \url{https://erwinlares.github.io/containr/}
   \item Report bugs at \url{https://github.com/erwinlares/containr/issues}
 }
 
