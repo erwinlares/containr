@@ -7,26 +7,6 @@
 
 <!-- badges: end -->
 
-The goal of containr is to …
-
-## Installation
-
-You can install the development version of containr from
-[GitHub](https://github.com/) with:
-
-``` r
-# install.packages("pak")
-pak::pak("erwinlares/containr")
-```
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-# containr
-
-<!-- badges: start -->
-
-<!-- badges: end -->
-
 The goal of containr is to help automate the process of containerizing R
 projects. Its core function, generate_dockerfile(), analyzes an R
 project’s environment and dependencies—via renv::renv.lock—and generates
