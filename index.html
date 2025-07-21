@@ -50,7 +50,7 @@
 </h1></div>
 <!-- badges: start -->
 <!-- badges: end -->
-<p>The goal of containr is to …</p>
+<p>The goal of containr is to help automate the process of containerizing R projects. Its core function, generate_dockerfile(), analyzes an R project’s environment and dependencies—via renv::renv.lock—and generates a ready-to-use Dockerfile that encapsulates the computational setup. The package is designed to assist researchers in building portable and consistent workflows, ensuring that analyses can be reliably shared, archived, and rerun across systems.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -58,28 +58,12 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"erwinlares/containr"</span><span class="op">)</span></span></code></pre></div>
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-</div>
-</div>
-<div class="section level1">
-<h1 id="containr-1">containr<a class="anchor" aria-label="anchor" href="#containr-1"></a>
-</h1>
-<!-- badges: start -->
-<!-- badges: end -->
-<p>The goal of containr is to help automate the process of containerizing R projects. Its core function, generate_dockerfile(), analyzes an R project’s environment and dependencies—via renv::renv.lock—and generates a ready-to-use Dockerfile that encapsulates the computational setup. The package is designed to assist researchers in building portable and consistent workflows, ensuring that analyses can be reliably shared, archived, and rerun across systems.</p>
-<div class="section level2">
-<h2 id="installation-1">Installation<a class="anchor" aria-label="anchor" href="#installation-1"></a>
-</h2>
-<p>You can install the development version of containr from <a href="https://github.com/" class="external-link">GitHub</a> with:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
-<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"erwinlares/containr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
 <p>This is a basic example which shows you how to solve a common problem:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/erwinlares/containr" class="external-link">containr</a></span><span class="op">)</span></span>
 <span><span class="co"># Generate a Dockerfile with the latest R version and the dependencies listed in renv.lock</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -97,7 +81,6 @@
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span>comments <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
-
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
