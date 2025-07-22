@@ -161,7 +161,7 @@ if(verbose == TRUE) {
 readr::write_lines(expose_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE) {readr::write_lines("# Expose port 8787, commonly used by RStudio Server", file = "Dockerfile", append = TRUE)}
 
-if(comments == TRUE) {readr::write_lines("#Run the container with
+if(comments == TRUE & r_version == "rstudio" ) {readr::write_lines("#Run the container with
 # docker run --rm -ti -e PASSWORD=yourpassword -p 8787:8787 rocker/rstudio
 #point your browser to localhost:8787
 #Log in with user/password rstudio/yourpassword", file = "Dockerfile", append = TRUE)}
