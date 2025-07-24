@@ -43,6 +43,8 @@
 <span>  r_version <span class="op">=</span> <span class="st">"latest"</span>,</span>
 <span>  data_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  code_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  misc_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  add_user <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  home_dir <span class="op">=</span> <span class="st">"/home"</span>,</span>
 <span>  install_quarto <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  expose_port <span class="op">=</span> <span class="st">"8787"</span>,</span>
@@ -64,11 +66,19 @@
 
 
 <dt id="arg-data-file">data_file<a class="anchor" aria-label="anchor" href="#arg-data-file"></a></dt>
-<dd><p>a character string indication an optional name of a data file to copied into the container</p></dd>
+<dd><p>a character string indicating an optional name of a data file to be copied into the container</p></dd>
 
 
 <dt id="arg-code-file">code_file<a class="anchor" aria-label="anchor" href="#arg-code-file"></a></dt>
-<dd><p>a character string indication an optional name of a script file to copied into the container</p></dd>
+<dd><p>a character string indicating an optional name of a script file to be copied into the container</p></dd>
+
+
+<dt id="arg-misc-file">misc_file<a class="anchor" aria-label="anchor" href="#arg-misc-file"></a></dt>
+<dd><p>a character string indicating an optional name of miscellaneous files to be copied into the container</p></dd>
+
+
+<dt id="arg-add-user">add_user<a class="anchor" aria-label="anchor" href="#arg-add-user"></a></dt>
+<dd><p>a character string indicating an optional name of a linux user to be created inside the container</p></dd>
 
 
 <dt id="arg-home-dir">home_dir<a class="anchor" aria-label="anchor" href="#arg-home-dir"></a></dt>
