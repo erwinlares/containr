@@ -9,6 +9,8 @@ generate_dockerfile(
   r_version = "latest",
   data_file = NULL,
   code_file = NULL,
+  misc_file = NULL,
+  add_user = NULL,
   home_dir = "/home",
   install_quarto = FALSE,
   expose_port = "8787",
@@ -21,9 +23,13 @@ generate_dockerfile(
 
 \item{r_version}{a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the latest version of R available}
 
-\item{data_file}{a character string indication an optional name of a data file to copied into the container}
+\item{data_file}{a character string indicating an optional name of a data file to be copied into the container}
 
-\item{code_file}{a character string indication an optional name of a script file to copied into the container}
+\item{code_file}{a character string indicating an optional name of a script file to be copied into the container}
+
+\item{misc_file}{a character string indicating an optional name of miscellaneous files to be copied into the container}
+
+\item{add_user}{a character string indicating an optional name of a linux user to be created inside the container}
 
 \item{home_dir}{a character string specifying the home directory inside the container}
 

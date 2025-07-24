@@ -2,13 +2,18 @@
 #'
 #' @param verbose logical (TRUE or FALSE). Should generate_dockerfile() print out progress? By default, it will silently create a Dockerfile
 #' @param r_version a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the latest version of R available
-#' @param data_file a character string indication an optional name of a data file to copied into the container
-#' @param code_file a character string indication an optional name of a script file to copied into the container
+#' @param data_file a character string indicating an optional name of a data file to be copied into the container
+#' @param code_file a character string indicating an optional name of a script file to be copied into the container
 #' @param home_dir a character string specifying the home directory inside the container
 #' @param install_quarto logical (TRUE or FALSE). If TRUE it will include supporting packages and system libraries to support Quarto and RMarkdown.
 #' @param expose_port a character string indicating in which port will RStudio Server be accessible. It defaults to 8787
 #' @param r_mode a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, tidyverse, rstudio for RStudio Server, tidystudio which is tidyverse plus TeX Live and some publishing-related R packages
+#'
 #' @param comments a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.
+#'
+#' @param misc_file a character string indicating an optional name of miscellaneous files to be copied into the container
+#'
+#' @param add_user a character string indicating an optional name of a linux user to be created inside the container
 #'
 #' @return invisibly returns NULL. This function is called for its side effects and does not return a value.
 #' @export
@@ -24,13 +29,15 @@ generate_dockerfile <- function(
         r_version = "latest",
         data_file = NULL,
         code_file = NULL,
+        misc_file = NULL,
+        add_user = NULL,
         home_dir = "/home",
         install_quarto = FALSE,
         expose_port = "8787",
         r_mode = "base",
         comments = FALSE){
 
-#I want IDE to be base, tidyverse, rstudio, tidystudio (BOTH)
+#I want IDE to be base, tidyverse, rstudio, tidystudio (BOTH rstudio and tidyverse)
 # I found the tidystudio version of the image is fuzzier than the other
 
     # Start from the latest RStudio Server image with R pre-installed
@@ -80,13 +87,49 @@ renv_lock_line <- glue::glue("COPY renv.lock /home/renv.lock")
 
 # Copy the dataset used in the analysis
 
-data_line <- ifelse(is.null(data_file), "", glue::glue("COPY {data_file} /home/data/{data_file}"))
+# data_line <- ifelse(is.null(data_file), "", glue::glue("COPY {data_file} /home/data/{basename(data_file)}"))
+
+data_line <- if (is.null(data_file) || length(data_file) == 0) {
+""
+} else {
+    purrr::map_chr(data_file, ~glue("COPY {.x} /home/data/{basename(.x)}"))
+}
 
 # Copy the code files (e.g., report or documentation)
-code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{code_file}"))
+# code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{basename(code_file)}"))
+
+code_line <- if (is.null(code_file) || length(code_file) == 0) {
+    ""
+} else {
+    purrr::map_chr(data_file, ~glue("COPY {.x} /home/{basename(.x)}"))
+}
+
+# Copy the miscellaneous files (e.g., images)
+# code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{basename(code_file)}"))
+
+misc_line <- if (is.null(misc_file) || length(misc_file) == 0) {
+    ""
+} else {
+    purrr::map_chr(data_file, ~glue("COPY {.x} /home/{basename(.x)}"))
+}
+
+# Copy the user file (e.g., report or documentation)
+# code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{basename(code_file)}"))
+
+user_line <- if (is.null(add_user) || length(add_user) == 0) {
+    ""
+} else {
+    purrr::map_chr(add_user, ~glue("RUN apt-get install -y sudo \
+&& useradd -m -d /home/{.x} -s /bin/bash {.x} \
+&& echo '{.x}:yourpassword' | chpasswd \
+&& echo '{.x} ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
+&& chown -R {.x}:{.x} /home/{.x}"))
+}
+
+
 
 # Expose the default port used by RStudio Server
-expose_line <- glue::glue("EXPOSE {expose_port}")
+ifelse(r_mode == "studio", expose_line <- glue::glue("EXPOSE {expose_port}"), expose_line <- "")
 
 ##########################
 # Building the Dockerfile
