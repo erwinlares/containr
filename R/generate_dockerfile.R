@@ -90,7 +90,7 @@ renv_lock_line <- glue::glue("COPY renv.lock /home/renv.lock")
 data_line <- if (is.null(data_file) || length(data_file) == 0) {
 ""
 } else {
-    purrr::map_chr(data_file, ~glue("COPY {.x} /home/data/{basename(.x)}"))
+    purrr::map_chr(data_file, ~glue::glue("COPY {.x} /home/data/{basename(.x)}"))
 }
 
 # Copy the optional code files (e.g., .qmd, .rmd, .R)
@@ -98,7 +98,7 @@ data_line <- if (is.null(data_file) || length(data_file) == 0) {
 code_line <- if (is.null(code_file) || length(code_file) == 0) {
     ""
 } else {
-    purrr::map_chr(data_file, ~glue("COPY {.x} /home/{basename(.x)}"))
+    purrr::map_chr(data_file, ~glue::glue("COPY {.x} /home/{basename(.x)}"))
 }
 
 # Copy the optional miscellaneous files (e.g., images, bash scripts, etc)
@@ -106,7 +106,7 @@ code_line <- if (is.null(code_file) || length(code_file) == 0) {
 misc_line <- if (is.null(misc_file) || length(misc_file) == 0) {
     ""
 } else {
-    purrr::map_chr(data_file, ~glue("COPY {.x} /home/{basename(.x)}"))
+    purrr::map_chr(data_file, ~glue::glue("COPY {.x} /home/{basename(.x)}"))
 }
 
 # Copy the optional user line (e.g., report or documentation)
@@ -114,7 +114,7 @@ misc_line <- if (is.null(misc_file) || length(misc_file) == 0) {
 user_line <- if (is.null(add_user) || length(add_user) == 0) {
     ""
 } else {
-    purrr::map_chr(add_user, ~glue("RUN apt-get install -y sudo \\
+    purrr::map_chr(add_user, ~glue::glue("RUN apt-get install -y sudo \\
 && useradd -m -d /home/{.x} -s /bin/bash {.x} \\
 && echo '{.x}:yourpassword' | chpasswd \\
 && echo '{.x} ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \\
