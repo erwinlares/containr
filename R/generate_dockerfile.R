@@ -202,7 +202,7 @@ if(comments == TRUE & !is.null(misc_line)) {readr::write_lines("# Optionally cop
 if(verbose == TRUE) {
     print("Installs renv and restores project library")
     Sys.sleep(0.5)}
-readr::write_lines(readr::read_lines("inst/install_and_restore_packages.sh"), file = "Dockerfile",append = TRUE)
+readr::write_lines(readr::read_lines("install_and_restore_packages.sh"), file = "Dockerfile",append = TRUE)
 if(comments == TRUE) {readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
