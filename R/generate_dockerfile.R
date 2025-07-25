@@ -155,14 +155,14 @@ if(verbose == TRUE) {
     print("Create additional Linux user")
     Sys.sleep(0.5)}
 readr::write_lines(user_line, file = "Dockerfile", append = TRUE)
-if(comments == TRUE & !add_user == "") {
+if(comments == TRUE & !is.null(add_user)) {
     readr::write_lines("# Create the Linux user", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
     print("Install Quarto and Markdown support")
     Sys.sleep(0.5)}
 readr::write_lines(quarto_install_line, file = "Dockerfile", append = TRUE)
-if(comments == TRUE & !quarto_install_line == "") {
+if(comments == TRUE & quarto_install_line == TRUE) {
     readr::write_lines("#Install required packages and libraries for Quarto and Rmarkdown", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
@@ -183,19 +183,19 @@ if(verbose == TRUE) {
     print("If required, copy data files from the host into the container")
     Sys.sleep(0.5)}
 readr::write_lines(data_line, file = "Dockerfile", append = TRUE)
-if(comments == TRUE & !data_line == "" ) {readr::write_lines("# Optionally copy data files from the host into the container", file = "Dockerfile", append = TRUE)}
+if(comments == TRUE & !is.null(data_file) ) {readr::write_lines("# Optionally copy data files from the host into the container", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
     print("If required, copy code files from the host into the container")
     Sys.sleep(0.5)}
 readr::write_lines(code_line, file = "Dockerfile", append = TRUE)
-if(comments == TRUE & !code_line == "") {readr::write_lines("# Optionally copy script files from the host into the container", file = "Dockerfile", append = TRUE)}
+if(comments == TRUE & !is.null(code_line)) {readr::write_lines("# Optionally copy script files from the host into the container", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
     print("If required, copy miscellaneous files from the host into the container")
     Sys.sleep(0.5)}
 readr::write_lines(misc_file, file = "Dockerfile", append = TRUE)
-if(comments == TRUE & !code_line == "") {readr::write_lines("# Optionally copy additiional files into the container", file = "Dockerfile", append = TRUE)}
+if(comments == TRUE & !is.null(misc_line)) {readr::write_lines("# Optionally copy additiional files into the container", file = "Dockerfile", append = TRUE)}
 
 # Install the renv package from Posit's CRAN mirror & Restore the R package environment using the renv lockfile is tricky because there is more than two layers of quotations involved.
 
