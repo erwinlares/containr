@@ -78,16 +78,14 @@ system_lib_line <- glue::glue("RUN apt-get update && apt-get install -y \\
     && rm -rf /var/lib/apt/lists/*")
 
 # Download and install the Quarto CLI for rendering .qmd files
-ifelse(install_quarto == TRUE, quarto_install_line <- glue::glue("RUN wget -q https://quarto.org/download/latest/quarto-linux-amd64.deb \
+quarto_install_line <- ifelse(install_quarto == TRUE, glue::glue("RUN wget -q https://quarto.org/download/latest/quarto-linux-amd64.deb \
     && gdebi --non-interactive quarto-linux-amd64.deb \
-    && rm quarto-linux-amd64.deb"), quarto_install_line <- "")
+    && rm quarto-linux-amd64.deb"), "")
 
 # Copy the renv lockfile for reproducible R package environments
 renv_lock_line <- glue::glue("COPY renv.lock /home/renv.lock")
 
-# Copy the dataset used in the analysis
-
-# data_line <- ifelse(is.null(data_file), "", glue::glue("COPY {data_file} /home/data/{basename(data_file)}"))
+# Copy the optional datafile used in the analysis
 
 data_line <- if (is.null(data_file) || length(data_file) == 0) {
 ""
@@ -95,8 +93,7 @@ data_line <- if (is.null(data_file) || length(data_file) == 0) {
     purrr::map_chr(data_file, ~glue("COPY {.x} /home/data/{basename(.x)}"))
 }
 
-# Copy the code files (e.g., report or documentation)
-# code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{basename(code_file)}"))
+# Copy the optional code files (e.g., .qmd, .rmd, .R)
 
 code_line <- if (is.null(code_file) || length(code_file) == 0) {
     ""
@@ -104,8 +101,7 @@ code_line <- if (is.null(code_file) || length(code_file) == 0) {
     purrr::map_chr(data_file, ~glue("COPY {.x} /home/{basename(.x)}"))
 }
 
-# Copy the miscellaneous files (e.g., images)
-# code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{basename(code_file)}"))
+# Copy the optional miscellaneous files (e.g., images, bash scripts, etc)
 
 misc_line <- if (is.null(misc_file) || length(misc_file) == 0) {
     ""
@@ -113,34 +109,32 @@ misc_line <- if (is.null(misc_file) || length(misc_file) == 0) {
     purrr::map_chr(data_file, ~glue("COPY {.x} /home/{basename(.x)}"))
 }
 
-# Copy the user file (e.g., report or documentation)
-# code_line <- ifelse(is.null(code_file), "", glue::glue("COPY {code_file} /home/{basename(code_file)}"))
+# Copy the optional user line (e.g., report or documentation)
 
 user_line <- if (is.null(add_user) || length(add_user) == 0) {
     ""
 } else {
-    purrr::map_chr(add_user, ~glue("RUN apt-get install -y sudo \
-&& useradd -m -d /home/{.x} -s /bin/bash {.x} \
-&& echo '{.x}:yourpassword' | chpasswd \
-&& echo '{.x} ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
+    purrr::map_chr(add_user, ~glue("RUN apt-get install -y sudo \\
+&& useradd -m -d /home/{.x} -s /bin/bash {.x} \\
+&& echo '{.x}:yourpassword' | chpasswd \\
+&& echo '{.x} ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \\
 && chown -R {.x}:{.x} /home/{.x}"))
 }
 
 
-
 # Expose the default port used by RStudio Server
-ifelse(r_mode == "studio", expose_line <- glue::glue("EXPOSE {expose_port}"), expose_line <- "")
+expose_line <- ifelse(r_mode == "studio", glue::glue("EXPOSE {expose_port}"), "")
 
 ##########################
 # Building the Dockerfile
 ##########################
 
 if(verbose == TRUE) {
-    print("Start from the latest RStudio Server image with R pre-installed")
+    print("Start from the Rocker project image")
     Sys.sleep(0.5)}
 readr::write_lines(base_line, file = "Dockerfile")
 if(comments == TRUE) {
-    readr::write_lines("# Use the latest base image maintained by the Rocker project", file = "Dockerfile", append = TRUE)}
+    readr::write_lines("# Use the base image maintained by the Rocker project", file = "Dockerfile", append = TRUE)}
 
 
 if(verbose == TRUE) {
@@ -150,14 +144,6 @@ readr::write_lines(non_interactive_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE) {
     readr::write_lines("# Suppress interactive prompts during package installation", file = "Dockerfile", append = TRUE)}
 
-
-if(verbose == TRUE) {
-    print(glue::glue("Set working directory to {home_dir}"))
-    Sys.sleep(0.5)}
-readr::write_lines(working_dir_line, file = "Dockerfile", append = TRUE)
-if(comments == TRUE) {
-    readr::write_lines("# Set the working directory inside the container", file = "Dockerfile", append = TRUE)}
-
 if(verbose == TRUE) {
     print("Install system libraries required for common R packages")
     Sys.sleep(0.5)}
@@ -166,11 +152,26 @@ if(comments == TRUE) {
     readr::write_lines("# Update package lists and install system libraries needed for common R packages, then clean up to reduce image size", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
+    print("Create additional Linux user")
+    Sys.sleep(0.5)}
+readr::write_lines(user_line, file = "Dockerfile", append = TRUE)
+if(comments == TRUE & !add_user == "") {
+    readr::write_lines("# Create the Linux user", file = "Dockerfile", append = TRUE)}
+
+if(verbose == TRUE) {
     print("Install Quarto and Markdown support")
     Sys.sleep(0.5)}
 readr::write_lines(quarto_install_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE & !quarto_install_line == "") {
     readr::write_lines("#Install required packages and libraries for Quarto and Rmarkdown", file = "Dockerfile", append = TRUE)}
+
+if(verbose == TRUE) {
+    print(glue::glue("Set working directory to {home_dir}"))
+    Sys.sleep(0.5)}
+readr::write_lines(working_dir_line, file = "Dockerfile", append = TRUE)
+if(comments == TRUE) {
+    readr::write_lines("# Set the working directory inside the container", file = "Dockerfile", append = TRUE)}
+
 
 if(verbose == TRUE) {
     print("Copy renv.lock files")
@@ -190,12 +191,18 @@ if(verbose == TRUE) {
 readr::write_lines(code_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE & !code_line == "") {readr::write_lines("# Optionally copy script files from the host into the container", file = "Dockerfile", append = TRUE)}
 
+if(verbose == TRUE) {
+    print("If required, copy miscellaneous files from the host into the container")
+    Sys.sleep(0.5)}
+readr::write_lines(misc_file, file = "Dockerfile", append = TRUE)
+if(comments == TRUE & !code_line == "") {readr::write_lines("# Optionally copy additiional files into the container", file = "Dockerfile", append = TRUE)}
+
 # Install the renv package from Posit's CRAN mirror & Restore the R package environment using the renv lockfile is tricky because there is more than two layers of quotations involved.
 
 if(verbose == TRUE) {
     print("Installs renv and restores project library")
     Sys.sleep(0.5)}
-readr::write_lines(readr::read_lines("install_and_restore_packages.sh"), file = "Dockerfile",append = TRUE)
+readr::write_lines(readr::read_lines("inst/install_and_restore_packages.sh"), file = "Dockerfile",append = TRUE)
 if(comments == TRUE) {readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
@@ -204,10 +211,10 @@ if(verbose == TRUE) {
 readr::write_lines(expose_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE) {readr::write_lines("# Expose port 8787, commonly used by RStudio Server", file = "Dockerfile", append = TRUE)}
 
-if(comments == TRUE & r_mode == "rstudio" ) {readr::write_lines("#Run the container with
-# docker run --rm -ti -e PASSWORD=yourpassword -p 8787:8787 rocker/rstudio
-#point your browser to localhost:8787
-#Log in with user/password rstudio/yourpassword", file = "Dockerfile", append = TRUE)}
+if(comments == TRUE & r_mode == "rstudio" ) {readr::write_lines(
+"#Run the container with docker run --rm -ti -u root -e PASSWORD=yourpassword -p 8787:8787 yourimage point your browser to localhost:8787 Log in with user/password rstudio/yourpassword",
+file = "Dockerfile",
+append = TRUE)}
 
 }
 
