@@ -205,7 +205,6 @@ if(verbose == TRUE) {
 
 readr::write_lines(readr::read_lines(system.file("install_and_restore_packages.sh", package = "containr")), file = "Dockerfile", append = TRUE)
 
-# readr::write_lines(readr::read_lines("inst/install_and_restore_packages.sh"), file = "Dockerfile",append = TRUE)
 if(comments == TRUE) {readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)}
 
 if(verbose == TRUE) {
