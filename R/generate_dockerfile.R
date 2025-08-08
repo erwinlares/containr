@@ -204,7 +204,11 @@ if(verbose == TRUE) {
     Sys.sleep(0.5)}
 
 
-readr::write_lines(readr::read_lines(system.file("install_and_restore_packages.sh", package = "containr")), file = "Dockerfile", append = TRUE)
+readr::write_lines(readr::read_lines(system.file("extdata",
+                                                 "install_and_restore_packages.sh",
+                                                 package = "containr")),
+                   file = "Dockerfile",
+                   append = TRUE)
 
 
 if(comments == TRUE) {readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)}
