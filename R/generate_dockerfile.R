@@ -203,7 +203,10 @@ if(verbose == TRUE) {
     print("Installs renv and restores project library")
     Sys.sleep(0.5)}
 
-readr::write_lines(readr::read_lines(system.file("install_and_restore_packages.sh", package = "containr")), file = "Dockerfile", append = TRUE)
+file_path <- system.file("install_and_restore_packages.sh", package = "containr")
+if (file_path == "") stop("STILL NOT WORKING!!!")
+readr::write_lines(readr::read_lines(file_path), file = "Dockerfile", append = TRUE)
+rm(file_path)
 
 if(comments == TRUE) {readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)}
 
