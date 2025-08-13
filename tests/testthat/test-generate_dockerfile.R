@@ -1,11 +1,10 @@
-test_that("multiplication works", {
-  expect_equal(2 * 2, 4)
+## Check the two assumptions: (1) it is an R project, and (2) there is a renv.lock files listing all file dependencies
+
+test_that("Folder is a proper R project", {
+    expect_true(any(grepl("\\.Rproj$", list.files(path = here::here()))))
 })
 
-# test_that("Folder is a proper R project", {
-#     expect_equal(any(grepl("\\.Rproj$", list.files(path = "."))), TRUE)
-# })
-#
-# test_that("Project folder contains a .lock file managing package dependencies", {
-#     expect_equal(file.exists("./renv.lock"), TRUE)
-# })
+
+test_that("Project folder contains a .lock file managing package dependencies", {
+    expect_true(file.exists(here::here("renv.lock")))
+})
