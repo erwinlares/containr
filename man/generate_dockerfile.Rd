@@ -37,7 +37,7 @@ generate_dockerfile(
 
 \item{expose_port}{a character string indicating in which port will RStudio Server be accessible. It defaults to 8787}
 
-\item{r_mode}{a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, tidyverse, rstudio for RStudio Server, tidystudio which is tidyverse plus TeX Live and some publishing-related R packages}
+\item{r_mode}{a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, "tidyverse", "rstudio" for RStudio Server, and "tidystudio" which is tidyverse plus TeX Live and some publishing-related R packages}
 
 \item{comments}{a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.}
 }

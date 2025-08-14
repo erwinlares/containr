@@ -26,7 +26,7 @@
 #' \dontrun{generate_dockerfile(r_version = "4.2.0")}
 generate_dockerfile <- function(
         verbose = FALSE,
-        r_version = "latest",
+        r_version = "current",
         data_file = NULL,
         code_file = NULL,
         misc_file = NULL,
@@ -43,12 +43,13 @@ generate_dockerfile <- function(
     # Start from the latest RStudio Server image with R pre-installed
 
 base_line <- dplyr::case_when(
-    r_mode == "base" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
-    r_mode == "tidyverse" ~ glue::glue("FROM rocker/tidyverse:{r_version}"),
-    r_mode == "rstudio" ~ glue::glue("FROM rocker/rstudio:{r_version}"),
-    r_mode == "tidystudio" ~ glue::glue("FROM rocker/verse:{r_version}"),
-        is.na(r_mode) ~ "base",
-    .default = "base")
+    r_mode == "current" ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
+    r_mode == "latest" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
+    r_mode == "tidyverse" ~ glue::glue("FROM rocker/tidyverse:{getRversion()}"),
+    r_mode == "rstudio" ~ glue::glue("FROM rocker/rstudio:{getRversion()}"),
+    r_mode == "tidystudio" ~ glue::glue("FROM rocker/verse:{getRversion()}"),
+        is.na(r_mode) ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
+    .default = glue::glue("FROM rocker/r-ver:{getRversion()}"))
 
 # base_line <- glue::glue("FROM rocker/rstudio:{r_version}")
 # Prevent interactive prompts during package installation
