@@ -6,7 +6,7 @@
 \usage{
 generate_dockerfile(
   verbose = FALSE,
-  r_version = "latest",
+  r_version = "current",
   data_file = NULL,
   code_file = NULL,
   misc_file = NULL,
