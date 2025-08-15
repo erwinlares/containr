@@ -43,12 +43,13 @@ generate_dockerfile <- function(
     # Start from the latest RStudio Server image with R pre-installed
 
 base_line <- dplyr::case_when(
-    r_mode == "current" ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
-    r_mode == "latest" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
-    r_mode == "tidyverse" ~ glue::glue("FROM rocker/tidyverse:{getRversion()}"),
-    r_mode == "rstudio" ~ glue::glue("FROM rocker/rstudio:{getRversion()}"),
+    r_version == "current" ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
+    r_latest == "latest" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
+    r_mode == "tidyverse" & r_version == "current" ~ glue::glue("FROM rocker/tidyverse:{getRversion()}"),
+    r_mode == "tidyverse" & r_version == "latest" ~ glue::glue("FROM rocker/tidyverse:{r_version}"),
+    r_mode == "rstudio"& r_version = "current" ~ glue::glue("FROM rocker/rstudio:{getRversion()}"),
+    r_mode == "rstudio"& r_version = "latest" ~ glue::glue("FROM rocker/rstudio:{r_version}"),
     r_mode == "tidystudio" ~ glue::glue("FROM rocker/verse:{getRversion()}"),
-        is.na(r_mode) ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
     .default = glue::glue("FROM rocker/r-ver:{getRversion()}"))
 
 # base_line <- glue::glue("FROM rocker/rstudio:{r_version}")
@@ -124,7 +125,7 @@ user_line <- if (is.null(add_user) || length(add_user) == 0) {
 
 
 # Expose the default port used by RStudio Server
-expose_line <- ifelse(r_mode == "studio", glue::glue("EXPOSE {expose_port}"), "")
+expose_line <- ifelse(r_mode == "rstudio", glue::glue("EXPOSE {expose_port}"), "")
 
 ##########################
 # Building the Dockerfile
