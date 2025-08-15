@@ -44,13 +44,12 @@ generate_dockerfile <- function(
 
 base_line <- dplyr::case_when(
     r_version == "current" ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
-    r_latest == "latest" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
+    r_version == "latest" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
     r_mode == "tidyverse" & r_version == "current" ~ glue::glue("FROM rocker/tidyverse:{getRversion()}"),
     r_mode == "tidyverse" & r_version == "latest" ~ glue::glue("FROM rocker/tidyverse:{r_version}"),
     r_mode == "rstudio" & r_version == "current" ~ glue::glue("FROM rocker/rstudio:{getRversion()}"),
     r_mode == "rstudio"& r_version == "latest" ~ glue::glue("FROM rocker/rstudio:{r_version}"),
-    r_mode == "tidystudio" ~ glue::glue("FROM rocker/verse:{getRversion()}"),
-    .default = glue::glue("FROM rocker/r-ver:{getRversion()}"))
+    r_mode == "tidystudio" ~ glue::glue("FROM rocker/verse:{getRversion()}"))
 
 # base_line <- glue::glue("FROM rocker/rstudio:{r_version}")
 # Prevent interactive prompts during package installation
