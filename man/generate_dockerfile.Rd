@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate_dockerfile.R
 \name{generate_dockerfile}
 \alias{generate_dockerfile}
-\title{Generate a Dockerfile for your R project}
+\title{Generate a reproducible Dockerfile for R projects}
 \usage{
 generate_dockerfile(
   verbose = FALSE,
@@ -21,7 +21,7 @@ generate_dockerfile(
 \arguments{
 \item{verbose}{logical (TRUE or FALSE). Should generate_dockerfile() print out progress? By default, it will silently create a Dockerfile}
 
-\item{r_version}{a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the latest version of R available}
+\item{r_version}{a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the version of R from the current session}
 
 \item{data_file}{a character string indicating an optional name of a data file to be copied into the container}
 
@@ -45,7 +45,7 @@ generate_dockerfile(
 invisibly returns NULL. This function is called for its side effects and does not return a value.
 }
 \description{
-Generate a Dockerfile for your R project
+Creates a customizable Dockerfile tailored to R-based workflows, supporting multiple Rocker images (base R, tidyverse, RStudio Server, and publishing-ready configurations). The function allows inclusion of data, code, and miscellaneous files, sets up system libraries, optionally installs Quarto, and configures user access. It supports verbose output and inline comments for transparency and educational use. Designed to streamline containerization for reproducible research and deployment.
 }
 \examples{
 # Basic Usage

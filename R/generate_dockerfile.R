@@ -1,7 +1,8 @@
-#' Generate a Dockerfile for your R project
+#' Generate a reproducible Dockerfile for R projects
 #'
+#' Creates a customizable Dockerfile tailored to R-based workflows, supporting multiple Rocker images (base R, tidyverse, RStudio Server, and publishing-ready configurations). The function allows inclusion of data, code, and miscellaneous files, sets up system libraries, optionally installs Quarto, and configures user access. It supports verbose output and inline comments for transparency and educational use. Designed to streamline containerization for reproducible research and deployment.
 #' @param verbose logical (TRUE or FALSE). Should generate_dockerfile() print out progress? By default, it will silently create a Dockerfile
-#' @param r_version a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the latest version of R available
+#' @param r_version a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the version of R from the current session
 #' @param data_file a character string indicating an optional name of a data file to be copied into the container
 #' @param code_file a character string indicating an optional name of a script file to be copied into the container
 #' @param home_dir a character string specifying the home directory inside the container
@@ -43,13 +44,22 @@ generate_dockerfile <- function(
     # Start from the latest RStudio Server image with R pre-installed
 
 base_line <- dplyr::case_when(
-    r_version == "current" ~ glue::glue("FROM rocker/r-ver:{getRversion()}"),
-    r_version == "latest" ~ glue::glue("FROM rocker/r-ver:{r_version}"),
-    r_mode == "tidyverse" & r_version == "current" ~ glue::glue("FROM rocker/tidyverse:{getRversion()}"),
-    r_mode == "tidyverse" & r_version == "latest" ~ glue::glue("FROM rocker/tidyverse:{r_version}"),
-    r_mode == "rstudio" & r_version == "current" ~ glue::glue("FROM rocker/rstudio:{getRversion()}"),
-    r_mode == "rstudio"& r_version == "latest" ~ glue::glue("FROM rocker/rstudio:{r_version}"),
-    r_mode == "tidystudio" ~ glue::glue("FROM rocker/verse:{getRversion()}"))
+    (r_mode == "base" & r_version == "current") ~
+        glue::glue("FROM rocker/r-ver:{getRversion()}"),
+    (r_mode == "base" & r_version == "latest") ~
+        glue::glue("FROM rocker/r-ver:{r_version}"),
+    (r_mode == "tidyverse" & r_version == "current") ~
+        glue::glue("FROM rocker/tidyverse:{getRversion()}"),
+    (r_mode == "tidyverse" & r_version == "latest") ~
+        glue::glue("FROM rocker/tidyverse:{r_version}"),
+    (r_mode == "rstudio" & r_version == "current") ~
+        glue::glue("FROM rocker/rstudio:{getRversion()}"),
+    (r_mode == "rstudio" & r_version == "latest") ~
+        glue::glue("FROM rocker/rstudio:{r_version}"),
+    r_mode == "tidystudio" & r_version == "current" ~
+        glue::glue("FROM rocker/verse:{getRversion()}"),
+    r_mode == "tidystudio" & r_version == "latest" ~
+        glue::glue("FROM rocker/verse:{r_version}"))
 
 # base_line <- glue::glue("FROM rocker/rstudio:{r_version}")
 # Prevent interactive prompts during package installation
