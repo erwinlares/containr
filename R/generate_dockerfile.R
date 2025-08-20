@@ -41,27 +41,49 @@ generate_dockerfile <- function(
 #I want IDE to be base, tidyverse, rstudio, tidystudio (BOTH rstudio and tidyverse)
 # I found the tidystudio version of the image is fuzzier than the other
 
-    # Start from the latest RStudio Server image with R pre-installed
+# Start from the latest RStudio Server image with R pre-installed
 
-if(!r_ver_exists(r_version)) stop("Requested R version does not exist. Check https://rocker-project.org/images/versioned/r-ver")
 
-base_line <- dplyr::case_when(
-    (r_mode == "base" & r_version == "current") ~
-        glue::glue("FROM rocker/r-ver:{getRversion()}"),
-    (r_mode == "base" & r_version == "latest") ~
-        glue::glue("FROM rocker/r-ver:{r_version}"),
-    (r_mode == "tidyverse" & r_version == "current") ~
-        glue::glue("FROM rocker/tidyverse:{getRversion()}"),
-    (r_mode == "tidyverse" & r_version == "latest") ~
-        glue::glue("FROM rocker/tidyverse:{r_version}"),
-    (r_mode == "rstudio" & r_version == "current") ~
-        glue::glue("FROM rocker/rstudio:{getRversion()}"),
-    (r_mode == "rstudio" & r_version == "latest") ~
-        glue::glue("FROM rocker/rstudio:{r_version}"),
-    r_mode == "tidystudio" & r_version == "current" ~
-        glue::glue("FROM rocker/verse:{getRversion()}"),
-    r_mode == "tidystudio" & r_version == "latest" ~
-        glue::glue("FROM rocker/verse:{r_version}"))
+# Resolve "current" to actual R version
+resolved_version <- if (r_version == "current") as.character(getRversion()) else r_version
+
+# Ensure that the r_version argument is a supported version
+if(!r_ver_exists(resolved_version)) stop("Requested R version does not exist. Check https://rocker-project.org/images/versioned/r-ver")
+
+# Map r_mode to appropriate Rocker image prefix
+image_prefix <- dplyr::case_when(
+    r_mode == "base"       ~ "rocker/r-ver",
+    r_mode == "tidyverse"  ~ "rocker/tidyverse",
+    r_mode == "rstudio"    ~ "rocker/rstudio",
+    r_mode == "tidystudio" ~ "rocker/verse",
+    .default = NA)
+
+if(is.na(image_prefix)) stop("Invalid r_mode. Valid choices are 'base', 'rstudio, 'tidyverse', and 'tidystudio'")
+
+# Construct Docker base line
+base_line <- glue::glue("FROM {image_prefix}:{resolved_version}")
+
+
+# base_line <- dplyr::case_when(
+#     (r_mode == "base" & r_version == "current") ~
+#         glue::glue("FROM rocker/r-ver:{getRversion()}"),
+#     (r_mode == "base" & r_version == "latest") ~
+#         glue::glue("FROM rocker/r-ver:latest"),
+#
+#     (r_mode == "tidyverse" & r_version == "current") ~
+#         glue::glue("FROM rocker/tidyverse:{getRversion()}"),
+#     (r_mode == "tidyverse" & r_version == "latest") ~
+#         glue::glue("FROM rocker/tidyverse:{r_version}"),
+#
+#     (r_mode == "rstudio" & r_version == "current") ~
+#         glue::glue("FROM rocker/rstudio:{getRversion()}"),
+#     (r_mode == "rstudio" & r_version == "latest") ~
+#         glue::glue("FROM rocker/rstudio:{r_version}"),
+#
+#     r_mode == "tidystudio" & r_version == "current" ~
+#         glue::glue("FROM rocker/verse:{getRversion()}"),
+#     r_mode == "tidystudio" & r_version == "latest" ~
+#         glue::glue("FROM rocker/verse:{r_version}"))
 
 # base_line <- glue::glue("FROM rocker/rstudio:{r_version}")
 # Prevent interactive prompts during package installation
