@@ -43,6 +43,8 @@ generate_dockerfile <- function(
 
     # Start from the latest RStudio Server image with R pre-installed
 
+if(!r_ver_exists(r_version)) stop("Requested R version does not exist. Check https://rocker-project.org/images/versioned/r-ver")
+
 base_line <- dplyr::case_when(
     (r_mode == "base" & r_version == "current") ~
         glue::glue("FROM rocker/r-ver:{getRversion()}"),
