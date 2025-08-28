@@ -133,7 +133,7 @@ data_line <- if (is.null(data_file) || length(data_file) == 0) {
 code_line <- if (is.null(code_file) || length(code_file) == 0) {
     ""
 } else {
-    purrr::map_chr(data_file, ~glue::glue("COPY {.x} /home/{basename(.x)}"))
+    purrr::map_chr(code_file, ~glue::glue("COPY {.x} /home/{basename(.x)}"))
 }
 
 # Copy the optional miscellaneous files (e.g., images, bash scripts, etc)
@@ -141,7 +141,7 @@ code_line <- if (is.null(code_file) || length(code_file) == 0) {
 misc_line <- if (is.null(misc_file) || length(misc_file) == 0) {
     ""
 } else {
-    purrr::map_chr(data_file, ~glue::glue("COPY {.x} /home/{basename(.x)}"))
+    purrr::map_chr(misc_file, ~glue::glue("COPY {.x} /home/{basename(.x)}"))
 }
 
 # Copy the optional user line (e.g., report or documentation)

@@ -16,7 +16,6 @@ Config/testthat/edition: 3
 Imports: 
     dplyr,
     glue,
-    here,
     purrr,
     readr, 
-    here
+    httr
