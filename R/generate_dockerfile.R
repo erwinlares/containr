@@ -229,7 +229,7 @@ if(comments == TRUE & !is.null(code_line)) {readr::write_lines("# Optionally cop
 if(verbose == TRUE) {
     print("If required, copy miscellaneous files from the host into the container")
     Sys.sleep(0.5)}
-readr::write_lines(misc_file, file = "Dockerfile", append = TRUE)
+readr::write_lines(misc_line, file = "Dockerfile", append = TRUE)
 if(comments == TRUE & !is.null(misc_line)) {readr::write_lines("# Optionally copy additiional files into the container", file = "Dockerfile", append = TRUE)}
 
 # Install the renv package from Posit's CRAN mirror & Restore the R package environment using the renv lockfile is tricky because there is more than two layers of quotations involved.
