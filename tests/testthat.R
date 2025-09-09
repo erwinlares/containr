@@ -8,5 +8,6 @@
 
 library(testthat)
 library(containr)
+library(here)
 
 test_check("containr")
