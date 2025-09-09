@@ -6,3 +6,4 @@
 .quarto
 docs
 renv.lock
+inst/doc
