@@ -15,6 +15,7 @@ generate_dockerfile(
   install_quarto = FALSE,
   expose_port = "8787",
   r_mode = "base",
+  install_syslibs = TRUE,
   comments = FALSE
 )
 }
@@ -39,6 +40,8 @@ generate_dockerfile(
 
 \item{r_mode}{a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, "tidyverse", "rstudio" for RStudio Server, and "tidystudio" which is tidyverse plus TeX Live and some publishing-related R packages}
 
+\item{install_syslibs}{logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.}
+
 \item{comments}{a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.}
 }
 \value{
@@ -49,9 +52,15 @@ Creates a customizable Dockerfile tailored to R-based workflows, supporting mult
 }
 \examples{
 # Basic Usage
-\dontrun{generate_dockerfile()}
+\dontrun{
+generate_dockerfile()
+}
 # Specify a tidyverse ready image
-\dontrun{generate_dockerfile(r_mode = "tidyverse")}
+\dontrun{
+generate_dockerfile(r_mode = "tidyverse")
+}
 # Specify an image with R 4.2.0 installed
-\dontrun{generate_dockerfile(r_version = "4.2.0")}
+\dontrun{
+generate_dockerfile(r_version = "4.2.0")
+}
 }
