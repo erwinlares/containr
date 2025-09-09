@@ -47,7 +47,7 @@ r_ver_exists <- function(version, r_mode = "base", verbose = FALSE) {
     exists <- version %in% tag_info$tags
 
     if (verbose) {
-        msg <- if (exists) "✅ Version exists:" else "❌ Version not found:"
+        msg <- if (exists) "Version exist" else "Version not found"
         message(msg, " ", version, " in ", tag_info$image)
     }
 
