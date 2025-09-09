@@ -1,0 +1,112 @@
+---
+title: "Getting Started with containr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with containr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+The `containr` package provides tools to simplify the creation of reproducible container environments for R projects.  
+The main entry point is the `generate_dockerfile()` function, which scaffolds a Dockerfile tailored to your R workflow.
+
+This vignette walks through a minimal example to get you started.
+
+# Installing containr
+
+You can install the development version of containr from GitHub:
+
+```{r}
+pak::pak("erwinlares/containr")
+
+```
+
+Then load it:
+
+```{r}
+library(containr)
+```
+
+# Generating a Dockerfile
+
+The simplest way to create a Dockerfile is by calling `generate_dockerfile()` without arguments:
+
+```{r}
+generate_dockerfile()
+```
+
+This writes a `Dockerfile` in your current working directory, with sensible defaults for most R projects.
+
+## Customizing your Dockerfile
+
+You can customize the generated Dockerfile by adjusting arguments:
+
+- `r_version`: R version to install (default: your current session version)
+- `data_file`, `code_file`, `misc_file`: files to copy into the container
+- `add_user`: optional Linux user to create in the container
+- `home_dir`: location of the user’s home directory
+- `install_quarto`: whether to install Quarto
+- `expose_port`: which port to expose (default: "8787" for RStudio Server)
+- `r_mode`: type of Rocker image ("base", "tidyverse", "rstudio", "verse", etc.)
+- `install_syslibs`: whether to install common system libraries
+- `comments`: whether to include inline explanatory comments
+- `verbose`: whether to print progress as the Dockerfile is generated
+
+For example:
+
+```{r}
+generate_dockerfile(
+  r_version = "4.3.0",
+  r_mode = "rstudio",
+  add_user = "erwin.lares",
+  home_dir = "/home",
+  install_quarto = TRUE,
+  expose_port = "8787",
+  comments = TRUE,
+  verbose = TRUE
+)
+```
+
+This creates a Dockerfile that installs R 4.3.0, uses a Rocker image with RStudio Server, sets up a custom user, installs Quarto, and exposes port 8787 with inline comments.
+
+# Building and Running Your Image
+
+Once you’ve generated the Dockerfile, you can build the container using Docker:
+
+```{bash}
+# docker build -t myproject .
+```
+
+Run it interactively:
+
+```{bash}
+# docker run --rm -ti myproject R
+```
+
+Or start RStudio Server:
+
+```{bash}
+
+# docker run --rm -p 8787:8787 myproject
+```
+
+# Next Steps
+
+- Explore `r_mode` for different Rocker image flavors.
+- Add your own files (`data_file`, `code_file`, `misc_file`) for portable workflows.
+- Enable `install_quarto = TRUE` if your project uses Quarto or R Markdown.
+- Use `comments = TRUE` to generate annotated Dockerfiles for teaching or transparency.
+
+# Conclusion
+
+With just a few lines of R, `containr::generate_dockerfile()` helps you go from a local R project to a portable container specification.  
+This lowers the barrier to reproducibility and deployment, making your R work easier to share and sustain.
