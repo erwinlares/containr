@@ -8,7 +8,7 @@ test_that("Folder is recognized as an R project when a .Rproj file exists", {
     rproj <- file.path(tmp, "example.Rproj")
     writeLines("", rproj)
 
-    # assertion using the temp path (avoid here::here() which always points to repo root)
+    # assertion using the temp path
     has_rproj <- any(grepl("\\.Rproj$", list.files(path = tmp, all.files = TRUE)))
     expect_true(has_rproj)
 })
