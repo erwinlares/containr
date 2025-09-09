@@ -25,14 +25,15 @@ This vignette walks through a minimal example to get you started.
 
 You can install the development version of containr from GitHub:
 
-```{r}
+```{r eval=FALSE}
+
 pak::pak("erwinlares/containr")
 
 ```
 
 Then load it:
 
-```{r}
+```{r eval=FALSE}
 library(containr)
 ```
 
@@ -40,7 +41,7 @@ library(containr)
 
 The simplest way to create a Dockerfile is by calling `generate_dockerfile()` without arguments:
 
-```{r}
+```{r eval=FALSE}
 generate_dockerfile()
 ```
 
@@ -63,7 +64,7 @@ You can customize the generated Dockerfile by adjusting arguments:
 
 For example:
 
-```{r}
+```{r eval=FALSE}
 generate_dockerfile(
   r_version = "4.3.0",
   r_mode = "rstudio",
