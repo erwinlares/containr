@@ -48,6 +48,7 @@
 <span>  install_quarto <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  expose_port <span class="op">=</span> <span class="st">"8787"</span>,</span>
 <span>  r_mode <span class="op">=</span> <span class="st">"base"</span>,</span>
+<span>  install_syslibs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  comments <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -96,6 +97,10 @@
 <dd><p>a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, "tidyverse", "rstudio" for RStudio Server, and "tidystudio" which is tidyverse plus TeX Live and some publishing-related R packages</p></dd>
 
 
+<dt id="arg-install-syslibs">install_syslibs<a class="anchor" aria-label="anchor" href="#arg-install-syslibs"></a></dt>
+<dd><p>logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.</p></dd>
+
+
 <dt id="arg-comments">comments<a class="anchor" aria-label="anchor" href="#arg-comments"></a></dt>
 <dd><p>a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.</p></dd>
 
@@ -108,11 +113,17 @@
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Basic Usage</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="fu">generate_dockerfile</span><span class="op">(</span><span class="op">)</span> <span class="co"># \dontrun{}</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span><span class="co"># Specify a tidyverse ready image</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="fu">generate_dockerfile</span><span class="op">(</span>r_mode <span class="op">=</span> <span class="st">"tidyverse"</span><span class="op">)</span> <span class="co"># \dontrun{}</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_mode <span class="op">=</span> <span class="st">"tidyverse"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span><span class="co"># Specify an image with R 4.2.0 installed</span></span></span>
-<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.2.0"</span><span class="op">)</span> <span class="co"># \dontrun{}</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.2.0"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
