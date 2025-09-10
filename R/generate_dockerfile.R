@@ -11,7 +11,7 @@
 #' @param expose_port a character string indicating in which port will RStudio Server be accessible. It defaults to 8787
 #' @param r_mode a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, "tidyverse", "rstudio" for RStudio Server, and "tidystudio" which is tidyverse plus TeX Live and some publishing-related R packages
 #'
-#' @param comments a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.
+#' @param comments logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.
 #'
 #' @param misc_file a character string indicating an optional name of miscellaneous files to be copied into the container
 #'
@@ -51,6 +51,11 @@ generate_dockerfile <- function(verbose = FALSE,
 
     # Start from the latest RStudio Server image with R pre-installed
 
+    # validate the _file argument exist if there are different from NULL
+
+    data_file <- .validate_file_arg("data_file", data_file)
+    code_file <- .validate_file_arg("code_file", code_file)
+    misc_file <- .validate_file_arg("misc_file", misc_file)
 
     # Resolve "current" to actual R version
     resolved_version <- if (r_version == "current") as.character(getRversion()) else r_version

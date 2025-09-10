@@ -23,8 +23,11 @@ Validates the format of a version string and checks whether it exists among the 
 for a specified Rocker image on Docker Hub. Supports semantic versioning, CUDA variants, and Ubuntu suffixes.
 }
 \examples{
+\dontrun{
 r_ver_exists("4.4.0")
 r_ver_exists("devel", r_mode = "rstudio", verbose = TRUE)
 r_ver_exists("4.4.0-cuda12.2-ubuntu22.04", r_mode = "tidyverse")
+}
 
 }
+\keyword{internal}

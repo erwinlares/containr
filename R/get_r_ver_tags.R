@@ -16,10 +16,12 @@
 #' }
 #'
 #' @examples
+#' \dontrun{
 #' get_r_ver_tags("base")
 #' get_r_ver_tags("rstudio", verbose = TRUE)
+#' }
 #'
-#' @export
+#' @keywords internal
 get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
     # Map user-friendly r_mode to actual Rocker image names
     mode_map <- c(base = "r-ver", rstudio = "rstudio", tidyverse = "tidyverse")
