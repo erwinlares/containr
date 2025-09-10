@@ -42,7 +42,7 @@ generate_dockerfile(
 
 \item{install_syslibs}{logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.}
 
-\item{comments}{a logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.}
+\item{comments}{logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.}
 }
 \value{
 invisibly returns NULL. This function is called for its side effects and does not return a value.
