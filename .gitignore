@@ -7,3 +7,4 @@
 docs
 renv.lock
 inst/doc
+Dockerfile
