@@ -30,27 +30,27 @@ You can install the development version of containr from [GitHub](https://github
 pak::pak("erwinlares/containr")
 ```
 
-## Example
+Examples
 
-This is a basic example which shows you how to solve a common problem:
+Below are some common ways you can use generate_dockerfile():
 
-```r
+```{r}
 library(containr)
-# Generate a Dockerfile with the latest R version and the dependencies listed in renv.lock
+
+# Generate a Dockerfile with the latest R version and renv.lock dependencies
 generate_dockerfile()
 
-# Generate a Dockerfile with a specific R version 
+# Specify a particular R version
 generate_dockerfile(r_version = "4.3.0")
 
-# Generate a Dockerfile with RStudio server 
+# Use an RStudio Server image
 generate_dockerfile(r_mode = "rstudio")
 
-# Generate a Dockerfile explaining in step in the process
+# Print progress messages during generation
 generate_dockerfile(verbose = TRUE)
 
-# Generate a documented Dockerfile
+# Add explanatory comments to the generated Dockerfile
 generate_dockerfile(comments = TRUE)
-
 ```
 
 

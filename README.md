@@ -26,24 +26,37 @@ You can install the development version of containr from
 pak::pak("erwinlares/containr")
 ```
 
-## Example
+Examples
 
-This is a basic example which shows you how to solve a common problem:
+Below are some common ways you can use generate_dockerfile():
 
 ``` r
 library(containr)
-# Generate a Dockerfile with the latest R version and the dependencies listed in renv.lock
+
+# Generate a Dockerfile with the latest R version and renv.lock dependencies
 generate_dockerfile()
 
-# Generate a Dockerfile with a specific R version 
+# Specify a particular R version
 generate_dockerfile(r_version = "4.3.0")
 
-# Generate a Dockerfile with RStudio server 
+# Use an RStudio Server image
 generate_dockerfile(r_mode = "rstudio")
 
-# Generate a Dockerfile explaining in step in the process
+# Print progress messages during generation
 generate_dockerfile(verbose = TRUE)
+#> [1] "Start from the Rocker project image"
+#> [1] "Prevent interactive prompts during package installation"
+#> [1] "Install system libraries required for common R packages"
+#> [1] "Create additional Linux user"
+#> [1] "Install Quarto and Markdown support"
+#> Set working directory to /home
+#> [1] "Copy renv.lock files"
+#> [1] "If required, copy data files from the host into the container"
+#> [1] "If required, copy code files from the host into the container"
+#> [1] "If required, copy miscellaneous files from the host into the container"
+#> [1] "Installs renv and restores project library"
+#> Expose port8787 for the IDE
 
-# Generate a documented Dockerfile
+# Add explanatory comments to the generated Dockerfile
 generate_dockerfile(comments = TRUE)
 ```
