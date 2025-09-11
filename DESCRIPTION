@@ -1,6 +1,6 @@
 Package: containr
 Title: Containerize your R Project
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: 
     person("Erwin", "Lares", , "erwin.lares@wisc.edu", role = c("aut", "cre"))
 Description: Automate the process of containerizing R projects. Containr's core function, generate_dockerfile(), analyzes an R project’s environment and dependencies—via renv::renv.lock—and generates a ready-to-use Dockerfile that encapsulates the computational setup. The package is designed to assist researchers in building portable and consistent workflows, ensuring that analyses can be reliably shared, archived, and rerun across systems.
