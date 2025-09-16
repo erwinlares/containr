@@ -26,7 +26,7 @@
 #'
 #' # Specify an image with R 4.2.0 installed
 #'
-#' generate_dockerfile(r_version = "4.2.0")
+#' generate_dockerfile(r_version = "4.3.0")
 #'
 generate_dockerfile <- function(verbose = FALSE,
                                 r_version = "current",
