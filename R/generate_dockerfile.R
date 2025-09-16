@@ -24,16 +24,6 @@
 #' @examples
 #' # Basic Usage
 #'
-#' \donttest{
-#' generate_dockerfile()
-#' }
-#'
-#' # Specify a tidyverse ready image
-#'
-#' \donttest{
-#' generate_dockerfile(r_mode = "tidyverse")
-#' }
-#'
 #' # Specify an image with R 4.2.0 installed
 #'
 #' generate_dockerfile(r_version = "4.2.0")
