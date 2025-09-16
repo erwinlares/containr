@@ -18,12 +18,26 @@ archived, and rerun across systems.
 
 ## Installation
 
-You can install the development version of containr from
-[GitHub](https://github.com/) with:
+You can install the development version of ‘containr’ from
+[‘GitHub’](https://github.com/) with:
 
 ``` r
 # install.packages("pak")
 pak::pak("erwinlares/containr")
+#> ✔ Updated metadata database: 7.57 MB in 9 files.
+#> ℹ Updating metadata database✔ Updating metadata database ... done
+#>  
+#> → Will update 1 package.
+#> → Will download 1 package with unknown size.
+#> + containr 0.0.0.9000 → 0.1.0 👷🏾‍♂️🔧 ⬇ (GitHub: 0d01c2b)
+#> ℹ Getting 1 pkg with unknown size
+#> ✔ Got containr 0.1.0 (source) (82.79 kB)
+#> ℹ Packaging containr 0.1.0
+#> ✔ Packaged containr 0.1.0 (2.1s)
+#> ℹ Building containr 0.1.0
+#> ✔ Built containr 0.1.0 (3.2s)
+#> ✔ Installed containr 0.1.0 (github::erwinlares/containr@0d01c2b) (61ms)
+#> ✔ 1 pkg + 31 deps: kept 28, upd 1, dld 1 (NA B) [18.2s]
 ```
 
 Examples

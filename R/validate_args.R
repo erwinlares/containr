@@ -13,12 +13,7 @@
 #'
 #' @keywords internal
 #'
-#' @examples
-#' \dontrun{
-#' tmp <- tempfile(fileext = ".txt")
-#' writeLines("hello", tmp)
-#' containr:::.validate_file_arg("code_file", tmp)
-#' }
+
 .validate_file_arg <- function(arg_name, value) {
     if (is.null(value)) {
         return(NULL)

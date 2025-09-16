@@ -25,11 +25,4 @@ Queries the Docker Hub API to retrieve all available tags for a specified Rocker
 Supports user-friendly modes: \code{"base"}, \code{"rstudio"}, and \code{"tidyverse"}.
 Returns a structured list containing the image name, tag vector, and source URL.
 }
-\examples{
-\dontrun{
-get_r_ver_tags("base")
-get_r_ver_tags("rstudio", verbose = TRUE)
-}
-
-}
 \keyword{internal}

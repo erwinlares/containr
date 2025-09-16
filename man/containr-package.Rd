@@ -4,11 +4,11 @@
 \name{containr-package}
 \alias{containr}
 \alias{containr-package}
-\title{containr: Containerize your R Project}
+\title{containr: Containerize Your 'R' Project}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Automate the process of containerizing R projects. Containr's core function, generate_dockerfile(), analyzes an R project’s environment and dependencies—via renv::renv.lock—and generates a ready-to-use Dockerfile that encapsulates the computational setup. The package is designed to assist researchers in building portable and consistent workflows, ensuring that analyses can be reliably shared, archived, and rerun across systems.
+Automates the process of containerizing 'R' projects. The core function of 'containr' is 'generate_dockerfile()', which analyzes an 'R' project's environment and dependencies via an 'renv' lockfile and generates a ready-to-use 'Dockerfile' that encapsulates the computational setup. The package helps researchers build portable and consistent workflows so that analyses can be reliably shared, archived, and rerun across systems. See R Core Team (2025) \url{https://www.R-project.org/}, Ushey et al. (2025) \url{https://CRAN.R-project.org/package=renv}, and Docker Inc. (2025) \url{https://www.docker.com/}.
 }
 \seealso{
 Useful links:

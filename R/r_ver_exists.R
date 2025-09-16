@@ -11,12 +11,6 @@
 #'
 #' @return Logical. \code{TRUE} if the specified version tag exists for the given Rocker image; otherwise \code{FALSE}.
 #'
-#' @examples
-#' \dontrun{
-#' r_ver_exists("4.4.0")
-#' r_ver_exists("devel", r_mode = "rstudio", verbose = TRUE)
-#' r_ver_exists("4.4.0-cuda12.2-ubuntu22.04", r_mode = "tidyverse")
-#' }
 #'
 #' @keywords internal
 #'

@@ -1,19 +1,20 @@
 # tests/testthat/test-generate-dockerfile-file-args.R
-# Public-API tests for *_file arguments.
-# Pin r_version to a Rocker-supported tag to avoid failures on R-devel in CI.
 
 test_that("NULL file args are accepted (public API)", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+
     expect_error(
         generate_dockerfile(
             r_version = "4.3.0",
             data_file = NULL, code_file = NULL, misc_file = NULL
+            # optionally: output = "text"  # avoids writing anything at all
         ),
         NA
     )
 })
 
 test_that("Existing files are accepted and Dockerfile is written", {
-    skip_on_cran()
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
 
@@ -30,6 +31,7 @@ test_that("Existing files are accepted and Dockerfile is written", {
             misc_file  = "notes.txt",
             comments   = TRUE,
             verbose    = TRUE
+            # or: output = "file", path = "Dockerfile"  # explicit is nice
         ),
         NA
     )

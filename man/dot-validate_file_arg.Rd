@@ -21,11 +21,4 @@ Internal helper used by \code{generate_dockerfile()} to check that
 optional file arguments (e.g. \code{data_file}, \code{code_file},
 \code{misc_file}) are valid.
 }
-\examples{
-\dontrun{
-tmp <- tempfile(fileext = ".txt")
-writeLines("hello", tmp)
-containr:::.validate_file_arg("code_file", tmp)
-}
-}
 \keyword{internal}

@@ -15,11 +15,6 @@
 #'   \item{source}{Character string. The base URL of the Docker Hub API used to retrieve the tags.}
 #' }
 #'
-#' @examples
-#' \dontrun{
-#' get_r_ver_tags("base")
-#' get_r_ver_tags("rstudio", verbose = TRUE)
-#' }
 #'
 #' @keywords internal
 get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
