@@ -16,7 +16,8 @@ generate_dockerfile(
   expose_port = "8787",
   r_mode = "base",
   install_syslibs = TRUE,
-  comments = FALSE
+  comments = FALSE,
+  output = tempdir()
 )
 }
 \arguments{
@@ -43,9 +44,11 @@ generate_dockerfile(
 \item{install_syslibs}{logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.}
 
 \item{comments}{logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.}
+
+\item{output}{Character. Directory path to write the Dockerfile. Defaults to \code{tempdir()}.}
 }
 \value{
-invisibly returns NULL. This function is called for its side effects and does not return a value.
+writes a Dockerfile to the specified output directory.
 }
 \description{
 Creates a customizable Dockerfile tailored to R-based workflows, supporting multiple Rocker images (base R, tidyverse, RStudio Server, and publishing-ready configurations). The function allows inclusion of data, code, and miscellaneous files, sets up system libraries, optionally installs Quarto, and configures user access. It supports verbose output and inline comments for transparency and educational use. Designed to streamline containerization for reproducible research and deployment.
@@ -55,6 +58,6 @@ Creates a customizable Dockerfile tailored to R-based workflows, supporting mult
 
 # Specify an image with R 4.2.0 installed
 
-generate_dockerfile(r_version = "4.2.0")
+generate_dockerfile(r_version = "4.3.0")
 
 }
