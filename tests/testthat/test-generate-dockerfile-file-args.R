@@ -35,9 +35,26 @@ test_that("Existing files are accepted and Dockerfile is written", {
         ),
         NA
     )
-
-    expect_true(file.exists("Dockerfile"))
 })
+
+test_that("Dockerfile is written to specified output directory", {
+    tmp <- withr::local_tempdir() # creates and cleans up a temp directory
+    dockerfile_path <- file.path(tmp, "Dockerfile")
+
+    expect_error(
+        generate_dockerfile(
+            r_version  = "4.3.0",
+            code_file  = NULL,
+            data_file  = NULL,
+            misc_file  = NULL,
+            output     = tmp # ✅ explicitly set output directory
+        ),
+        NA
+    )
+
+    expect_true(file.exists(dockerfile_path)) # ✅ check for existence
+})
+
 
 test_that("Nonexistent files error clearly (public API)", {
     tmp <- withr::local_tempdir()
