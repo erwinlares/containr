@@ -17,9 +17,10 @@
 #'
 #' @param add_user a character string indicating an optional name of a linux user to be created inside the container
 #'
+#' @param output Character. Directory path to write the Dockerfile. Defaults to `tempdir()`.
 #' @param install_syslibs logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.
 #'
-#' @return invisibly returns NULL. This function is called for its side effects and does not return a value.
+#' @return writes a Dockerfile to the specified output directory.
 #' @export
 #' @examples
 #' # Basic Usage
@@ -39,7 +40,8 @@ generate_dockerfile <- function(verbose = FALSE,
                                 expose_port = "8787",
                                 r_mode = "base",
                                 install_syslibs = TRUE,
-                                comments = FALSE) {
+                                comments = FALSE,
+                                output = tempdir()) {
     # I want IDE to be base, tidyverse, rstudio, tidystudio (BOTH rstudio and tidyverse)
     # I found the tidystudio version of the image is fuzzier than the other
 
@@ -50,6 +52,7 @@ generate_dockerfile <- function(verbose = FALSE,
     data_file <- .validate_file_arg("data_file", data_file)
     code_file <- .validate_file_arg("code_file", code_file)
     misc_file <- .validate_file_arg("misc_file", misc_file)
+    dockerfile_path <- file.path(output, "Dockerfile")
 
     # Resolve "current" to actual R version
     resolved_version <- if (r_version == "current") as.character(getRversion()) else r_version
@@ -157,9 +160,9 @@ generate_dockerfile <- function(verbose = FALSE,
         print("Start from the Rocker project image")
         Sys.sleep(0.5)
     }
-    readr::write_lines(base_line, file = "Dockerfile")
+    readr::write_lines(base_line, file = dockerfile_path)
     if (comments == TRUE) {
-        readr::write_lines("# Use the base image maintained by the Rocker project", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Use the base image maintained by the Rocker project", file = dockerfile_path, append = TRUE)
     }
 
 
@@ -167,45 +170,45 @@ generate_dockerfile <- function(verbose = FALSE,
         print("Prevent interactive prompts during package installation")
         Sys.sleep(0.5)
     }
-    readr::write_lines(non_interactive_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(non_interactive_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE) {
-        readr::write_lines("# Suppress interactive prompts during package installation", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Suppress interactive prompts during package installation", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print("Install system libraries required for common R packages")
         Sys.sleep(0.5)
     }
-    readr::write_lines(system_lib_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(system_lib_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE) {
-        readr::write_lines("# Update package lists and install system libraries needed for common R packages, then clean up to reduce image size", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Update package lists and install system libraries needed for common R packages, then clean up to reduce image size", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print("Create additional Linux user")
         Sys.sleep(0.5)
     }
-    readr::write_lines(user_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(user_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE & !is.null(add_user)) {
-        readr::write_lines("# Create the Linux user", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Create the Linux user", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print("Install Quarto and Markdown support")
         Sys.sleep(0.5)
     }
-    readr::write_lines(quarto_install_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(quarto_install_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE & quarto_install_line == TRUE) {
-        readr::write_lines("#Install required packages and libraries for Quarto and Rmarkdown", file = "Dockerfile", append = TRUE)
+        readr::write_lines("#Install required packages and libraries for Quarto and Rmarkdown", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print(glue::glue("Set working directory to {home_dir}"))
         Sys.sleep(0.5)
     }
-    readr::write_lines(working_dir_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(working_dir_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE) {
-        readr::write_lines("# Set the working directory inside the container", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Set the working directory inside the container", file = dockerfile_path, append = TRUE)
     }
 
 
@@ -213,36 +216,36 @@ generate_dockerfile <- function(verbose = FALSE,
         print("Copy renv.lock files")
         Sys.sleep(0.5)
     }
-    readr::write_lines(renv_lock_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(renv_lock_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE) {
-        readr::write_lines("# Copy the renv lockfile from the host into the container", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Copy the renv lockfile from the host into the container", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print("If required, copy data files from the host into the container")
         Sys.sleep(0.5)
     }
-    readr::write_lines(data_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(data_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE & !is.null(data_file)) {
-        readr::write_lines("# Optionally copy data files from the host into the container", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Optionally copy data files from the host into the container", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print("If required, copy code files from the host into the container")
         Sys.sleep(0.5)
     }
-    readr::write_lines(code_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(code_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE & !is.null(code_line)) {
-        readr::write_lines("# Optionally copy script files from the host into the container", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Optionally copy script files from the host into the container", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print("If required, copy miscellaneous files from the host into the container")
         Sys.sleep(0.5)
     }
-    readr::write_lines(misc_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(misc_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE & !is.null(misc_line)) {
-        readr::write_lines("# Optionally copy additiional files into the container", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Optionally copy additiional files into the container", file = dockerfile_path, append = TRUE)
     }
 
     # Install the renv package from Posit's CRAN mirror & Restore the R package environment using the renv lockfile is tricky because there is more than two layers of quotations involved.
@@ -258,28 +261,28 @@ generate_dockerfile <- function(verbose = FALSE,
             "install_and_restore_packages.sh",
             package = "containr"
         )),
-        file = "Dockerfile",
+        file = dockerfile_path,
         append = TRUE
     )
 
 
     if (comments == TRUE) {
-        readr::write_lines("# Restore the R package environment as specified in renv.lock", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Restore the R package environment as specified in renv.lock", file = dockerfile_path, append = TRUE)
     }
 
     if (verbose == TRUE) {
         print(glue::glue("Expose port{expose_port} for the IDE"))
         Sys.sleep(0.5)
     }
-    readr::write_lines(expose_line, file = "Dockerfile", append = TRUE)
+    readr::write_lines(expose_line, file = dockerfile_path, append = TRUE)
     if (comments == TRUE) {
-        readr::write_lines("# Expose port 8787, commonly used by RStudio Server", file = "Dockerfile", append = TRUE)
+        readr::write_lines("# Expose port 8787, commonly used by RStudio Server", file = dockerfile_path, append = TRUE)
     }
 
     if (comments == TRUE & r_mode == "rstudio") {
         readr::write_lines(
             "#Run the container with docker run --rm -ti -u root -e PASSWORD=yourpassword -p 8787:8787 yourimage point your browser to localhost:8787 Log in with user/password rstudio/yourpassword",
-            file = "Dockerfile",
+            file = dockerfile_path,
             append = TRUE
         )
     }
