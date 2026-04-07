@@ -1,0 +1,15 @@
+bibentry(
+  bibtype  = "Manual",
+  title    = "containr: Containerize Your R Project",
+  author   = person(
+    given   = "Erwin",
+    family  = "Lares",
+    role    = c("aut", "cre"),
+    email   = "erwin.lares@wisc.edu",
+    comment = c(ORCID = "0000-0002-3284-828X")
+  ),
+  year     = format(Sys.Date(), "%Y"),
+  note     = paste("R package version", meta$Version),
+  url      = "https://github.com/erwinlares/containr",
+  doi      = "10.5281/zenodo.19462130"
+)
