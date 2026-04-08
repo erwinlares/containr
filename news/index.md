@@ -2,6 +2,8 @@
 
 ## containr 0.1.2
 
+CRAN release: 2026-04-07
+
 - Added `inst/CITATION` with DOI for proper academic citation via
   `citation("containr")`
 - Added `inst/WORDLIST` for spell check consistency
