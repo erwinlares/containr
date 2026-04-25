@@ -110,8 +110,8 @@ return a value.
 ## Examples
 
 ``` r
-# Generate a minimal Dockerfile using the current R version
-generate_dockerfile(output = tempdir())
+# Generate a minimal Dockerfile using a pinned R version
+generate_dockerfile(r_version = "4.4.0", output = tempdir())
 
 # Pin a specific R version with the tidyverse image
 generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
