@@ -21,8 +21,8 @@
 
     # type & length
     if (!is.character(value) || length(value) != 1L || is.na(value)) {
-        stop(sprintf("Argument `%s` must be a length-1 character path or NULL.", arg_name),
-            call. = FALSE
+        cli::cli_abort(
+            "{.arg {arg_name}} must be a length-1 character path or {.val NULL}."
         )
     }
 
@@ -30,14 +30,15 @@
 
     # existence & file-ness
     if (!file.exists(path)) {
-        stop(sprintf("Argument `%s`: '%s' does not exist.", arg_name, value),
-            call. = FALSE
+        cli::cli_abort(
+            "{.arg {arg_name}}: path {.path {value}} does not exist."
         )
     }
+
     # Disallow directories
     if (file.info(path)$isdir) {
-        stop(sprintf("Argument `%s`: '%s' is a directory, expected a file.", arg_name, value),
-            call. = FALSE
+        cli::cli_abort(
+            "{.arg {arg_name}}: {.path {value}} is a directory, not a file."
         )
     }
 

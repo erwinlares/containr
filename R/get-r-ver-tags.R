@@ -17,13 +17,16 @@
 #'
 #'
 #' @keywords internal
-get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
+.get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
     # Map user-friendly r_mode to actual Rocker image names
     mode_map <- c(base = "r-ver", rstudio = "rstudio", tidyverse = "tidyverse")
 
     # Validate input
     if (!r_mode %in% names(mode_map)) {
-        stop(sprintf("Invalid r_mode: '%s'. Must be one of: %s", r_mode, paste(names(mode_map), collapse = ", ")))
+        cli::cli_abort(c(
+            "{.val {r_mode}} is not a valid {.arg r_mode}.",
+            "i" = "Must be one of {.val {names(mode_map)}}."
+        ))
     }
 
     # Construct full image path and API URL
@@ -31,13 +34,22 @@ get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
     base_url <- "https://hub.docker.com/v2/repositories"
     url <- sprintf("%s/%s/tags?page_size=100", base_url, image)
 
-    if (verbose) message("Fetching tags from: ", url)
+    if (verbose) cli::cli_inform("Fetching tags from: {.url {url}}")
 
     # Initialize tag list and pagination
     tags <- c()
     while (!is.null(url)) {
         res <- httr::GET(url)
-        stopifnot(httr::status_code(res) == 200)
+
+        status <- httr::status_code(res)
+        if (status != 200) {
+            cli::cli_abort(c(
+                "Docker Hub API request failed.",
+                "i" = "Image: {.val {image}}",
+                "i" = "HTTP status: {.val {status}}"
+            ))
+        }
+
         content <- httr::content(res)
 
         # Extract tag names
@@ -45,13 +57,13 @@ get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
 
         # Follow pagination
         url <- content$`next`
-        if (verbose && !is.null(url)) message("Following pagination to: ", url)
+        if (verbose && !is.null(url)) cli::cli_inform("Following pagination to: {.url {url}}")
     }
 
     # Return structured output
-    return(list(
-        image = image,
-        tags = tags,
+    list(
+        image  = image,
+        tags   = tags,
         source = base_url
-    ))
+    )
 }
