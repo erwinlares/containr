@@ -103,8 +103,9 @@ test_that("Invalid r_mode errors before any file or network operations", {
 test_that("All valid r_mode values are accepted", {
     for (mode in c("base", "tidyverse", "rstudio", "tidystudio")) {
         tmp <- withr::local_tempdir()
-        expect_no_error(
+        expect_error(
             generate_dockerfile(r_version = "4.3.0", r_mode = mode, output = tmp),
+            NA,
             info = paste("r_mode =", mode)
         )
     }
