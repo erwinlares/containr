@@ -1,7 +1,25 @@
 test_that(".r_ver_exists rejects an invalid r_mode", {
-    expect_error(containr:::.r_ver_exists("4.3.0", r_mode = "invalid"), "not a valid")
-    expect_error(containr:::.r_ver_exists("4.3.0", r_mode = "verse"),   "not a valid")
-    expect_error(containr:::.r_ver_exists("4.3.0", r_mode = ""),        "not a valid")
+    expect_error(containr:::.r_ver_exists("4.3.0", r_mode = "invalid"),    "not a valid")
+    expect_error(containr:::.r_ver_exists("4.3.0", r_mode = "shiny"),      "not a valid")
+    expect_error(containr:::.r_ver_exists("4.3.0", r_mode = ""),           "not a valid")
+})
+
+test_that(".r_ver_exists accepts all four valid r_mode values", {
+    mock_tags <- list(image = "rocker/r-ver", tags = c("4.3.0"), source = "https://hub.docker.com/v2/repositories")
+
+    with_mocked_bindings(
+        `.get_r_ver_tags` = function(...) mock_tags,
+        {
+            for (mode in c("base", "rstudio", "tidyverse", "tidystudio")) {
+                expect_error(
+                    containr:::.r_ver_exists("4.3.0", r_mode = mode),
+                    NA,
+                    info = paste("r_mode =", mode)
+                )
+            }
+        },
+        .package = "containr"
+    )
 })
 
 test_that(".r_ver_exists rejects non-character version input", {

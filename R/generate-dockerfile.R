@@ -1,33 +1,66 @@
-#' Generate a reproducible Dockerfile for R projects
+#' Generate a reproducible Dockerfile for an R project
 #'
-#' Creates a customizable Dockerfile tailored to R-based workflows, supporting multiple Rocker images (base R, tidyverse, RStudio Server, and publishing-ready configurations). The function allows inclusion of data, code, and miscellaneous files, sets up system libraries, optionally installs Quarto, and configures user access. It supports verbose output and inline comments for transparency and educational use. Designed to streamline containerization for reproducible research and deployment.
+#' `generate_dockerfile()` inspects an R project's dependencies via an `renv`
+#' lockfile and writes a ready-to-use `Dockerfile` to the specified output
+#' directory. It supports multiple Rocker base images, optional system
+#' libraries, Quarto installation, file copying, user creation, and inline
+#' documentation comments.
 #'
-#' @param verbose logical (TRUE or FALSE). Should generate_dockerfile() print out progress? By default, it will silently create a Dockerfile
-#' @param r_version a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the version of R from the current session
-#' @param data_file a character string indicating an optional name of a data file to be copied into the container
-#' @param code_file a character string indicating an optional name of a script file to be copied into the container
-#' @param home_dir a character string specifying the home directory inside the container
-#' @param install_quarto logical (TRUE or FALSE). If TRUE it will include supporting packages and system libraries to support Quarto and RMarkdown.
-#' @param expose_port a character string indicating in which port will RStudio Server be accessible. It defaults to 8787
-#' @param r_mode a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, "tidyverse", "rstudio" for RStudio Server, and "tidystudio" which is tidyverse plus TeX Live and some publishing-related R packages
+#' @param r_version A character string specifying the R version to use, e.g.
+#'   `"4.3.0"`. Defaults to `"current"`, which resolves to the version of R
+#'   running in the current session.
+#' @param r_mode A character string selecting the Rocker base image. Inspired
+#'   by the [Rocker Project](https://rocker-project.org/). One of `"base"` for
+#'   plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for RStudio
+#'   Server, or `"tidystudio"` for tidyverse plus TeX Live and
+#'   publishing-related packages. Defaults to `"base"`.
+#' @param output A character string. Directory path where the `Dockerfile` will
+#'   be written. Defaults to `tempdir()`.
+#' @param data_file A character string. Path to an optional data file to copy
+#'   into the container under `/home/data/`. Defaults to `NULL`.
+#' @param code_file A character string. Path to an optional script file (e.g.
+#'   `.R`, `.qmd`, `.rmd`) to copy into the container under `/home/`.
+#'   Defaults to `NULL`.
+#' @param misc_file A character string. Path to an optional miscellaneous file
+#'   (e.g. an image or shell script) to copy into the container under
+#'   `/home/`. Defaults to `NULL`.
+#' @param add_user A character string. Name of a Linux user to create inside
+#'   the container with sudo access. Defaults to `NULL`.
+#' @param home_dir A character string. The working directory set inside the
+#'   container via `WORKDIR`. Defaults to `"/home"`.
+#' @param expose_port A character string. The port to expose when `r_mode` is
+#'   `"rstudio"`. Defaults to `"8787"`.
+#' @param install_quarto Logical. If `TRUE`, downloads and installs the Quarto
+#'   CLI inside the container. Defaults to `FALSE`.
+#' @param install_syslibs Logical. If `TRUE`, installs system libraries
+#'   commonly required by R packages and needed for source compilation
+#'   (e.g. `libcurl4-openssl-dev`, `libxml2-dev`). Defaults to `TRUE`.
+#' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
+#'   with an explanatory comment. Useful for learning or sharing. Defaults to
+#'   `FALSE`.
+#' @param verbose Logical. If `TRUE`, prints progress messages as each section
+#'   of the Dockerfile is written. Defaults to `FALSE`.
 #'
-#' @param comments logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.
-#'
-#' @param misc_file a character string indicating an optional name of miscellaneous files to be copied into the container
-#'
-#' @param add_user a character string indicating an optional name of a linux user to be created inside the container
-#'
-#' @param output Character. Directory path to write the Dockerfile. Defaults to `tempdir()`.
-#' @param install_syslibs logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.
-#'
-#' @return writes a Dockerfile to the specified output directory.
+#' @return Called for its side effects. Writes a `Dockerfile` to `output`.
+#'   Does not return a value.
 #' @export
+#'
 #' @examples
-#' # Basic Usage
+#' # Generate a minimal Dockerfile using the current R version
+#' generate_dockerfile(output = tempdir())
 #'
-#' # Specify an image with R 4.2.0 installed
+#' # Pin a specific R version with the tidyverse image
+#' generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
 #'
-#' generate_dockerfile(r_version = "4.3.0")
+#' # Include a data file and annotate the Dockerfile with comments
+#' \dontrun{
+#' generate_dockerfile(
+#'   r_version = "4.3.0",
+#'   data_file = "data/penguins.csv",
+#'   comments  = TRUE,
+#'   output    = "."
+#' )
+#' }
 #'
 generate_dockerfile <- function(verbose = FALSE,
                                 r_version = "current",

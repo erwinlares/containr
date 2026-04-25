@@ -16,7 +16,7 @@
 #'
 .r_ver_exists <- function(version, r_mode = "base", verbose = FALSE) {
     # Define valid modes
-    valid_modes <- c("base", "rstudio", "tidyverse")
+    valid_modes <- c("base", "rstudio", "tidyverse", "tidystudio")
 
     # Validate r_mode early
     if (!r_mode %in% valid_modes) {

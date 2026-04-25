@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate-dockerfile.R
 \name{generate_dockerfile}
 \alias{generate_dockerfile}
-\title{Generate a reproducible Dockerfile for R projects}
+\title{Generate a reproducible Dockerfile for an R project}
 \usage{
 generate_dockerfile(
   verbose = FALSE,
@@ -21,43 +21,79 @@ generate_dockerfile(
 )
 }
 \arguments{
-\item{verbose}{logical (TRUE or FALSE). Should generate_dockerfile() print out progress? By default, it will silently create a Dockerfile}
+\item{verbose}{Logical. If \code{TRUE}, prints progress messages as each section
+of the Dockerfile is written. Defaults to \code{FALSE}.}
 
-\item{r_version}{a character string indicated a version of R, i.e., "4.3.0". By default, it will grab the version of R from the current session}
+\item{r_version}{A character string specifying the R version to use, e.g.
+\code{"4.3.0"}. Defaults to \code{"current"}, which resolves to the version of R
+running in the current session.}
 
-\item{data_file}{a character string indicating an optional name of a data file to be copied into the container}
+\item{data_file}{A character string. Path to an optional data file to copy
+into the container under \verb{/home/data/}. Defaults to \code{NULL}.}
 
-\item{code_file}{a character string indicating an optional name of a script file to be copied into the container}
+\item{code_file}{A character string. Path to an optional script file (e.g.
+\code{.R}, \code{.qmd}, \code{.rmd}) to copy into the container under \verb{/home/}.
+Defaults to \code{NULL}.}
 
-\item{misc_file}{a character string indicating an optional name of miscellaneous files to be copied into the container}
+\item{misc_file}{A character string. Path to an optional miscellaneous file
+(e.g. an image or shell script) to copy into the container under
+\verb{/home/}. Defaults to \code{NULL}.}
 
-\item{add_user}{a character string indicating an optional name of a linux user to be created inside the container}
+\item{add_user}{A character string. Name of a Linux user to create inside
+the container with sudo access. Defaults to \code{NULL}.}
 
-\item{home_dir}{a character string specifying the home directory inside the container}
+\item{home_dir}{A character string. The working directory set inside the
+container via \code{WORKDIR}. Defaults to \code{"/home"}.}
 
-\item{install_quarto}{logical (TRUE or FALSE). If TRUE it will include supporting packages and system libraries to support Quarto and RMarkdown.}
+\item{install_quarto}{Logical. If \code{TRUE}, downloads and installs the Quarto
+CLI inside the container. Defaults to \code{FALSE}.}
 
-\item{expose_port}{a character string indicating in which port will RStudio Server be accessible. It defaults to 8787}
+\item{expose_port}{A character string. The port to expose when \code{r_mode} is
+\code{"rstudio"}. Defaults to \code{"8787"}.}
 
-\item{r_mode}{a character string. Inspired by the images in the Rocker Project. The options are "base" for base R, "tidyverse", "rstudio" for RStudio Server, and "tidystudio" which is tidyverse plus TeX Live and some publishing-related R packages}
+\item{r_mode}{A character string selecting the Rocker base image. Inspired
+by the \href{https://rocker-project.org/}{Rocker Project}. One of \code{"base"} for
+plain R, \code{"tidyverse"} for R with the tidyverse, \code{"rstudio"} for RStudio
+Server, or \code{"tidystudio"} for tidyverse plus TeX Live and
+publishing-related packages. Defaults to \code{"base"}.}
 
-\item{install_syslibs}{logical. If TRUE, includes system libraries commonly required by R packages and tools for source compilation.}
+\item{install_syslibs}{Logical. If \code{TRUE}, installs system libraries
+commonly required by R packages and needed for source compilation
+(e.g. \code{libcurl4-openssl-dev}, \code{libxml2-dev}). Defaults to \code{TRUE}.}
 
-\item{comments}{logical (TRUE or FALSE). If TRUE, the Dockerfile generated will include comments detailing what each line does. If FALSE, the Dockerfile will be bare with only commands.}
+\item{comments}{Logical. If \code{TRUE}, annotates each Dockerfile instruction
+with an explanatory comment. Useful for learning or sharing. Defaults to
+\code{FALSE}.}
 
-\item{output}{Character. Directory path to write the Dockerfile. Defaults to \code{tempdir()}.}
+\item{output}{A character string. Directory path where the \code{Dockerfile} will
+be written. Defaults to \code{tempdir()}.}
 }
 \value{
-writes a Dockerfile to the specified output directory.
+Called for its side effects. Writes a \code{Dockerfile} to \code{output}.
+Does not return a value.
 }
 \description{
-Creates a customizable Dockerfile tailored to R-based workflows, supporting multiple Rocker images (base R, tidyverse, RStudio Server, and publishing-ready configurations). The function allows inclusion of data, code, and miscellaneous files, sets up system libraries, optionally installs Quarto, and configures user access. It supports verbose output and inline comments for transparency and educational use. Designed to streamline containerization for reproducible research and deployment.
+\code{generate_dockerfile()} inspects an R project's dependencies via an \code{renv}
+lockfile and writes a ready-to-use \code{Dockerfile} to the specified output
+directory. It supports multiple Rocker base images, optional system
+libraries, Quarto installation, file copying, user creation, and inline
+documentation comments.
 }
 \examples{
-# Basic Usage
+# Generate a minimal Dockerfile using the current R version
+generate_dockerfile(output = tempdir())
 
-# Specify an image with R 4.2.0 installed
+# Pin a specific R version with the tidyverse image
+generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
 
-generate_dockerfile(r_version = "4.3.0")
+# Include a data file and annotate the Dockerfile with comments
+\dontrun{
+generate_dockerfile(
+  r_version = "4.3.0",
+  data_file = "data/penguins.csv",
+  comments  = TRUE,
+  output    = "."
+)
+}
 
 }

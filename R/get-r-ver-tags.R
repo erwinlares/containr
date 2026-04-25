@@ -19,7 +19,7 @@
 #' @keywords internal
 .get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
     # Map user-friendly r_mode to actual Rocker image names
-    mode_map <- c(base = "r-ver", rstudio = "rstudio", tidyverse = "tidyverse")
+    mode_map <- c(base = "r-ver", rstudio = "rstudio", tidyverse = "tidyverse", tidystudio = "verse")
 
     # Validate input
     if (!r_mode %in% names(mode_map)) {

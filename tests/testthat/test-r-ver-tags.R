@@ -1,6 +1,6 @@
 test_that(".get_r_ver_tags rejects an invalid r_mode", {
     expect_error(containr:::.get_r_ver_tags(r_mode = "invalid"), "not a valid")
-    expect_error(containr:::.get_r_ver_tags(r_mode = "verse"),   "not a valid")
+    expect_error(containr:::.get_r_ver_tags(r_mode = "shiny"),   "not a valid")
     expect_error(containr:::.get_r_ver_tags(r_mode = ""),        "not a valid")
 })
 
@@ -42,6 +42,7 @@ test_that(".get_r_ver_tags maps r_mode to the correct image name", {
             expect_equal(containr:::.get_r_ver_tags("base")$image,       "rocker/r-ver")
             expect_equal(containr:::.get_r_ver_tags("rstudio")$image,    "rocker/rstudio")
             expect_equal(containr:::.get_r_ver_tags("tidyverse")$image,  "rocker/tidyverse")
+            expect_equal(containr:::.get_r_ver_tags("tidystudio")$image, "rocker/verse")
         },
         .package = "httr"
     )
