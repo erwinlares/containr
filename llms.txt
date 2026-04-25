@@ -1,5 +1,7 @@
 # containr
 
+![containr logo](reference/figures/logo.png)
+
 `containr` helps researchers containerize their R projects. Its core
 function,
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md),

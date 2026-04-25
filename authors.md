@@ -11,7 +11,7 @@ Source:
 [`inst/CITATION`](https://github.com/erwinlares/containr/blob/main/inst/CITATION)
 
 Lares E (2026). *containr: Containerize Your R Project*.
-[doi:10.5281/zenodo.19462130](https://doi.org/10.5281/zenodo.19462130),
+[doi:10.5281/zenodo.19462130](https://doi.org/10.5281/zenodo.19462130).
 R package version 0.1.2, <https://github.com/erwinlares/containr>.
 
     @Manual{,
