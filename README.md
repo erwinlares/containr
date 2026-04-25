@@ -3,6 +3,8 @@
 
 # containr
 
+<img src="man/figures/logo.png" align="right" height="139" alt="containr logo" />
+
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml)
