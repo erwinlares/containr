@@ -27,9 +27,10 @@ Suggests:
     testthat (>= 3.0.0),
     withr
 Imports: 
+    cli,
     dplyr,
     glue,
+    httr,
     purrr,
-    readr, 
-    httr
+    readr
 Config/testthat/edition: 3
