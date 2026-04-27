@@ -2,6 +2,8 @@
 
 ## containr 0.1.3
 
+CRAN release: 2026-04-26
+
 #### Changes
 
 - Internal helpers renamed with a dot prefix: `get_r_ver_tags()` →
