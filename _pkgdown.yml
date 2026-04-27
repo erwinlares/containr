@@ -1,4 +1,6 @@
 url: https://erwinlares.github.io/containr/
 template:
   bootstrap: 5
-
+navbar:
+  title: containr
+  logo: man/figures/logo.png
