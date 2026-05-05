@@ -49,7 +49,8 @@ container via \code{WORKDIR}. Defaults to \code{"/home"}.}
 CLI inside the container. Defaults to \code{FALSE}.}
 
 \item{expose_port}{A character string. The port to expose when \code{r_mode} is
-\code{"rstudio"}. Defaults to \code{"8787"}.}
+\code{"rstudio"}. Defaults to \code{"8787"}. Ignored when \code{r_mode} is not
+\code{"rstudio"}.}
 
 \item{r_mode}{A character string selecting the Rocker base image. Inspired
 by the \href{https://rocker-project.org/}{Rocker Project}. One of \code{"base"} for
@@ -70,7 +71,7 @@ be written. Defaults to \code{tempdir()}.}
 }
 \value{
 Called for its side effects. Writes a \code{Dockerfile} to \code{output}.
-Does not return a value.
+Returns \code{invisible(NULL)}.
 }
 \description{
 \code{generate_dockerfile()} inspects an R project's dependencies via an \code{renv}

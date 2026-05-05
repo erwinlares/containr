@@ -13,6 +13,10 @@
 status](https://www.r-pkg.org/badges/version/containr)](https://CRAN.R-project.org/package=containr)
 [![CRAN
 downloads](https://cranlogs.r-pkg.org/badges/containr)](https://cran.r-project.org/package=containr)
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Codecov test
+coverage](https://codecov.io/gh/erwinlares/containr/graph/badge.svg)](https://app.codecov.io/gh/erwinlares/containr)
 <!-- badges: end -->
 
 `containr` helps researchers containerize their R projects. Its core

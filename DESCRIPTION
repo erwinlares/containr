@@ -1,6 +1,6 @@
 Package: containr
 Title: Containerize Your 'R' Project
-Version: 0.1.3
+Version: 0.1.3.9000
 Authors@R: 
     person("Erwin", "Lares", 
            email = "erwin.lares@wisc.edu", 
@@ -28,9 +28,9 @@ Suggests:
     withr
 Imports: 
     cli,
-    dplyr,
     glue,
     httr,
+    lifecycle,
     purrr,
     readr
 Config/testthat/edition: 3
