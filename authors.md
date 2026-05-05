@@ -12,13 +12,13 @@ Source:
 
 Lares E (2026). *containr: Containerize Your R Project*.
 [doi:10.5281/zenodo.19462130](https://doi.org/10.5281/zenodo.19462130).
-R package version 0.1.3, <https://github.com/erwinlares/containr>.
+R package version 0.1.3.9000, <https://github.com/erwinlares/containr>.
 
     @Manual{,
       title = {containr: Containerize Your R Project},
       author = {Erwin Lares},
       year = {2026},
-      note = {R package version 0.1.3},
+      note = {R package version 0.1.3.9000},
       url = {https://github.com/erwinlares/containr},
       doi = {10.5281/zenodo.19462130},
     }

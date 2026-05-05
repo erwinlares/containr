@@ -1,5 +1,19 @@
 # Changelog
 
+## containr (development version)
+
+## containr 0.1.3.9000
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  refactored: `r_mode` validated before file and network operations,
+  `dplyr` dependency removed, `expose_port` now warns when `r_mode` is
+  not `"rstudio"`, build loop simplified, `invisible(NULL)` added to
+  return value.
+- Added `tests/testthat/test-generate-dockerfile-content.R` covering
+  Dockerfile output content for all arguments.
+- Added lifecycle and Codecov badges.
+- Updated hex sticker and favicon.
+
 ## containr 0.1.3
 
 CRAN release: 2026-04-26

@@ -14,6 +14,7 @@ shared, archived, and rerun across systems.
 You can install `containr` from CRAN:
 
 ``` r
+
 install.packages("containr")
 ```
 
@@ -21,6 +22,7 @@ Or install the development version from
 [GitHub](https://github.com/erwinlares/containr):
 
 ``` r
+
 # install.packages("pak")
 pak::pak("erwinlares/containr")
 ```
@@ -31,6 +33,7 @@ Below are common ways to use
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md):
 
 ``` r
+
 library(containr)
 
 # Generate a Dockerfile with the latest R version and renv.lock dependencies
@@ -54,6 +57,7 @@ generate_dockerfile(comments = TRUE)
 To cite `containr` in publications:
 
 ``` r
+
 citation("containr")
 ```
 

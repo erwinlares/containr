@@ -15,7 +15,7 @@ documentation comments."><meta property="og:image" content="https://erwinlares.g
 
     <a class="navbar-brand me-2" href="../index.html">containr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -116,7 +116,8 @@ CLI inside the container. Defaults to <code>FALSE</code>.</p></dd>
 
 <dt id="arg-expose-port">expose_port<a class="anchor" aria-label="anchor" href="#arg-expose-port"></a></dt>
 <dd><p>A character string. The port to expose when <code>r_mode</code> is
-<code>"rstudio"</code>. Defaults to <code>"8787"</code>.</p></dd>
+<code>"rstudio"</code>. Defaults to <code>"8787"</code>. Ignored when <code>r_mode</code> is not
+<code>"rstudio"</code>.</p></dd>
 
 
 <dt id="arg-r-mode">r_mode<a class="anchor" aria-label="anchor" href="#arg-r-mode"></a></dt>
@@ -147,7 +148,7 @@ be written. Defaults to <code><a href="https://rdrr.io/r/base/tempfile.html" cla
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Called for its side effects. Writes a <code>Dockerfile</code> to <code>output</code>.
-Does not return a value.</p>
+Returns <code>invisible(NULL)</code>.</p>
     </div>
 
     <div class="section level2">

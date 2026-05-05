@@ -74,7 +74,7 @@ generate_dockerfile(
 - expose_port:
 
   A character string. The port to expose when `r_mode` is `"rstudio"`.
-  Defaults to `"8787"`.
+  Defaults to `"8787"`. Ignored when `r_mode` is not `"rstudio"`.
 
 - r_mode:
 
@@ -104,8 +104,8 @@ generate_dockerfile(
 
 ## Value
 
-Called for its side effects. Writes a `Dockerfile` to `output`. Does not
-return a value.
+Called for its side effects. Writes a `Dockerfile` to `output`. Returns
+`invisible(NULL)`.
 
 ## Examples
 
