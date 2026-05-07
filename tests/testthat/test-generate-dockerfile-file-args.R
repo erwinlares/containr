@@ -1,5 +1,10 @@
 test_that("NULL file args are accepted and Dockerfile is written", {
     tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
     expect_no_error(
         generate_dockerfile(
@@ -13,6 +18,11 @@ test_that("NULL file args are accepted and Dockerfile is written", {
 
 test_that("Dockerfile is written to the specified output directory", {
     tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
     generate_dockerfile(r_version = "4.3.0", output = tmp)
 
@@ -21,7 +31,11 @@ test_that("Dockerfile is written to the specified output directory", {
 
 test_that("Valid file args are accepted and Dockerfile is written", {
     tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
     writeLines("x",      "script.R")
     writeLines("a,b",    "data.csv")
@@ -40,7 +54,11 @@ test_that("Valid file args are accepted and Dockerfile is written", {
 
 test_that("comments = TRUE and verbose = TRUE produce no errors", {
     tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
     writeLines("x", "script.R")
 
@@ -103,6 +121,11 @@ test_that("Invalid r_mode errors before any file or network operations", {
 test_that("All valid r_mode values are accepted", {
     for (mode in c("base", "tidyverse", "rstudio", "tidystudio")) {
         tmp <- withr::local_tempdir()
+        writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+        withr::local_dir(tmp)
+        local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+        local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+        local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
         expect_error(
             generate_dockerfile(r_version = "4.3.0", r_mode = mode, output = tmp),
             NA,

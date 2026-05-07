@@ -1,27 +1,30 @@
 #' Retrieve Docker tags for a Rocker image
 #'
-#' Queries the Docker Hub API to retrieve all available tags for a specified Rocker image.
-#' Supports user-friendly modes: \code{"base"}, \code{"rstudio"}, and \code{"tidyverse"}.
-#' Returns a structured list containing the image name, tag vector, and source URL.
+#' Queries the Docker Hub API to retrieve all available tags for a specified
+#' Rocker image. Supports user-friendly modes: `"base"`, `"rstudio"`,
+#' `"tidyverse"`, and `"tidystudio"`. Returns a structured list containing
+#' the image name, tag vector, and source URL.
 #'
-#' @param r_mode Character string. One of \code{"base"}, \code{"rstudio"}, or \code{"tidyverse"}.
-#' Determines which Rocker image to query. \code{"base"} maps to \code{"rocker/r-ver"}.
-#' @param verbose Logical. If \code{TRUE}, prints progress messages during tag retrieval and pagination.
+#' @param r_mode Character string. One of `"base"`, `"rstudio"`,
+#'   `"tidyverse"`, or `"tidystudio"`. Determines which Rocker image to
+#'   query. `"base"` maps to `"rocker/r-ver"`.
+#' @param verbose Logical. If `TRUE`, prints progress messages during tag
+#'   retrieval and pagination. Defaults to `FALSE`.
 #'
-#' @return A named list with the following elements:
-#' \describe{
-#'   \item{image}{Character string. The full Docker image name, e.g. \code{"rocker/r-ver"}.}
-#'   \item{tags}{Character vector. All available tags for the specified image, e.g. \code{c("latest", "devel", "4.4", "4.4.3", ...)}.}
-#'   \item{source}{Character string. The base URL of the Docker Hub API used to retrieve the tags.}
-#' }
-#'
+#' @return A named list with three elements: `image` (the full Docker image
+#'   name), `tags` (character vector of all available tags), and `source`
+#'   (the base URL of the Docker Hub API).
 #'
 #' @keywords internal
 .get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
-    # Map user-friendly r_mode to actual Rocker image names
-    mode_map <- c(base = "r-ver", rstudio = "rstudio", tidyverse = "tidyverse", tidystudio = "verse")
 
-    # Validate input
+    mode_map <- c(
+        base       = "r-ver",
+        rstudio    = "rstudio",
+        tidyverse  = "tidyverse",
+        tidystudio = "verse"
+    )
+
     if (!r_mode %in% names(mode_map)) {
         cli::cli_abort(c(
             "{.val {r_mode}} is not a valid {.arg r_mode}.",
@@ -29,38 +32,36 @@
         ))
     }
 
-    # Construct full image path and API URL
-    image <- paste0("rocker/", mode_map[[r_mode]])
+    image    <- paste0("rocker/", mode_map[[r_mode]])
     base_url <- "https://hub.docker.com/v2/repositories"
-    url <- sprintf("%s/%s/tags?page_size=100", base_url, image)
+    url      <- sprintf("%s/%s/tags?page_size=100", base_url, image)
 
     if (verbose) cli::cli_inform("Fetching tags from: {.url {url}}")
 
-    # Initialize tag list and pagination
-    tags <- c()
-    while (!is.null(url)) {
-        res <- httr::GET(url)
+    tags <- character(0)
 
-        status <- httr::status_code(res)
-        if (status != 200) {
+    while (!is.null(url)) {
+        resp <- httr2::request(url) |>
+            httr2::req_error(is_error = \(r) FALSE) |>
+            httr2::req_perform()
+
+        if (httr2::resp_status(resp) != 200L) {
             cli::cli_abort(c(
                 "Docker Hub API request failed.",
                 "i" = "Image: {.val {image}}",
-                "i" = "HTTP status: {.val {status}}"
+                "i" = "HTTP status: {.val {httr2::resp_status(resp)}}"
             ))
         }
 
-        content <- httr::content(res)
+        body <- httr2::resp_body_json(resp)
+        tags <- c(tags, vapply(body$results, `[[`, "", "name"))
 
-        # Extract tag names
-        tags <- c(tags, vapply(content$results, `[[`, "", "name"))
-
-        # Follow pagination
-        url <- content$`next`
-        if (verbose && !is.null(url)) cli::cli_inform("Following pagination to: {.url {url}}")
+        url <- body$`next`
+        if (verbose && !is.null(url)) {
+            cli::cli_inform("Following pagination to: {.url {url}}")
+        }
     }
 
-    # Return structured output
     list(
         image  = image,
         tags   = tags,

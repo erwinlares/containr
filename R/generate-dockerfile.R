@@ -2,28 +2,34 @@
 #'
 #' `generate_dockerfile()` inspects an R project's dependencies via an `renv`
 #' lockfile and writes a ready-to-use `Dockerfile` to the specified output
-#' directory. It supports multiple Rocker base images, optional system
-#' libraries, Quarto installation, file copying, user creation, and inline
-#' documentation comments.
+#' directory. It supports multiple Rocker base images, automatic system
+#' library detection, Quarto installation, file copying, user creation, and
+#' inline documentation comments.
 #'
 #' @param r_version A character string specifying the R version to use, e.g.
 #'   `"4.3.0"`. Defaults to `"current"`, which resolves to the version of R
 #'   running in the current session.
-#' @param r_mode A character string selecting the Rocker base image. Inspired
-#'   by the [Rocker Project](https://rocker-project.org/). One of `"base"` for
-#'   plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for RStudio
-#'   Server, or `"tidystudio"` for tidyverse plus TeX Live and
+#' @param r_mode A character string selecting the Rocker base image. One of
+#'   `"base"` for plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"`
+#'   for RStudio Server, or `"tidystudio"` for tidyverse plus TeX Live and
 #'   publishing-related packages. Defaults to `"base"`.
-#' @param output A character string. Directory path where the `Dockerfile` will
-#'   be written. Defaults to `tempdir()`.
+#' @param auto_syslibs Logical. If `TRUE` (the default), reads `renv.lock`
+#'   from the current working directory, queries the r-hub sysreqs API, and
+#'   automatically includes the system libraries required by all packages in
+#'   the lock file. Warns and continues without auto-detection if the API is
+#'   unreachable. Set to `FALSE` to skip auto-detection entirely.
+#' @param install_syslibs A character vector or `NULL`. Additional system
+#'   libraries to install beyond those auto-detected from `renv.lock`. Each
+#'   element should be a valid `apt` package name, e.g.
+#'   `c("libuv1-dev", "libwebp-dev")`. Defaults to `NULL`.
+#' @param output A character string. Directory path where the `Dockerfile`
+#'   will be written. Defaults to `tempdir()`.
 #' @param data_file A character string. Path to an optional data file to copy
 #'   into the container under `/home/data/`. Defaults to `NULL`.
-#' @param code_file A character string. Path to an optional script file (e.g.
-#'   `.R`, `.qmd`, `.rmd`) to copy into the container under `/home/`.
-#'   Defaults to `NULL`.
+#' @param code_file A character string. Path to an optional script file to
+#'   copy into the container under `/home/`. Defaults to `NULL`.
 #' @param misc_file A character string. Path to an optional miscellaneous file
-#'   (e.g. an image or shell script) to copy into the container under
-#'   `/home/`. Defaults to `NULL`.
+#'   to copy into the container under `/home/`. Defaults to `NULL`.
 #' @param add_user A character string. Name of a Linux user to create inside
 #'   the container with sudo access. Defaults to `NULL`.
 #' @param home_dir A character string. The working directory set inside the
@@ -33,17 +39,20 @@
 #'   `"rstudio"`.
 #' @param install_quarto Logical. If `TRUE`, downloads and installs the Quarto
 #'   CLI inside the container. Defaults to `FALSE`.
-#' @param install_syslibs Logical. If `TRUE`, installs system libraries
-#'   commonly required by R packages and needed for source compilation
-#'   (e.g. `libcurl4-openssl-dev`, `libxml2-dev`). Defaults to `TRUE`.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
-#'   with an explanatory comment. Useful for learning or sharing. Defaults to
-#'   `FALSE`.
+#'   with an explanatory comment. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages as each section
 #'   of the Dockerfile is written. Defaults to `FALSE`.
 #'
 #' @return Called for its side effects. Writes a `Dockerfile` to `output`.
 #'   Returns `invisible(NULL)`.
+#'
+#' @section Prerequisites:
+#' `generate_dockerfile()` requires an `renv.lock` file in the current working
+#' directory. Create one with `renv::snapshot()` before calling this function.
+#' If the lock file is out of sync with your project library, a warning is
+#' issued — run `renv::snapshot()` to update it before building the image.
+#'
 #' @export
 #'
 #' @examples
@@ -51,33 +60,44 @@
 #' generate_dockerfile(r_version = "4.4.0", output = tempdir())
 #'
 #' # Pin a specific R version with the tidyverse image
-#' generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
+#' generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
+#'                     output = tempdir())
 #'
-#' # Include a data file and annotate the Dockerfile with comments
 #' \dontrun{
+#' # Generate from the current project directory with auto-detected syslibs
+#' generate_dockerfile(r_version = "4.4.0", output = ".")
+#'
+#' # Add extra system libraries on top of auto-detected ones
 #' generate_dockerfile(
-#'   r_version = "4.3.0",
-#'   data_file = "data/penguins.csv",
-#'   comments  = TRUE,
-#'   output    = "."
+#'   r_version      = "4.4.0",
+#'   install_syslibs = c("libuv1-dev", "libwebp-dev"),
+#'   output         = "."
+#' )
+#'
+#' # Skip auto-detection and supply all libraries manually
+#' generate_dockerfile(
+#'   r_version      = "4.4.0",
+#'   auto_syslibs   = FALSE,
+#'   install_syslibs = c("libcurl4-openssl-dev", "libxml2-dev"),
+#'   output         = "."
 #' )
 #' }
-#'
-generate_dockerfile <- function(verbose = FALSE,
-                                r_version = "current",
-                                data_file = NULL,
-                                code_file = NULL,
-                                misc_file = NULL,
-                                add_user = NULL,
-                                home_dir = "/home",
-                                install_quarto = FALSE,
-                                expose_port = "8787",
-                                r_mode = "base",
-                                install_syslibs = TRUE,
-                                comments = FALSE,
-                                output = tempdir()) {
+generate_dockerfile <- function(r_version       = "current",
+                                r_mode          = "base",
+                                auto_syslibs    = TRUE,
+                                install_syslibs = NULL,
+                                output          = tempdir(),
+                                data_file       = NULL,
+                                code_file       = NULL,
+                                misc_file       = NULL,
+                                add_user        = NULL,
+                                home_dir        = "/home",
+                                expose_port     = "8787",
+                                install_quarto  = FALSE,
+                                comments        = FALSE,
+                                verbose         = FALSE) {
 
-    # -- 1. Validate r_mode early -- before any file or network operations -----
+    # -- 1. Validate r_mode early ----------------------------------------------
     image_map <- c(
         base       = "rocker/r-ver",
         tidyverse  = "rocker/tidyverse",
@@ -105,7 +125,36 @@ generate_dockerfile <- function(verbose = FALSE,
     code_file <- .validate_file_arg("code_file", code_file)
     misc_file <- .validate_file_arg("misc_file", misc_file)
 
-    # -- 4. Resolve r_version --------------------------------------------------
+    # -- 4. Validate renv.lock exists ------------------------------------------
+    lockfile <- file.path(getwd(), "renv.lock")
+
+    if (!file.exists(lockfile)) {
+        cli::cli_abort(c(
+            "{.file renv.lock} not found in {.path {getwd()}}.",
+            "i" = "Run {.code renv::snapshot()} to generate one before",
+            " " = "  calling {.fn generate_dockerfile}."
+        ))
+    }
+
+    # -- 5. Check renv status --------------------------------------------------
+    if (verbose) cli::cli_inform("Checking renv status...")
+
+    status_ok <- tryCatch({
+        status <- renv::status(project = getwd())
+        isTRUE(status$synchronized)
+    }, error = function(e) {
+        TRUE  # if status() errors, don't block the user
+    })
+
+    if (!status_ok) {
+        cli::cli_warn(c(
+            "{.file renv.lock} may be out of sync with your project library.",
+            "i" = "Run {.code renv::snapshot()} to update it before building",
+            " " = "  the image to ensure the container matches your environment."
+        ))
+    }
+
+    # -- 6. Resolve r_version --------------------------------------------------
     resolved_version <- if (r_version == "current") {
         as.character(getRversion())
     } else {
@@ -115,12 +164,58 @@ generate_dockerfile <- function(verbose = FALSE,
     if (!.r_ver_exists(resolved_version)) {
         cli::cli_abort(c(
             "Requested R version {.val {resolved_version}} does not exist.",
-            "i" = "Check available tags at {.url https://rocker-project.org/images/versioned/r-ver}"
+            "i" = "Check available tags at",
+            " " = "  {.url https://rocker-project.org/images/versioned/r-ver}"
         ))
     }
 
-    # -- 5. Build Dockerfile instruction strings -------------------------------
+    # -- 7. Resolve system libraries -------------------------------------------
+    # Baseline libraries are always installed regardless of auto_syslibs or
+    # install_syslibs. They are infrastructure for the container environment
+    # itself rather than dependencies of specific R packages. curl is required
+    # by renv for package downloads inside the container.
+    baseline_syslibs <- c("curl")
+
+    auto_detected <- character(0)
+
+    if (auto_syslibs) {
+        if (verbose) cli::cli_inform("Reading packages from {.file renv.lock}...")
+        packages <- .read_renv_packages(lockfile)
+
+        if (verbose) {
+            cli::cli_inform(
+                "Found {length(packages)} package{?s} in {.file renv.lock}."
+            )
+        }
+
+        auto_detected <- .fetch_sysreqs(packages, verbose = verbose)
+    }
+
+    all_syslibs <- unique(c(baseline_syslibs, auto_detected, install_syslibs))
+
+    if (verbose && length(all_syslibs) > 0) {
+        cli::cli_inform(
+            "Installing {length(all_syslibs)} system librar{?y/ies}."
+        )
+    }
+
+    # -- 8. Build Dockerfile instruction strings -------------------------------
     image_prefix <- image_map[[r_mode]]
+
+    syslibs_instruction <- if (length(all_syslibs) > 0) {
+        lib_lines <- paste(
+            paste0("    ", all_syslibs, " \\"),
+            collapse = "\n"
+        )
+        paste0(
+            "RUN apt-get update && apt-get install -y \\\n",
+            lib_lines, "\n",
+            "    && apt-get clean \\\n",
+            "    && rm -rf /var/lib/apt/lists/*"
+        )
+    } else {
+        NULL
+    }
 
     lines <- list(
         base = list(
@@ -134,31 +229,13 @@ generate_dockerfile <- function(verbose = FALSE,
             comment     = "Suppress interactive prompts during package installation"
         ),
         syslibs = list(
-            instruction = if (install_syslibs) {
-                glue::glue(
-                    "RUN apt-get update && apt-get install -y \\\n",
-                    "    cmake \\\n",
-                    "    libcurl4-openssl-dev \\\n",
-                    "    libssl-dev \\\n",
-                    "    libxml2-dev \\\n",
-                    "    libgit2-dev \\\n",
-                    "    libfontconfig1-dev \\\n",
-                    "    libfreetype6-dev \\\n",
-                    "    libpng-dev \\\n",
-                    "    libtiff5-dev \\\n",
-                    "    libjpeg-dev \\\n",
-                    "    wget \\\n",
-                    "    gdebi-core \\\n",
-                    "    libharfbuzz-dev \\\n",
-                    "    libfribidi-dev \\\n",
-                    "    && apt-get clean \\\n",
-                    "    && rm -rf /var/lib/apt/lists/*"
-                )
+            instruction = syslibs_instruction,
+            verbose_msg = "Install system libraries",
+            comment     = if (!is.null(syslibs_instruction)) {
+                "Install system libraries required by R packages in renv.lock"
             } else {
                 NULL
-            },
-            verbose_msg = "Install system libraries required for common R packages",
-            comment     = "Update package lists and install system libraries needed for common R packages, then clean up to reduce image size"
+            }
         ),
         user = list(
             instruction = if (!is.null(add_user)) {
@@ -186,11 +263,15 @@ generate_dockerfile <- function(verbose = FALSE,
                 NULL
             },
             verbose_msg = "Install Quarto CLI",
-            comment     = if (install_quarto) "Download and install the Quarto CLI for rendering .qmd files" else NULL
+            comment     = if (install_quarto) {
+                "Download and install the Quarto CLI for rendering .qmd files"
+            } else {
+                NULL
+            }
         ),
         workdir = list(
             instruction = glue::glue("WORKDIR {home_dir}"),
-            verbose_msg = "Set working directory to {home_dir}",
+            verbose_msg = glue::glue("Set working directory to {home_dir}"),
             comment     = "Set the working directory inside the container"
         ),
         renv_lock = list(
@@ -200,30 +281,45 @@ generate_dockerfile <- function(verbose = FALSE,
         ),
         data = list(
             instruction = if (!is.null(data_file)) {
-                purrr::map_chr(data_file, ~ glue::glue("COPY {.x} /home/data/{basename(.x)}"))
+                purrr::map_chr(data_file,
+                               ~ glue::glue("COPY {.x} /home/data/{basename(.x)}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy data files into the container",
-            comment     = if (!is.null(data_file)) "Optionally copy data files from the host into the container" else NULL
+            comment     = if (!is.null(data_file)) {
+                "Optionally copy data files from the host into the container"
+            } else {
+                NULL
+            }
         ),
         code = list(
             instruction = if (!is.null(code_file)) {
-                purrr::map_chr(code_file, ~ glue::glue("COPY {.x} /home/{basename(.x)}"))
+                purrr::map_chr(code_file,
+                               ~ glue::glue("COPY {.x} /home/{basename(.x)}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy script files into the container",
-            comment     = if (!is.null(code_file)) "Optionally copy script files from the host into the container" else NULL
+            comment     = if (!is.null(code_file)) {
+                "Optionally copy script files from the host into the container"
+            } else {
+                NULL
+            }
         ),
         misc = list(
             instruction = if (!is.null(misc_file)) {
-                purrr::map_chr(misc_file, ~ glue::glue("COPY {.x} /home/{basename(.x)}"))
+                purrr::map_chr(misc_file,
+                               ~ glue::glue("COPY {.x} /home/{basename(.x)}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy miscellaneous files into the container",
-            comment     = if (!is.null(misc_file)) "Optionally copy additional files into the container" else NULL
+            comment     = if (!is.null(misc_file)) {
+                "Optionally copy additional files into the container"
+            } else {
+                NULL
+            }
         ),
         renv_restore = list(
             instruction = readr::read_lines(
@@ -240,7 +336,11 @@ generate_dockerfile <- function(verbose = FALSE,
                 NULL
             },
             verbose_msg = "Expose port for RStudio Server",
-            comment     = if (r_mode == "rstudio") "Expose port commonly used by RStudio Server" else NULL
+            comment     = if (r_mode == "rstudio") {
+                "Expose port commonly used by RStudio Server"
+            } else {
+                NULL
+            }
         ),
         rstudio_hint = list(
             instruction = if (r_mode == "rstudio" && comments) {
@@ -256,10 +356,8 @@ generate_dockerfile <- function(verbose = FALSE,
         )
     )
 
-    # -- 6. Write Dockerfile ---------------------------------------------------
+    # -- 9. Write Dockerfile ---------------------------------------------------
     dockerfile_path <- file.path(output, "Dockerfile")
-
-    # Write the first instruction fresh (no append) then append the rest
     first <- TRUE
 
     for (block in lines) {
@@ -274,13 +372,17 @@ generate_dockerfile <- function(verbose = FALSE,
                            append = !first)
         first <- FALSE
 
-        # Comments follow immediately after the instruction they describe,
-        # except for rstudio_hint which writes raw comment lines itself
         if (!is.null(block$comment) && comments) {
             readr::write_lines(paste0("# ", block$comment),
                                file   = dockerfile_path,
                                append = TRUE)
         }
+    }
+
+    if (verbose) {
+        cli::cli_alert_success(
+            "Dockerfile written to {.path {dockerfile_path}}"
+        )
     }
 
     invisible(NULL)

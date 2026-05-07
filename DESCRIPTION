@@ -28,9 +28,12 @@ Suggests:
     withr
 Imports: 
     cli,
+    fs,
     glue,
-    httr,
-    lifecycle,
+    httr2,
+    jsonlite,
     purrr,
-    readr
+    readr,
+    remotes,
+    renv
 Config/testthat/edition: 3

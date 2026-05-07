@@ -49,12 +49,17 @@ test_that(".get_r_ver_tags maps r_mode to the correct image name", {
 })
 
 test_that(".get_r_ver_tags aborts on non-200 HTTP status", {
+    # Mock httr2::req_perform to return a fake response with status 429
+    fake_resp <- structure(
+        list(status_code = 429L, headers = list(), body = raw(0)),
+        class = "httr2_response"
+    )
     with_mocked_bindings(
-        GET = function(url) structure(list(), class = "response"),
-        status_code = function(res) 429L,
+        req_perform = function(...) fake_resp,
+        resp_status = function(...) 429L,
         {
             expect_error(containr:::.get_r_ver_tags(), "Docker Hub API request failed")
         },
-        .package = "httr"
+        .package = "httr2"
     )
 })

@@ -28,6 +28,11 @@ test_that("A directory without renv.lock fails the lock file prerequisite", {
 
 test_that("generate_dockerfile() writes renv.lock COPY line into Dockerfile", {
     tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
     generate_dockerfile(r_version = "4.3.0", output = tmp)
 
