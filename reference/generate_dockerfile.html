@@ -155,9 +155,17 @@ Returns <code>invisible(NULL)</code>.</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Generate a minimal Dockerfile using a pinned R version</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in generate_dockerfile(r_version = "4.4.0", output = tempdir()):</span> <span style="color: #0000BB;">renv.lock</span> not found in</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">/home/runner/work/containr/containr/docs/reference</span>.</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Run `renv::snapshot()` to generate one before</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span>   calling `generate_dockerfile()`.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Pin a specific R version with the tidyverse image</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.3.0"</span>, r_mode <span class="op">=</span> <span class="st">"tidyverse"</span>, output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",     output = tempdir()):</span> <span style="color: #0000BB;">renv.lock</span> not found in</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #0000BB;">/home/runner/work/containr/containr/docs/reference</span>.</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Run `renv::snapshot()` to generate one before</span>
+<span class="r-err co"><span class="r-pr">#&gt;</span>   calling `generate_dockerfile()`.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Include a data file and annotate the Dockerfile with comments</span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>

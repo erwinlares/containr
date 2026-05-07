@@ -112,9 +112,17 @@ Called for its side effects. Writes a `Dockerfile` to `output`. Returns
 ``` r
 # Generate a minimal Dockerfile using a pinned R version
 generate_dockerfile(r_version = "4.4.0", output = tempdir())
+#> Error in generate_dockerfile(r_version = "4.4.0", output = tempdir()): renv.lock not found in
+#> /home/runner/work/containr/containr/docs/reference.
+#> ℹ Run `renv::snapshot()` to generate one before
+#>   calling `generate_dockerfile()`.
 
 # Pin a specific R version with the tidyverse image
 generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
+#> Error in generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",     output = tempdir()): renv.lock not found in
+#> /home/runner/work/containr/containr/docs/reference.
+#> ℹ Run `renv::snapshot()` to generate one before
+#>   calling `generate_dockerfile()`.
 
 # Include a data file and annotate the Dockerfile with comments
 if (FALSE) { # \dontrun{
