@@ -64,9 +64,9 @@
 </h2>
 <p>Containerizing an R project with <code>containr</code> follows four steps. The first three happen inside R; authentication with the container registry happens once in the terminal before you push.</p>
 <p><strong>1. Generate a Dockerfile</strong> — <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> reads your <code>renv.lock</code> file, auto-detects the system libraries your packages need, and writes a ready-to-use <code>Dockerfile</code>. Run this as many times as needed while refining the configuration. It only writes a text file, so iteration is fast and cheap.</p>
-<p><strong>2. Build the container image</strong> — <code>build_image()</code> passes your <code>Dockerfile</code> to <code>podman</code> or <code>docker</code> and builds the image locally. The first build takes time — it downloads the base image and installs all R packages from scratch. Subsequent builds reuse cached layers and are much faster, so rebuilding after adding packages to your <code>renv.lock</code> is not as costly as it looks.</p>
-<p><strong>3. Inspect local images</strong> — <code>list_images()</code> returns a data frame of images in the local store, equivalent to running <code>podman image ls</code> in the terminal. Use it to find the image ID you need to pass to <code>push_image()</code>.</p>
-<p><strong>4. Push to a registry</strong> — <code>push_image()</code> tags the image with the full registry path and pushes it to the container registry. Currently targets the UW-Madison CHTC registry at <code>registry.doit.wisc.edu</code> by default.</p>
+<p><strong>2. Build the container image</strong> — <code><a href="reference/build_image.html">build_image()</a></code> passes your <code>Dockerfile</code> to <code>podman</code> or <code>docker</code> and builds the image locally. The first build takes time — it downloads the base image and installs all R packages from scratch. Subsequent builds reuse cached layers and are much faster, so rebuilding after adding packages to your <code>renv.lock</code> is not as costly as it looks.</p>
+<p><strong>3. Inspect local images</strong> — <code><a href="reference/list_images.html">list_images()</a></code> returns a data frame of images in the local store, equivalent to running <code>podman image ls</code> in the terminal. Use it to find the image ID you need to pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
+<p><strong>4. Push to a registry</strong> — <code><a href="reference/push_image.html">push_image()</a></code> tags the image with the full registry path and pushes it to the container registry. Currently targets the UW-Madison CHTC registry at <code>registry.doit.wisc.edu</code> by default.</p>
 <div class="section level3">
 <h3 id="authentication--one-time-setup-outside-r">Authentication — one-time setup outside R<a class="anchor" aria-label="anchor" href="#authentication--one-time-setup-outside-r"></a>
 </h3>
@@ -121,25 +121,25 @@
 </h3>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build from the Dockerfile in the current directory</span></span>
-<span><span class="fu">build_image</span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Preview the build command without running it</span></span>
-<span><span class="fu">build_image</span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="step-3--inspect-local-images">Step 3 — Inspect local images<a class="anchor" aria-label="anchor" href="#step-3--inspect-local-images"></a>
 </h3>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Returns a data frame: repository, tag, image_id, created, size</span></span>
-<span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu">list_images</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Untagged images — those built without a <code>tag</code> argument — appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code>push_image()</code>.</p>
+<span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Untagged images — those built without a <code>tag</code> argument — appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
 </div>
 <div class="section level3">
 <h3 id="step-4--push-to-the-registry">Step 4 — Push to the registry<a class="anchor" aria-label="anchor" href="#step-4--push-to-the-registry"></a>
 </h3>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Push to the UW-Madison CHTC registry</span></span>
-<span><span class="fu">push_image</span><span class="op">(</span></span>
+<span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
 <span>  project  <span class="op">=</span> <span class="st">"container-registry"</span>,</span>
@@ -147,7 +147,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Preview the tag and push commands without running them</span></span>
-<span><span class="fu">push_image</span><span class="op">(</span></span>
+<span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
 <span>  project  <span class="op">=</span> <span class="st">"container-registry"</span>,</span>
@@ -156,7 +156,7 @@
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Guided push with step-by-step explanations</span></span>
-<span><span class="fu">push_image</span><span class="op">(</span></span>
+<span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
 <span>  project  <span class="op">=</span> <span class="st">"container-registry"</span>,</span>
@@ -170,9 +170,9 @@
 <div class="section level2">
 <h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a>
 </h2>
-<p><code>containr</code> includes functions that wrap system commands (<code>podman</code>, <code>docker</code>). These cannot be tested end-to-end in a standard test suite because they require a running container daemon, real images, and in the case of <code>push_image()</code>, a live registry with valid credentials. The test suite addresses this with a three-layer strategy.</p>
+<p><code>containr</code> includes functions that wrap system commands (<code>podman</code>, <code>docker</code>). These cannot be tested end-to-end in a standard test suite because they require a running container daemon, real images, and in the case of <code><a href="reference/push_image.html">push_image()</a></code>, a live registry with valid credentials. The test suite addresses this with a three-layer strategy.</p>
 <p><strong>Layer 1 — Argument validation.</strong> Tests that bad arguments error correctly and required arguments are enforced. These are pure R checks with no system dependencies and always run on every platform, including CRAN.</p>
-<p><strong>Layer 2 — Command construction.</strong> Tests that the correct system command is assembled from the supplied arguments. <code>dry_run = TRUE</code> is the key mechanism — it causes the function to print the command that would be executed without running it. <code>local_mocked_bindings()</code> intercepts <code>.resolve_tool()</code> and <code>.check_tool_responsive()</code> so these tests run without any container tool installed. These always run on every platform.</p>
+<p><strong>Layer 2 — Command construction.</strong> Tests that the correct system command is assembled from the supplied arguments. <code>dry_run = TRUE</code> is the key mechanism — it causes the function to print the command that would be executed without running it. <code>local_mocked_bindings()</code> intercepts <code><a href="reference/dot-resolve_tool.html">.resolve_tool()</a></code> and <code><a href="reference/dot-check_tool_responsive.html">.check_tool_responsive()</a></code> so these tests run without any container tool installed. These always run on every platform.</p>
 <p><strong>Layer 3 — Integration.</strong> Tests that call real system commands against a live container environment. Guarded with <code>skip_if_not(nchar(Sys.which("podman")) &gt; 0)</code> so they only run when <code>podman</code> is available on the PATH. These never run on CRAN or CI — they are intended to be run locally before a release as part of the manual pre-submission checklist.</p>
 </div>
 <div class="section level2">

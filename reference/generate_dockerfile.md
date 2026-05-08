@@ -2,42 +2,69 @@
 
 `generate_dockerfile()` inspects an R project's dependencies via an
 `renv` lockfile and writes a ready-to-use `Dockerfile` to the specified
-output directory. It supports multiple Rocker base images, optional
-system libraries, Quarto installation, file copying, user creation, and
-inline documentation comments.
+output directory. It supports multiple Rocker base images, automatic
+system library detection, Quarto installation, file copying, user
+creation, and inline documentation comments.
 
 ## Usage
 
 ``` r
 generate_dockerfile(
-  verbose = FALSE,
   r_version = "current",
+  r_mode = "base",
+  auto_syslibs = TRUE,
+  install_syslibs = NULL,
+  output = tempdir(),
   data_file = NULL,
   code_file = NULL,
   misc_file = NULL,
   add_user = NULL,
   home_dir = "/home",
-  install_quarto = FALSE,
   expose_port = "8787",
-  r_mode = "base",
-  install_syslibs = TRUE,
+  install_quarto = FALSE,
   comments = FALSE,
-  output = tempdir()
+  verbose = FALSE
 )
 ```
 
 ## Arguments
-
-- verbose:
-
-  Logical. If `TRUE`, prints progress messages as each section of the
-  Dockerfile is written. Defaults to `FALSE`.
 
 - r_version:
 
   A character string specifying the R version to use, e.g. `"4.3.0"`.
   Defaults to `"current"`, which resolves to the version of R running in
   the current session.
+
+- r_mode:
+
+  A character string selecting the Rocker base image. Inspired by the
+  [Rocker Project](https://rocker-project.org/). One of `"base"` for
+  plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for
+  RStudio Server, or `"tidystudio"` for tidyverse plus TeX Live and
+  publishing-related packages. Defaults to `"base"`.
+
+- auto_syslibs:
+
+  Logical. If `TRUE` (the default), reads `renv.lock` from the current
+  working directory, queries the Posit Package Manager sysreqs database
+  via
+  [`remotes::system_requirements()`](https://remotes.r-lib.org/reference/system_requirements.html),
+  and automatically includes the system libraries required by all
+  packages in the lock file. Warns and continues without auto-detection
+  if the lookup fails. Set to `FALSE` to skip auto-detection entirely.
+
+- install_syslibs:
+
+  A character vector or `NULL`. Additional system libraries to install
+  beyond those auto-detected from `renv.lock`. Each element should be a
+  valid `apt` package name, e.g. `c("libuv1-dev", "libwebp-dev")`.
+  Defaults to `NULL`.
+
+- output:
+
+  A character string. Directory path where the `Dockerfile` will be
+  written. Defaults to
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html).
 
 - data_file:
 
@@ -66,29 +93,15 @@ generate_dockerfile(
   A character string. The working directory set inside the container via
   `WORKDIR`. Defaults to `"/home"`.
 
-- install_quarto:
-
-  Logical. If `TRUE`, downloads and installs the Quarto CLI inside the
-  container. Defaults to `FALSE`.
-
 - expose_port:
 
   A character string. The port to expose when `r_mode` is `"rstudio"`.
   Defaults to `"8787"`. Ignored when `r_mode` is not `"rstudio"`.
 
-- r_mode:
+- install_quarto:
 
-  A character string selecting the Rocker base image. Inspired by the
-  [Rocker Project](https://rocker-project.org/). One of `"base"` for
-  plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for
-  RStudio Server, or `"tidystudio"` for tidyverse plus TeX Live and
-  publishing-related packages. Defaults to `"base"`.
-
-- install_syslibs:
-
-  Logical. If `TRUE`, installs system libraries commonly required by R
-  packages and needed for source compilation (e.g.
-  `libcurl4-openssl-dev`, `libxml2-dev`). Defaults to `TRUE`.
+  Logical. If `TRUE`, downloads and installs the Quarto CLI inside the
+  container. Defaults to `FALSE`.
 
 - comments:
 
@@ -96,36 +109,48 @@ generate_dockerfile(
   explanatory comment. Useful for learning or sharing. Defaults to
   `FALSE`.
 
-- output:
+- verbose:
 
-  A character string. Directory path where the `Dockerfile` will be
-  written. Defaults to
-  [`tempdir()`](https://rdrr.io/r/base/tempfile.html).
+  Logical. If `TRUE`, prints progress messages as each section of the
+  Dockerfile is written. Defaults to `FALSE`.
 
 ## Value
 
 Called for its side effects. Writes a `Dockerfile` to `output`. Returns
 `invisible(NULL)`.
 
+## Prerequisites
+
+`generate_dockerfile()` requires an `renv.lock` file in the current
+working directory. Create one with
+[`renv::snapshot()`](https://rstudio.github.io/renv/reference/snapshot.html)
+before calling this function. If the lock file is out of sync with your
+project library, a warning is issued — run
+[`renv::snapshot()`](https://rstudio.github.io/renv/reference/snapshot.html)
+to update it before building the image.
+
 ## Examples
 
 ``` r
+if (FALSE) { # \dontrun{
+# Requires renv.lock in the current working directory.
+# Run renv::snapshot() first if you don't have one.
+
 # Generate a minimal Dockerfile using a pinned R version
 generate_dockerfile(r_version = "4.4.0", output = tempdir())
-#> Error in generate_dockerfile(r_version = "4.4.0", output = tempdir()): renv.lock not found in
-#> /home/runner/work/containr/containr/docs/reference.
-#> ℹ Run `renv::snapshot()` to generate one before
-#>   calling `generate_dockerfile()`.
 
 # Pin a specific R version with the tidyverse image
-generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
-#> Error in generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",     output = tempdir()): renv.lock not found in
-#> /home/runner/work/containr/containr/docs/reference.
-#> ℹ Run `renv::snapshot()` to generate one before
-#>   calling `generate_dockerfile()`.
+generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
+                    output = tempdir())
+
+# Add extra system libraries on top of auto-detected ones
+generate_dockerfile(
+  r_version       = "4.4.0",
+  install_syslibs = c("libuv1-dev", "libwebp-dev"),
+  output          = "."
+)
 
 # Include a data file and annotate the Dockerfile with comments
-if (FALSE) { # \dontrun{
 generate_dockerfile(
   r_version = "4.3.0",
   data_file = "data/penguins.csv",

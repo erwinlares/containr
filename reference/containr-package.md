@@ -24,3 +24,8 @@ Useful links:
 
 **Maintainer**: Erwin Lares <erwin.lares@wisc.edu>
 ([ORCID](https://orcid.org/0000-0002-3284-828X))
+
+Authors:
+
+- Erwin Lares <erwin.lares@wisc.edu>
+  ([ORCID](https://orcid.org/0000-0002-3284-828X))

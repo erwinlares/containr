@@ -35,12 +35,12 @@
 
 <div class="section level2">
 <h2 id="why-testing-is-complicated-here">Why testing is complicated here<a class="anchor" aria-label="anchor" href="#why-testing-is-complicated-here"></a></h2>
-<p>Most R packages test their functions by calling them and checking the output. <code>containr</code> can do that for <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> — it writes a text file, and we can read that file and assert on its contents. But <code>build_image()</code>, <code>push_image()</code>, and <code>list_images()</code> are different. They wrap system commands:</p>
+<p>Most R packages test their functions by calling them and checking the output. <code>containr</code> can do that for <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> — it writes a text file, and we can read that file and assert on its contents. But <code><a href="reference/build_image.html">build_image()</a></code>, <code><a href="reference/push_image.html">push_image()</a></code>, and <code><a href="reference/list_images.html">list_images()</a></code> are different. They wrap system commands:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">podman</span> build <span class="at">-f</span> Dockerfile .</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="ex">podman</span> tag abc123 registry.doit.wisc.edu/netid/project:1.0.0</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="ex">podman</span> push registry.doit.wisc.edu/netid/project:1.0.0</span>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="ex">podman</span> image ls</span></code></pre></div>
-<p>Testing these functions end-to-end requires a running container daemon, a real image, and for <code>push_image()</code>, a live registry with valid credentials. None of those conditions hold reliably on GitHub Actions, on CRAN’s check servers, or on a colleague’s machine who hasn’t set up Podman.</p>
+<p>Testing these functions end-to-end requires a running container daemon, a real image, and for <code><a href="reference/push_image.html">push_image()</a></code>, a live registry with valid credentials. None of those conditions hold reliably on GitHub Actions, on CRAN’s check servers, or on a colleague’s machine who hasn’t set up Podman.</p>
 <p>If we wrote naive end-to-end tests for these functions and pushed to GitHub, every CI run would fail. CRAN would reject the package. The tests would be useless outside the specific environment where they were written.</p>
 <p>The three-layer strategy solves this by separating what we <em>can</em> always test from what we <em>can only</em> test locally.</p>
 <hr></div>
@@ -55,11 +55,11 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">test_that</span><span class="op">(</span><span class="st">"push_image() errors when image_id is NULL"</span>, <span class="op">{</span></span>
 <span>    <span class="fu">expect_error</span><span class="op">(</span></span>
-<span>        <span class="fu">push_image</span><span class="op">(</span>netid <span class="op">=</span> <span class="st">"erwin.lares"</span>, project <span class="op">=</span> <span class="st">"container-registry"</span><span class="op">)</span>,</span>
+<span>        <span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span>netid <span class="op">=</span> <span class="st">"erwin.lares"</span>, project <span class="op">=</span> <span class="st">"container-registry"</span><span class="op">)</span>,</span>
 <span>        regexp <span class="op">=</span> <span class="st">"image_id"</span></span>
 <span>    <span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
-<p>This test never reaches <code>podman</code>. It just confirms that <code>push_image()</code> catches the missing argument and says something useful about it.</p>
+<p>This test never reaches <code>podman</code>. It just confirms that <code><a href="reference/push_image.html">push_image()</a></code> catches the missing argument and says something useful about it.</p>
 <hr></div>
 <div class="section level3">
 <h3 id="layer-2--command-construction">Layer 2 — Command construction<a class="anchor" aria-label="anchor" href="#layer-2--command-construction"></a></h3>
@@ -70,14 +70,14 @@
 <code class="sourceCode R"><span><span class="fu">test_that</span><span class="op">(</span><span class="st">"build_image() dry_run produces podman build command"</span>, <span class="op">{</span></span>
 <span>    <span class="co"># ... setup ...</span></span>
 <span>    <span class="fu">expect_message</span><span class="op">(</span></span>
-<span>        <span class="fu">build_image</span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>        <span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>        regexp <span class="op">=</span> <span class="st">"podman build"</span></span>
 <span>    <span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p><code>dry_run = TRUE</code> is not just a convenience feature. It is the primary mechanism that makes Layer 2 tests possible. Every system-facing function must implement it.</p>
 <p><strong><code>local_mocked_bindings()</code></strong></p>
-<p>Even with <code>dry_run = TRUE</code>, <code>build_image()</code> still calls <code>.resolve_tool()</code> (to detect whether <code>podman</code> or <code>docker</code> is available) and <code>.check_tool_responsive()</code> (to verify the daemon is running) before it reaches the <code>dry_run</code> branch. On a machine without <code>podman</code>, these would fail before the test even gets to assert anything.</p>
-<p><code>local_mocked_bindings()</code> from <code>testthat</code> replaces a function with a fake version for the duration of a single test. When the test ends, the original function is restored. We use it to replace <code>.resolve_tool()</code> with a function that always returns <code>"podman"</code>, and <code>.check_tool_responsive()</code> with a function that does nothing:</p>
+<p>Even with <code>dry_run = TRUE</code>, <code><a href="reference/build_image.html">build_image()</a></code> still calls <code><a href="reference/dot-resolve_tool.html">.resolve_tool()</a></code> (to detect whether <code>podman</code> or <code>docker</code> is available) and <code><a href="reference/dot-check_tool_responsive.html">.check_tool_responsive()</a></code> (to verify the daemon is running) before it reaches the <code>dry_run</code> branch. On a machine without <code>podman</code>, these would fail before the test even gets to assert anything.</p>
+<p><code>local_mocked_bindings()</code> from <code>testthat</code> replaces a function with a fake version for the duration of a single test. When the test ends, the original function is restored. We use it to replace <code><a href="reference/dot-resolve_tool.html">.resolve_tool()</a></code> with a function that always returns <code>"podman"</code>, and <code><a href="reference/dot-check_tool_responsive.html">.check_tool_responsive()</a></code> with a function that does nothing:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">test_that</span><span class="op">(</span><span class="st">"build_image() dry_run produces podman build command"</span>, <span class="op">{</span></span>
 <span>    <span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu">withr</span><span class="fu">::</span><span class="fu"><a href="https://withr.r-lib.org/reference/with_tempfile.html" class="external-link">local_tempdir</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -89,7 +89,7 @@
 <span>        .package <span class="op">=</span> <span class="st">"containr"</span></span>
 <span>    <span class="op">)</span></span>
 <span>    <span class="fu">expect_message</span><span class="op">(</span></span>
-<span>        <span class="fu">build_image</span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
+<span>        <span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>        regexp <span class="op">=</span> <span class="st">"podman build"</span></span>
 <span>    <span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
@@ -97,27 +97,37 @@
 <p><strong>Why <code>local_mocked_bindings()</code> is called inline, not in a helper</strong></p>
 <p>You might expect a helper function like <code>.mock_tool()</code> to avoid repeating the <code>local_mocked_bindings()</code> calls in every test. We tried this and it does not work. <code>local_mocked_bindings()</code> registers cleanup with the <em>calling frame</em> — when called inside a helper function, it cleans up when the helper returns, not when the test ends. The mock disappears before the test body runs. This is why every test calls <code>local_mocked_bindings()</code> directly.</p>
 <p><strong>Why they always run:</strong></p>
-<p>Layer 2 tests have no real external dependencies. <code>.resolve_tool()</code> and <code>.check_tool_responsive()</code> are mocked away, and <code>dry_run = TRUE</code> prevents any system command from executing. These tests run on GitHub Actions, on CRAN, and on any machine, regardless of what container tools are installed.</p>
+<p>Layer 2 tests have no real external dependencies. <code><a href="reference/dot-resolve_tool.html">.resolve_tool()</a></code> and <code><a href="reference/dot-check_tool_responsive.html">.check_tool_responsive()</a></code> are mocked away, and <code>dry_run = TRUE</code> prevents any system command from executing. These tests run on GitHub Actions, on CRAN, and on any machine, regardless of what container tools are installed.</p>
 <hr></div>
 <div class="section level3">
 <h3 id="layer-3--integration">Layer 3 — Integration<a class="anchor" aria-label="anchor" href="#layer-3--integration"></a></h3>
 <p>These tests call real system commands against a real container environment. They are the only tests that confirm the functions actually work end-to-end.</p>
 <p><strong>Why they are guarded:</strong></p>
-<p>Integration tests for <code>build_image()</code> require <code>podman</code> installed and the daemon running. Integration tests for <code>push_image()</code> additionally require a valid registry login. These conditions do not hold on GitHub Actions or CRAN. Running these tests there would produce failures that have nothing to do with the code.</p>
-<p>We guard Layer 3 tests with <code>skip_if_not()</code>:</p>
+<p>Integration tests for <code><a href="reference/build_image.html">build_image()</a></code> require <code>podman</code> installed and the daemon running. Integration tests for <code><a href="reference/push_image.html">push_image()</a></code> additionally require a valid registry login. These conditions do not hold on GitHub Actions or CRAN. Running these tests there would produce failures that have nothing to do with the code.</p>
+<p>We guard Layer 3 tests with an explicit opt-in environment variable:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">test_that</span><span class="op">(</span><span class="st">"list_images() returns a data frame with correct columns"</span>, <span class="op">{</span></span>
+<span>    <span class="fu">skip_if</span><span class="op">(</span></span>
+<span>        <span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nchar</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Sys.getenv.html" class="external-link">Sys.getenv</a></span><span class="op">(</span><span class="st">"CONTAINR_INTEGRATION_TESTS"</span><span class="op">)</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span>,</span>
+<span>        <span class="st">"Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"</span></span>
+<span>    <span class="op">)</span></span>
 <span>    <span class="fu">skip_if_not</span><span class="op">(</span></span>
 <span>        <span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nchar</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Sys.which.html" class="external-link">Sys.which</a></span><span class="op">(</span><span class="st">"podman"</span><span class="op">)</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span>,</span>
 <span>        <span class="st">"podman not available on this system"</span></span>
 <span>    <span class="op">)</span></span>
-<span>    <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">list_images</span><span class="op">(</span><span class="op">)</span></span>
+<span>    <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
 <span>    <span class="fu">expect_s3_class</span><span class="op">(</span><span class="va">result</span>, <span class="st">"data.frame"</span><span class="op">)</span></span>
 <span>    <span class="fu">expect_named</span><span class="op">(</span><span class="va">result</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"repository"</span>, <span class="st">"tag"</span>, <span class="st">"image_id"</span>, <span class="st">"created"</span>, <span class="st">"size"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
-<p><code>Sys.which("podman")</code> returns the path to <code>podman</code> if it is installed on the PATH, or an empty string if not. <code>nchar(...) &gt; 0</code> is <code>TRUE</code> only when <code>podman</code> is available. When the condition is <code>FALSE</code>, <code>skip_if_not()</code> skips the test cleanly — it is not a failure, just a skip.</p>
+<p>The first guard — <code>skip_if(nchar(Sys.getenv(...)) == 0)</code> — skips the test unless the developer has explicitly set <code>CONTAINR_INTEGRATION_TESTS=true</code> in their environment. Neither <code>devtools::test()</code> nor <code>devtools::check()</code> sets this variable, so Layer 3 tests are skipped by default in all automated contexts. The second guard — <code>skip_if_not(nchar(Sys.which("podman")) &gt; 0)</code> — is a safety check that skips if <code>podman</code> is not installed, in case the environment variable is set on a machine without a container tool.</p>
+<p>Note that <code>skip_on_cran()</code> was considered but rejected for this purpose. <code>devtools::check()</code> sets <code>NOT_CRAN=true</code>, which means <code>skip_on_cran()</code> does not skip during <code>devtools::check()</code> — only on actual CRAN servers and bare <code>R CMD check</code> calls from the terminal. The environment variable approach gives explicit, predictable control regardless of how the tests are invoked.</p>
 <p><strong>Where they run:</strong></p>
-<p>Layer 3 tests run only when you run <code>devtools::test()</code> locally on a machine with <code>podman</code> installed and the daemon running. They are part of the manual pre-submission checklist — the last verification step before submitting to CRAN — not part of the automated CI suite.</p>
+<p>Layer 3 tests run only when you explicitly opt in before running the test suite:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>CONTAINR_INTEGRATION_TESTS <span class="op">=</span> <span class="st">"true"</span><span class="op">)</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.unsetenv</a></span><span class="op">(</span><span class="st">"CONTAINR_INTEGRATION_TESTS"</span><span class="op">)</span></span></code></pre></div>
+<p>They are part of the manual pre-submission checklist — the last verification step before submitting to CRAN — not part of the automated CI suite.</p>
 <p><strong>Why CRAN and CI cannot run them:</strong></p>
 <p>When you submit a package to CRAN, CRAN’s servers run <code>R CMD CHECK</code> on your package across multiple platforms — Linux, macOS, and Windows. These are generic cloud machines with no knowledge of your project, your institution, or your infrastructure. Concretely, the following conditions that Layer 3 tests require cannot be met on CRAN or GitHub Actions:</p>
 <ul><li>
@@ -135,7 +145,7 @@
 <div class="section level3">
 <h3 id="withrlocal_tempdir"><code>withr::local_tempdir()</code><a class="anchor" aria-label="anchor" href="#withrlocal_tempdir"></a></h3>
 <p>Creates a temporary directory and registers it for automatic cleanup when the test ends. Every test that writes files uses this rather than hardcoding a path, which would leave debris on disk and potentially interfere with other tests.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu">withr</span><span class="fu">::</span><span class="fu"><a href="https://withr.r-lib.org/reference/with_tempfile.html" class="external-link">local_tempdir</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co"># tmp is now something like /tmp/RtmpXXXXXX/testdir</span></span>
 <span><span class="co"># It will be deleted automatically when the test_that() block exits</span></span></code></pre></div>
@@ -143,7 +153,7 @@
 <div class="section level3">
 <h3 id="withrlocal_dir"><code>withr::local_dir()</code><a class="anchor" aria-label="anchor" href="#withrlocal_dir"></a></h3>
 <p>Changes the working directory for the duration of the test and restores it when the test ends. <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> looks for <code>renv.lock</code> in <code><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd()</a></code>, so tests that call it must set the working directory to wherever the test’s <code>renv.lock</code> was written.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu">withr</span><span class="fu">::</span><span class="fu"><a href="https://withr.r-lib.org/reference/with_tempfile.html" class="external-link">local_tempdir</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="st">'{"R":{"Version":"4.4.0"},"Packages":{}}'</span>, <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">tmp</span>, <span class="st">"renv.lock"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">withr</span><span class="fu">::</span><span class="fu"><a href="https://withr.r-lib.org/reference/with_dir.html" class="external-link">local_dir</a></span><span class="op">(</span><span class="va">tmp</span><span class="op">)</span></span>
@@ -152,15 +162,15 @@
 </div>
 <div class="section level3">
 <h3 id="local_mocked_bindings"><code>local_mocked_bindings()</code><a class="anchor" aria-label="anchor" href="#local_mocked_bindings"></a></h3>
-<p>Temporarily replaces a function binding for the duration of a test. Used in Layer 2 tests to intercept <code>.resolve_tool()</code> and <code>.check_tool_responsive()</code> so tests run without a real container tool installed.</p>
+<p>Temporarily replaces a function binding for the duration of a test. Used in Layer 2 tests to intercept <code><a href="reference/dot-resolve_tool.html">.resolve_tool()</a></code> and <code><a href="reference/dot-check_tool_responsive.html">.check_tool_responsive()</a></code> so tests run without a real container tool installed.</p>
 <p>The <code>.package</code> argument specifies which package’s namespace the binding lives in. For <code>containr</code>’s internal helpers:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">local_mocked_bindings</span><span class="op">(</span></span>
 <span>    `.resolve_tool` <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span> <span class="st">"podman"</span>,</span>
 <span>    .package <span class="op">=</span> <span class="st">"containr"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>For functions in other packages, such as <code><a href="https://rstudio.github.io/renv/reference/status.html" class="external-link">renv::status()</a></code>, the package name changes accordingly:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">local_mocked_bindings</span><span class="op">(</span></span>
 <span>    `status` <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">...</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>synchronized <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>,</span>
 <span>    .package <span class="op">=</span> <span class="st">"renv"</span></span>
@@ -170,9 +180,9 @@
 <div class="section level3">
 <h3 id="the-minimal-renvlock-fixture">The minimal <code>renv.lock</code> fixture<a class="anchor" aria-label="anchor" href="#the-minimal-renvlock-fixture"></a></h3>
 <p><code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> requires an <code>renv.lock</code> in the current working directory. In tests, we write a minimal valid lockfile — one that satisfies the JSON structure <code>renv</code> expects but contains no packages:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="st">'{"R":{"Version":"4.4.0"},"Packages":{}}'</span>, <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">tmp</span>, <span class="st">"renv.lock"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>This is enough for <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> to pass the lockfile check and for <code>.read_renv_packages()</code> to return <code>character(0)</code> (no packages), which combined with the <code>.fetch_sysreqs</code> mock produces a Dockerfile with only the <code>curl</code> baseline library installed.</p>
+<p>This is enough for <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> to pass the lockfile check and for <code><a href="reference/dot-read_renv_packages.html">.read_renv_packages()</a></code> to return <code>character(0)</code> (no packages), which combined with the <code>.fetch_sysreqs</code> mock produces a Dockerfile with only the <code>curl</code> baseline library installed.</p>
 <hr></div>
 </div>
 <div class="section level2">
@@ -183,27 +193,31 @@
 <hr></div>
 <div class="section level2">
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a></h2>
-<table class="table"><thead><tr><th>Layer</th>
+<table class="table"><colgroup><col width="11%"><col width="22%"><col width="16%"><col width="17%"><col width="20%"><col width="11%"></colgroup><thead><tr><th>Layer</th>
 <th>What it tests</th>
 <th>Requires</th>
 <th>Runs on CI</th>
 <th>Runs on CRAN</th>
+<th>Guard</th>
 </tr></thead><tbody><tr><td>1</td>
 <td>Argument validation</td>
 <td>Nothing</td>
 <td>Yes</td>
 <td>Yes</td>
+<td>none</td>
 </tr><tr><td>2</td>
 <td>Command construction</td>
 <td>
 <code>dry_run</code>, mocks</td>
 <td>Yes</td>
 <td>Yes</td>
+<td>none</td>
 </tr><tr><td>3</td>
 <td>End-to-end execution</td>
 <td>podman, registry</td>
 <td>No</td>
 <td>No</td>
+<td><code>CONTAINR_INTEGRATION_TESTS=true</code></td>
 </tr></tbody></table><p>The goal is to maximize what we can verify automatically while being honest about what requires a real environment. Layers 1 and 2 give us high confidence that the logic is correct. Layer 3 confirms it works in practice before we ship.</p>
 </div>
 </div>

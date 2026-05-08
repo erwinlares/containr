@@ -6,32 +6,41 @@
 
 ### New functions
 
-- `build_image()` builds a container image from a `Dockerfile` using
-  either `podman` or `docker`. Auto-detects which tool is available,
-  preferring `podman`. Supports `dry_run = TRUE` to preview the build
-  command without executing it. `verbose` and `comments` follow the same
-  contract as
+- [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  builds a container image from a `Dockerfile` using either `podman` or
+  `docker`. Auto-detects which tool is available, preferring `podman`.
+  Supports `dry_run = TRUE` to preview the build command without
+  executing it. `verbose` and `comments` follow the same contract as
   [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md).
 
-- `push_image()` tags a locally built container image with a full
-  registry path and pushes it to a container registry in a single call,
-  handling both the `podman tag` and `podman push` steps internally.
-  Arguments: `image_id`, `netid`, `project`, `tag` (defaults to
-  `"latest"`), `registry` (defaults to `"registry.doit.wisc.edu"`).
-  Supports login verification, `dry_run = TRUE`, and guided output via
-  `verbose` and `comments`.
+- [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  tags a locally built container image with a full registry path and
+  pushes it to a container registry in a single call, handling both the
+  `podman tag` and `podman push` steps internally. Arguments:
+  `image_id`, `netid`, `project`, `tag` (defaults to `"latest"`),
+  `registry` (defaults to `"registry.doit.wisc.edu"`). Supports login
+  verification, `dry_run = TRUE`, and guided output via `verbose` and
+  `comments`.
 
-- `list_images()` returns a data frame of container images in the local
-  image store, as reported by `podman image ls` or `docker image ls`.
-  Useful for finding the image ID to pass to `push_image()` after
-  building an image with `build_image()`. Prints the data frame to the
-  console and returns it invisibly.
+- [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+  returns a data frame of container images in the local image store, as
+  reported by `podman image ls` or `docker image ls`. Useful for finding
+  the image ID to pass to
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  after building an image with
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md).
+  Prints the data frame to the console and returns it invisibly.
 
-- Two new internal helpers shared by `build_image()`, `push_image()`,
-  and `list_images()`: `.resolve_tool()` auto-detects `podman` or
-  `docker` on the PATH, and `.check_tool_responsive()` verifies the
-  daemon is running before attempting any build, push, or list
-  operation.
+- Two new internal helpers shared by
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md),
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+  and
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md):
+  [`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
+  auto-detects `podman` or `docker` on the PATH, and
+  [`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+  verifies the daemon is running before attempting any build, push, or
+  list operation.
 
 ### Changes to `generate_dockerfile()`
 
@@ -90,10 +99,12 @@
   [`.get_r_ver_tags()`](https://erwinlares.github.io/containr/reference/dot-get_r_ver_tags.md)
   for Docker Hub API calls.
 - `httr` removed from `Imports`. All HTTP calls now use `httr2`.
-- `remotes` added to `Imports`. Used by `.fetch_sysreqs()` to query
-  system library requirements.
-- `jsonlite` added to `Imports`. Used by `.read_renv_packages()` to
-  parse `renv.lock`.
+- `remotes` added to `Imports`. Used by
+  [`.fetch_sysreqs()`](https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.md)
+  to query system library requirements.
+- `jsonlite` added to `Imports`. Used by
+  [`.read_renv_packages()`](https://erwinlares.github.io/containr/reference/dot-read_renv_packages.md)
+  to parse `renv.lock`.
 - `dplyr` removed from `Imports`. The `r_mode` lookup in
   [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
   now uses a named vector instead of `dplyr::case_when()`.
@@ -102,9 +113,15 @@
 
 - [`.get_r_ver_tags()`](https://erwinlares.github.io/containr/reference/dot-get_r_ver_tags.md)
   migrated from `httr` to `httr2`.
-- New internal helpers `.read_renv_packages()` and `.fetch_sysreqs()`
+- New internal helpers
+  [`.read_renv_packages()`](https://erwinlares.github.io/containr/reference/dot-read_renv_packages.md)
+  and
+  [`.fetch_sysreqs()`](https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.md)
   added in `R/sysreqs-helpers.R`.
-- New internal helpers `.resolve_tool()` and `.check_tool_responsive()`
+- New internal helpers
+  [`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
+  and
+  [`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
   added in `R/container-helpers.R`.
 
 ## containr 0.1.3

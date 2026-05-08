@@ -31,21 +31,26 @@ packages need, and writes a ready-to-use `Dockerfile`. Run this as many
 times as needed while refining the configuration. It only writes a text
 file, so iteration is fast and cheap.
 
-**2. Build the container image** — `build_image()` passes your
-`Dockerfile` to `podman` or `docker` and builds the image locally. The
-first build takes time — it downloads the base image and installs all R
-packages from scratch. Subsequent builds reuse cached layers and are
-much faster, so rebuilding after adding packages to your `renv.lock` is
-not as costly as it looks.
+**2. Build the container image** —
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+passes your `Dockerfile` to `podman` or `docker` and builds the image
+locally. The first build takes time — it downloads the base image and
+installs all R packages from scratch. Subsequent builds reuse cached
+layers and are much faster, so rebuilding after adding packages to your
+`renv.lock` is not as costly as it looks.
 
-**3. Inspect local images** — `list_images()` returns a data frame of
-images in the local store, equivalent to running `podman image ls` in
-the terminal. Use it to find the image ID you need to pass to
-`push_image()`.
+**3. Inspect local images** —
+[`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+returns a data frame of images in the local store, equivalent to running
+`podman image ls` in the terminal. Use it to find the image ID you need
+to pass to
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md).
 
-**4. Push to a registry** — `push_image()` tags the image with the full
-registry path and pushes it to the container registry. Currently targets
-the UW-Madison CHTC registry at `registry.doit.wisc.edu` by default.
+**4. Push to a registry** —
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+tags the image with the full registry path and pushes it to the
+container registry. Currently targets the UW-Madison CHTC registry at
+`registry.doit.wisc.edu` by default.
 
 ### Authentication — one-time setup outside R
 
@@ -136,7 +141,8 @@ imgs <- list_images()
 
 Untagged images — those built without a `tag` argument — appear with
 `<none>` in the `repository` and `tag` columns. The `image_id` column
-contains the hash you pass to `push_image()`.
+contains the hash you pass to
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md).
 
 ### Step 4 — Push to the registry
 
@@ -179,8 +185,10 @@ harder to trace which image was used for a given analysis.
 `containr` includes functions that wrap system commands (`podman`,
 `docker`). These cannot be tested end-to-end in a standard test suite
 because they require a running container daemon, real images, and in the
-case of `push_image()`, a live registry with valid credentials. The test
-suite addresses this with a three-layer strategy.
+case of
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+a live registry with valid credentials. The test suite addresses this
+with a three-layer strategy.
 
 **Layer 1 — Argument validation.** Tests that bad arguments error
 correctly and required arguments are enforced. These are pure R checks
@@ -191,9 +199,12 @@ CRAN.
 command is assembled from the supplied arguments. `dry_run = TRUE` is
 the key mechanism — it causes the function to print the command that
 would be executed without running it. `local_mocked_bindings()`
-intercepts `.resolve_tool()` and `.check_tool_responsive()` so these
-tests run without any container tool installed. These always run on
-every platform.
+intercepts
+[`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
+and
+[`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+so these tests run without any container tool installed. These always
+run on every platform.
 
 **Layer 3 — Integration.** Tests that call real system commands against
 a live container environment. Guarded with

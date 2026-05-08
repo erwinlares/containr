@@ -6,8 +6,12 @@ Most R packages test their functions by calling them and checking the
 output. `containr` can do that for
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
 — it writes a text file, and we can read that file and assert on its
-contents. But `build_image()`, `push_image()`, and `list_images()` are
-different. They wrap system commands:
+contents. But
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md),
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+and
+[`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+are different. They wrap system commands:
 
 ``` bash
 podman build -f Dockerfile .
@@ -17,10 +21,11 @@ podman image ls
 ```
 
 Testing these functions end-to-end requires a running container daemon,
-a real image, and for `push_image()`, a live registry with valid
-credentials. None of those conditions hold reliably on GitHub Actions,
-on CRAN’s check servers, or on a colleague’s machine who hasn’t set up
-Podman.
+a real image, and for
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+a live registry with valid credentials. None of those conditions hold
+reliably on GitHub Actions, on CRAN’s check servers, or on a colleague’s
+machine who hasn’t set up Podman.
 
 If we wrote naive end-to-end tests for these functions and pushed to
 GitHub, every CI run would fail. CRAN would reject the package. The
@@ -60,7 +65,8 @@ test_that("push_image() errors when image_id is NULL", {
 })
 ```
 
-This test never reaches `podman`. It just confirms that `push_image()`
+This test never reaches `podman`. It just confirms that
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
 catches the missing argument and says something useful about it.
 
 ------------------------------------------------------------------------
@@ -95,17 +101,23 @@ function must implement it.
 
 **`local_mocked_bindings()`**
 
-Even with `dry_run = TRUE`, `build_image()` still calls
-`.resolve_tool()` (to detect whether `podman` or `docker` is available)
-and `.check_tool_responsive()` (to verify the daemon is running) before
-it reaches the `dry_run` branch. On a machine without `podman`, these
-would fail before the test even gets to assert anything.
+Even with `dry_run = TRUE`,
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+still calls
+[`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
+(to detect whether `podman` or `docker` is available) and
+[`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+(to verify the daemon is running) before it reaches the `dry_run`
+branch. On a machine without `podman`, these would fail before the test
+even gets to assert anything.
 
 `local_mocked_bindings()` from `testthat` replaces a function with a
 fake version for the duration of a single test. When the test ends, the
-original function is restored. We use it to replace `.resolve_tool()`
+original function is restored. We use it to replace
+[`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
 with a function that always returns `"podman"`, and
-`.check_tool_responsive()` with a function that does nothing:
+[`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+with a function that does nothing:
 
 ``` r
 
@@ -140,11 +152,13 @@ disappears before the test body runs. This is why every test calls
 
 **Why they always run:**
 
-Layer 2 tests have no real external dependencies. `.resolve_tool()` and
-`.check_tool_responsive()` are mocked away, and `dry_run = TRUE`
-prevents any system command from executing. These tests run on GitHub
-Actions, on CRAN, and on any machine, regardless of what container tools
-are installed.
+Layer 2 tests have no real external dependencies.
+[`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
+and
+[`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+are mocked away, and `dry_run = TRUE` prevents any system command from
+executing. These tests run on GitHub Actions, on CRAN, and on any
+machine, regardless of what container tools are installed.
 
 ------------------------------------------------------------------------
 
@@ -156,17 +170,23 @@ work end-to-end.
 
 **Why they are guarded:**
 
-Integration tests for `build_image()` require `podman` installed and the
-daemon running. Integration tests for `push_image()` additionally
-require a valid registry login. These conditions do not hold on GitHub
-Actions or CRAN. Running these tests there would produce failures that
-have nothing to do with the code.
+Integration tests for
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+require `podman` installed and the daemon running. Integration tests for
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+additionally require a valid registry login. These conditions do not
+hold on GitHub Actions or CRAN. Running these tests there would produce
+failures that have nothing to do with the code.
 
-We guard Layer 3 tests with `skip_if_not()`:
+We guard Layer 3 tests with an explicit opt-in environment variable:
 
 ``` r
 
 test_that("list_images() returns a data frame with correct columns", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
     skip_if_not(
         nchar(Sys.which("podman")) > 0,
         "podman not available on this system"
@@ -177,18 +197,37 @@ test_that("list_images() returns a data frame with correct columns", {
 })
 ```
 
-`Sys.which("podman")` returns the path to `podman` if it is installed on
-the PATH, or an empty string if not. `nchar(...) > 0` is `TRUE` only
-when `podman` is available. When the condition is `FALSE`,
-`skip_if_not()` skips the test cleanly — it is not a failure, just a
-skip.
+The first guard — `skip_if(nchar(Sys.getenv(...)) == 0)` — skips the
+test unless the developer has explicitly set
+`CONTAINR_INTEGRATION_TESTS=true` in their environment. Neither
+`devtools::test()` nor `devtools::check()` sets this variable, so Layer
+3 tests are skipped by default in all automated contexts. The second
+guard — `skip_if_not(nchar(Sys.which("podman")) > 0)` — is a safety
+check that skips if `podman` is not installed, in case the environment
+variable is set on a machine without a container tool.
+
+Note that `skip_on_cran()` was considered but rejected for this purpose.
+`devtools::check()` sets `NOT_CRAN=true`, which means `skip_on_cran()`
+does not skip during `devtools::check()` — only on actual CRAN servers
+and bare `R CMD check` calls from the terminal. The environment variable
+approach gives explicit, predictable control regardless of how the tests
+are invoked.
 
 **Where they run:**
 
-Layer 3 tests run only when you run `devtools::test()` locally on a
-machine with `podman` installed and the daemon running. They are part of
-the manual pre-submission checklist — the last verification step before
-submitting to CRAN — not part of the automated CI suite.
+Layer 3 tests run only when you explicitly opt in before running the
+test suite:
+
+``` r
+
+Sys.setenv(CONTAINR_INTEGRATION_TESTS = "true")
+devtools::test()
+Sys.unsetenv("CONTAINR_INTEGRATION_TESTS")
+```
+
+They are part of the manual pre-submission checklist — the last
+verification step before submitting to CRAN — not part of the automated
+CI suite.
 
 **Why CRAN and CI cannot run them:**
 
@@ -263,9 +302,11 @@ registers cleanup with the calling frame.
 ### `local_mocked_bindings()`
 
 Temporarily replaces a function binding for the duration of a test. Used
-in Layer 2 tests to intercept `.resolve_tool()` and
-`.check_tool_responsive()` so tests run without a real container tool
-installed.
+in Layer 2 tests to intercept
+[`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md)
+and
+[`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+so tests run without a real container tool installed.
 
 The `.package` argument specifies which package’s namespace the binding
 lives in. For `containr`’s internal helpers:
@@ -310,10 +351,11 @@ writeLines('{"R":{"Version":"4.4.0"},"Packages":{}}', file.path(tmp, "renv.lock"
 
 This is enough for
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
-to pass the lockfile check and for `.read_renv_packages()` to return
-`character(0)` (no packages), which combined with the `.fetch_sysreqs`
-mock produces a Dockerfile with only the `curl` baseline library
-installed.
+to pass the lockfile check and for
+[`.read_renv_packages()`](https://erwinlares.github.io/containr/reference/dot-read_renv_packages.md)
+to return `character(0)` (no packages), which combined with the
+`.fetch_sysreqs` mock produces a Dockerfile with only the `curl`
+baseline library installed.
 
 ------------------------------------------------------------------------
 
@@ -345,11 +387,11 @@ puts the fixture lockfile in the right place.
 
 ## Summary
 
-| Layer | What it tests        | Requires         | Runs on CI | Runs on CRAN |
-|-------|----------------------|------------------|------------|--------------|
-| 1     | Argument validation  | Nothing          | Yes        | Yes          |
-| 2     | Command construction | `dry_run`, mocks | Yes        | Yes          |
-| 3     | End-to-end execution | podman, registry | No         | No           |
+| Layer | What it tests | Requires | Runs on CI | Runs on CRAN | Guard |
+|----|----|----|----|----|----|
+| 1 | Argument validation | Nothing | Yes | Yes | none |
+| 2 | Command construction | `dry_run`, mocks | Yes | Yes | none |
+| 3 | End-to-end execution | podman, registry | No | No | `CONTAINR_INTEGRATION_TESTS=true` |
 
 The goal is to maximize what we can verify automatically while being
 honest about what requires a real environment. Layers 1 and 2 give us
