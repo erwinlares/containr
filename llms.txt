@@ -207,10 +207,11 @@ so these tests run without any container tool installed. These always
 run on every platform.
 
 **Layer 3 — Integration.** Tests that call real system commands against
-a live container environment. Guarded with
-`skip_if_not(nchar(Sys.which("podman")) > 0)` so they only run when
-`podman` is available on the PATH. These never run on CRAN or CI — they
-are intended to be run locally before a release as part of the manual
+a live container environment. Guarded behind an explicit opt-in
+environment variable — they only run when you set
+`CONTAINR_INTEGRATION_TESTS=true` in your session before calling
+`devtools::test()`. These never run automatically on CRAN or CI, and are
+intended to be run locally before a release as part of the manual
 pre-submission checklist.
 
 ## Citation
