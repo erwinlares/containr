@@ -5,7 +5,6 @@
 .DS_Store
 .quarto
 docs
-renv.lock
 inst/doc
 Dockerfile
 .positai
