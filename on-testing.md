@@ -153,10 +153,14 @@ a valid registry login. These conditions do not hold on GitHub Actions or
 CRAN. Running these tests there would produce failures that have nothing to
 do with the code.
 
-We guard Layer 3 tests with `skip_if_not()`:
+We guard Layer 3 tests with an explicit opt-in environment variable:
 
 ```r
 test_that("list_images() returns a data frame with correct columns", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
     skip_if_not(
         nchar(Sys.which("podman")) > 0,
         "podman not available on this system"
@@ -167,17 +171,33 @@ test_that("list_images() returns a data frame with correct columns", {
 })
 ```
 
-`Sys.which("podman")` returns the path to `podman` if it is installed on
-the PATH, or an empty string if not. `nchar(...) > 0` is `TRUE` only when
-`podman` is available. When the condition is `FALSE`, `skip_if_not()` skips
-the test cleanly — it is not a failure, just a skip.
+The first guard — `skip_if(nchar(Sys.getenv(...)) == 0)` — skips the test
+unless the developer has explicitly set `CONTAINR_INTEGRATION_TESTS=true`
+in their environment. Neither `devtools::test()` nor `devtools::check()` sets
+this variable, so Layer 3 tests are skipped by default in all automated
+contexts. The second guard — `skip_if_not(nchar(Sys.which("podman")) > 0)`
+— is a safety check that skips if `podman` is not installed, in case the
+environment variable is set on a machine without a container tool.
+
+Note that `skip_on_cran()` was considered but rejected for this purpose.
+`devtools::check()` sets `NOT_CRAN=true`, which means `skip_on_cran()` does
+not skip during `devtools::check()` — only on actual CRAN servers and bare
+`R CMD check` calls from the terminal. The environment variable approach
+gives explicit, predictable control regardless of how the tests are invoked.
 
 **Where they run:**
 
-Layer 3 tests run only when you run `devtools::test()` locally on a machine
-with `podman` installed and the daemon running. They are part of the manual
-pre-submission checklist — the last verification step before submitting to
-CRAN — not part of the automated CI suite.
+Layer 3 tests run only when you explicitly opt in before running the test
+suite:
+
+```r
+Sys.setenv(CONTAINR_INTEGRATION_TESTS = "true")
+devtools::test()
+Sys.unsetenv("CONTAINR_INTEGRATION_TESTS")
+```
+
+They are part of the manual pre-submission checklist — the last verification
+step before submitting to CRAN — not part of the automated CI suite.
 
 **Why CRAN and CI cannot run them:**
 
@@ -311,11 +331,11 @@ directory puts the fixture lockfile in the right place.
 
 ## Summary
 
-| Layer | What it tests | Requires | Runs on CI | Runs on CRAN |
-|-------|--------------|----------|-----------|-------------|
-| 1 | Argument validation | Nothing | Yes | Yes |
-| 2 | Command construction | `dry_run`, mocks | Yes | Yes |
-| 3 | End-to-end execution | podman, registry | No | No |
+| Layer | What it tests | Requires | Runs on CI | Runs on CRAN | Guard |
+|-------|--------------|----------|-----------|-------------|-------|
+| 1 | Argument validation | Nothing | Yes | Yes | none |
+| 2 | Command construction | `dry_run`, mocks | Yes | Yes | none |
+| 3 | End-to-end execution | podman, registry | No | No | `CONTAINR_INTEGRATION_TESTS=true` |
 
 The goal is to maximize what we can verify automatically while being honest
 about what requires a real environment. Layers 1 and 2 give us high

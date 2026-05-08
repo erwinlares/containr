@@ -22,5 +22,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Erwin Lares \email{erwin.lares@wisc.edu} (\href{https://orcid.org/0000-0002-3284-828X}{ORCID})
 
+Authors:
+\itemize{
+  \item Erwin Lares \email{erwin.lares@wisc.edu} (\href{https://orcid.org/0000-0002-3284-828X}{ORCID})
+}
+
 }
 \keyword{internal}

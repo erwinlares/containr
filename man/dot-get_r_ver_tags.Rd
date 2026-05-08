@@ -7,22 +7,22 @@
 .get_r_ver_tags(r_mode = "base", verbose = FALSE)
 }
 \arguments{
-\item{r_mode}{Character string. One of \code{"base"}, \code{"rstudio"}, or \code{"tidyverse"}.
-Determines which Rocker image to query. \code{"base"} maps to \code{"rocker/r-ver"}.}
+\item{r_mode}{Character string. One of \code{"base"}, \code{"rstudio"},
+\code{"tidyverse"}, or \code{"tidystudio"}. Determines which Rocker image to
+query. \code{"base"} maps to \code{"rocker/r-ver"}.}
 
-\item{verbose}{Logical. If \code{TRUE}, prints progress messages during tag retrieval and pagination.}
+\item{verbose}{Logical. If \code{TRUE}, prints progress messages during tag
+retrieval and pagination. Defaults to \code{FALSE}.}
 }
 \value{
-A named list with the following elements:
-\describe{
-\item{image}{Character string. The full Docker image name, e.g. \code{"rocker/r-ver"}.}
-\item{tags}{Character vector. All available tags for the specified image, e.g. \code{c("latest", "devel", "4.4", "4.4.3", ...)}.}
-\item{source}{Character string. The base URL of the Docker Hub API used to retrieve the tags.}
-}
+A named list with three elements: \code{image} (the full Docker image
+name), \code{tags} (character vector of all available tags), and \code{source}
+(the base URL of the Docker Hub API).
 }
 \description{
-Queries the Docker Hub API to retrieve all available tags for a specified Rocker image.
-Supports user-friendly modes: \code{"base"}, \code{"rstudio"}, and \code{"tidyverse"}.
-Returns a structured list containing the image name, tag vector, and source URL.
+Queries the Docker Hub API to retrieve all available tags for a specified
+Rocker image. Supports user-friendly modes: \code{"base"}, \code{"rstudio"},
+\code{"tidyverse"}, and \code{"tidystudio"}. Returns a structured list containing
+the image name, tag vector, and source URL.
 }
 \keyword{internal}

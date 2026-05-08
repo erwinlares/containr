@@ -9,27 +9,31 @@
 #' @param r_version A character string specifying the R version to use, e.g.
 #'   `"4.3.0"`. Defaults to `"current"`, which resolves to the version of R
 #'   running in the current session.
-#' @param r_mode A character string selecting the Rocker base image. One of
-#'   `"base"` for plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"`
-#'   for RStudio Server, or `"tidystudio"` for tidyverse plus TeX Live and
+#' @param r_mode A character string selecting the Rocker base image. Inspired
+#'   by the [Rocker Project](https://rocker-project.org/). One of `"base"` for
+#'   plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for RStudio
+#'   Server, or `"tidystudio"` for tidyverse plus TeX Live and
 #'   publishing-related packages. Defaults to `"base"`.
 #' @param auto_syslibs Logical. If `TRUE` (the default), reads `renv.lock`
-#'   from the current working directory, queries the r-hub sysreqs API, and
-#'   automatically includes the system libraries required by all packages in
-#'   the lock file. Warns and continues without auto-detection if the API is
-#'   unreachable. Set to `FALSE` to skip auto-detection entirely.
+#'   from the current working directory, queries the Posit Package Manager
+#'   sysreqs database via `remotes::system_requirements()`, and automatically
+#'   includes the system libraries required by all packages in the lock file.
+#'   Warns and continues without auto-detection if the lookup fails. Set to
+#'   `FALSE` to skip auto-detection entirely.
 #' @param install_syslibs A character vector or `NULL`. Additional system
 #'   libraries to install beyond those auto-detected from `renv.lock`. Each
 #'   element should be a valid `apt` package name, e.g.
 #'   `c("libuv1-dev", "libwebp-dev")`. Defaults to `NULL`.
-#' @param output A character string. Directory path where the `Dockerfile`
-#'   will be written. Defaults to `tempdir()`.
+#' @param output A character string. Directory path where the `Dockerfile` will
+#'   be written. Defaults to `tempdir()`.
 #' @param data_file A character string. Path to an optional data file to copy
 #'   into the container under `/home/data/`. Defaults to `NULL`.
-#' @param code_file A character string. Path to an optional script file to
-#'   copy into the container under `/home/`. Defaults to `NULL`.
+#' @param code_file A character string. Path to an optional script file (e.g.
+#'   `.R`, `.qmd`, `.rmd`) to copy into the container under `/home/`.
+#'   Defaults to `NULL`.
 #' @param misc_file A character string. Path to an optional miscellaneous file
-#'   to copy into the container under `/home/`. Defaults to `NULL`.
+#'   (e.g. an image or shell script) to copy into the container under
+#'   `/home/`. Defaults to `NULL`.
 #' @param add_user A character string. Name of a Linux user to create inside
 #'   the container with sudo access. Defaults to `NULL`.
 #' @param home_dir A character string. The working directory set inside the
@@ -40,7 +44,8 @@
 #' @param install_quarto Logical. If `TRUE`, downloads and installs the Quarto
 #'   CLI inside the container. Defaults to `FALSE`.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
-#'   with an explanatory comment. Defaults to `FALSE`.
+#'   with an explanatory comment. Useful for learning or sharing. Defaults to
+#'   `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages as each section
 #'   of the Dockerfile is written. Defaults to `FALSE`.
 #'
@@ -56,6 +61,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' # Requires renv.lock in the current working directory.
+#' # Run renv::snapshot() first if you don't have one.
+#'
 #' # Generate a minimal Dockerfile using a pinned R version
 #' generate_dockerfile(r_version = "4.4.0", output = tempdir())
 #'
@@ -63,23 +72,19 @@
 #' generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
 #'                     output = tempdir())
 #'
-#' \dontrun{
-#' # Generate from the current project directory with auto-detected syslibs
-#' generate_dockerfile(r_version = "4.4.0", output = ".")
-#'
 #' # Add extra system libraries on top of auto-detected ones
 #' generate_dockerfile(
-#'   r_version      = "4.4.0",
+#'   r_version       = "4.4.0",
 #'   install_syslibs = c("libuv1-dev", "libwebp-dev"),
-#'   output         = "."
+#'   output          = "."
 #' )
 #'
-#' # Skip auto-detection and supply all libraries manually
+#' # Include a data file and annotate the Dockerfile with comments
 #' generate_dockerfile(
-#'   r_version      = "4.4.0",
-#'   auto_syslibs   = FALSE,
-#'   install_syslibs = c("libcurl4-openssl-dev", "libxml2-dev"),
-#'   output         = "."
+#'   r_version = "4.3.0",
+#'   data_file = "data/penguins.csv",
+#'   comments  = TRUE,
+#'   output    = "."
 #' )
 #' }
 generate_dockerfile <- function(r_version       = "current",
@@ -170,10 +175,8 @@ generate_dockerfile <- function(r_version       = "current",
     }
 
     # -- 7. Resolve system libraries -------------------------------------------
-    # Baseline libraries are always installed regardless of auto_syslibs or
-    # install_syslibs. They are infrastructure for the container environment
-    # itself rather than dependencies of specific R packages. curl is required
-    # by renv for package downloads inside the container.
+    # curl is always installed as a baseline — renv needs it for downloads
+    # inside the container regardless of what packages are in renv.lock.
     baseline_syslibs <- c("curl")
 
     auto_detected <- character(0)

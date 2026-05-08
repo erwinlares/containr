@@ -1,25 +1,12 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+0 errors | 0 warnings | 1 note
 
-## Windows
+* checking for detritus in the temp directory: NOTE
+  Found the following files/directories:
+    'storage-run-754777108'
 
-Checked with `devtools::check_win_devel()`. Result: 0 errors | 0 warnings | 0 notes.
-
-## rhub
-
-Checked with `rhub::rhub_check()` on linux, macos-arm64, and windows platforms.
-
-## Changes in this version
-
-* Added `inst/CITATION` with DOI for proper academic citation
-* Added ORCID to `Authors@R` in `DESCRIPTION`
-* Added `Language: en-US` to `DESCRIPTION`
-* Added `inst/WORDLIST` for spell check consistency
-* Improved `Description` field in `DESCRIPTION`
-* Updated `NEWS.md`
-* Revised README with DOI badge and improved documentation
-
-## Downstream dependencies
-
-There are no downstream dependencies for this package.
+  This is a pre-existing directory created by Podman Desktop at system
+  startup. It is present in tempdir() on this machine regardless of
+  whether the package tests run. It does not appear on CRAN's check
+  servers and is unrelated to the package.

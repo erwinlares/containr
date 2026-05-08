@@ -282,6 +282,10 @@ test_that("list_images() errors when tool is invalid", {
 # ---------------------------------------------------------------------------
 
 test_that("list_images() returns a data frame with correct columns", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
     skip_if_not(
         nchar(Sys.which("podman")) > 0,
         "podman not available on this system"
@@ -292,6 +296,10 @@ test_that("list_images() returns a data frame with correct columns", {
 })
 
 test_that("list_images() returns all character columns", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
     skip_if_not(
         nchar(Sys.which("podman")) > 0,
         "podman not available on this system"
@@ -301,6 +309,10 @@ test_that("list_images() returns all character columns", {
 })
 
 test_that("list_images() returns a data frame even when no images exist", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
     skip_if_not(
         nchar(Sys.which("podman")) > 0,
         "podman not available on this system"

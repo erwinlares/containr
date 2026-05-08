@@ -5,28 +5,47 @@
 \title{Generate a reproducible Dockerfile for an R project}
 \usage{
 generate_dockerfile(
-  verbose = FALSE,
   r_version = "current",
+  r_mode = "base",
+  auto_syslibs = TRUE,
+  install_syslibs = NULL,
+  output = tempdir(),
   data_file = NULL,
   code_file = NULL,
   misc_file = NULL,
   add_user = NULL,
   home_dir = "/home",
-  install_quarto = FALSE,
   expose_port = "8787",
-  r_mode = "base",
-  install_syslibs = TRUE,
+  install_quarto = FALSE,
   comments = FALSE,
-  output = tempdir()
+  verbose = FALSE
 )
 }
 \arguments{
-\item{verbose}{Logical. If \code{TRUE}, prints progress messages as each section
-of the Dockerfile is written. Defaults to \code{FALSE}.}
-
 \item{r_version}{A character string specifying the R version to use, e.g.
 \code{"4.3.0"}. Defaults to \code{"current"}, which resolves to the version of R
 running in the current session.}
+
+\item{r_mode}{A character string selecting the Rocker base image. Inspired
+by the \href{https://rocker-project.org/}{Rocker Project}. One of \code{"base"} for
+plain R, \code{"tidyverse"} for R with the tidyverse, \code{"rstudio"} for RStudio
+Server, or \code{"tidystudio"} for tidyverse plus TeX Live and
+publishing-related packages. Defaults to \code{"base"}.}
+
+\item{auto_syslibs}{Logical. If \code{TRUE} (the default), reads \code{renv.lock}
+from the current working directory, queries the Posit Package Manager
+sysreqs database via \code{remotes::system_requirements()}, and automatically
+includes the system libraries required by all packages in the lock file.
+Warns and continues without auto-detection if the lookup fails. Set to
+\code{FALSE} to skip auto-detection entirely.}
+
+\item{install_syslibs}{A character vector or \code{NULL}. Additional system
+libraries to install beyond those auto-detected from \code{renv.lock}. Each
+element should be a valid \code{apt} package name, e.g.
+\code{c("libuv1-dev", "libwebp-dev")}. Defaults to \code{NULL}.}
+
+\item{output}{A character string. Directory path where the \code{Dockerfile} will
+be written. Defaults to \code{tempdir()}.}
 
 \item{data_file}{A character string. Path to an optional data file to copy
 into the container under \verb{/home/data/}. Defaults to \code{NULL}.}
@@ -45,29 +64,19 @@ the container with sudo access. Defaults to \code{NULL}.}
 \item{home_dir}{A character string. The working directory set inside the
 container via \code{WORKDIR}. Defaults to \code{"/home"}.}
 
-\item{install_quarto}{Logical. If \code{TRUE}, downloads and installs the Quarto
-CLI inside the container. Defaults to \code{FALSE}.}
-
 \item{expose_port}{A character string. The port to expose when \code{r_mode} is
 \code{"rstudio"}. Defaults to \code{"8787"}. Ignored when \code{r_mode} is not
 \code{"rstudio"}.}
 
-\item{r_mode}{A character string selecting the Rocker base image. Inspired
-by the \href{https://rocker-project.org/}{Rocker Project}. One of \code{"base"} for
-plain R, \code{"tidyverse"} for R with the tidyverse, \code{"rstudio"} for RStudio
-Server, or \code{"tidystudio"} for tidyverse plus TeX Live and
-publishing-related packages. Defaults to \code{"base"}.}
-
-\item{install_syslibs}{Logical. If \code{TRUE}, installs system libraries
-commonly required by R packages and needed for source compilation
-(e.g. \code{libcurl4-openssl-dev}, \code{libxml2-dev}). Defaults to \code{TRUE}.}
+\item{install_quarto}{Logical. If \code{TRUE}, downloads and installs the Quarto
+CLI inside the container. Defaults to \code{FALSE}.}
 
 \item{comments}{Logical. If \code{TRUE}, annotates each Dockerfile instruction
 with an explanatory comment. Useful for learning or sharing. Defaults to
 \code{FALSE}.}
 
-\item{output}{A character string. Directory path where the \code{Dockerfile} will
-be written. Defaults to \code{tempdir()}.}
+\item{verbose}{Logical. If \code{TRUE}, prints progress messages as each section
+of the Dockerfile is written. Defaults to \code{FALSE}.}
 }
 \value{
 Called for its side effects. Writes a \code{Dockerfile} to \code{output}.
@@ -76,19 +85,38 @@ Returns \code{invisible(NULL)}.
 \description{
 \code{generate_dockerfile()} inspects an R project's dependencies via an \code{renv}
 lockfile and writes a ready-to-use \code{Dockerfile} to the specified output
-directory. It supports multiple Rocker base images, optional system
-libraries, Quarto installation, file copying, user creation, and inline
-documentation comments.
+directory. It supports multiple Rocker base images, automatic system
+library detection, Quarto installation, file copying, user creation, and
+inline documentation comments.
 }
+\section{Prerequisites}{
+
+\code{generate_dockerfile()} requires an \code{renv.lock} file in the current working
+directory. Create one with \code{renv::snapshot()} before calling this function.
+If the lock file is out of sync with your project library, a warning is
+issued — run \code{renv::snapshot()} to update it before building the image.
+}
+
 \examples{
+\dontrun{
+# Requires renv.lock in the current working directory.
+# Run renv::snapshot() first if you don't have one.
+
 # Generate a minimal Dockerfile using a pinned R version
 generate_dockerfile(r_version = "4.4.0", output = tempdir())
 
 # Pin a specific R version with the tidyverse image
-generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse", output = tempdir())
+generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
+                    output = tempdir())
+
+# Add extra system libraries on top of auto-detected ones
+generate_dockerfile(
+  r_version       = "4.4.0",
+  install_syslibs = c("libuv1-dev", "libwebp-dev"),
+  output          = "."
+)
 
 # Include a data file and annotate the Dockerfile with comments
-\dontrun{
 generate_dockerfile(
   r_version = "4.3.0",
   data_file = "data/penguins.csv",
@@ -96,5 +124,4 @@ generate_dockerfile(
   output    = "."
 )
 }
-
 }
