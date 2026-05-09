@@ -54,52 +54,126 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header">
-<img src="logo.png" class="logo" alt=""><h1 id="containr">containr<a class="anchor" aria-label="anchor" href="#containr"></a>
+<img src="logo.png" class="logo" alt=""><h1 id="containr-">containr <a class="anchor" aria-label="anchor" href="#containr-"></a>
 </h1>
 </div>
-<p><img src="reference/figures/logo.png" align="right" height="139" alt="containr logo"><!-- badges: start --><a href="https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a> <a href="https://doi.org/10.5281/zenodo.19462130" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19462130.svg" alt="DOI"></a> <a href="https://CRAN.R-project.org/package=containr" class="external-link"><img src="https://www.r-pkg.org/badges/version/containr" alt="CRAN status"></a> <a href="https://cran.r-project.org/package=containr" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/containr" alt="CRAN downloads"></a> <a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a> <a href="https://app.codecov.io/gh/erwinlares/containr" class="external-link"><img src="https://codecov.io/gh/erwinlares/containr/graph/badge.svg" alt="Codecov test coverage"></a> <!-- badges: end --></p>
-<p><code>containr</code> helps researchers containerize their R projects. It generates a <code>Dockerfile</code> from a project’s <code>renv.lock</code>, builds a container image, and pushes it to a registry — so analyses can be reliably shared, archived, and rerun across systems without worrying about software versions or system configuration.</p>
+<!-- badges: start -->
+
 <div class="section level2">
-<h2 id="the-containerized-r-workflow">The containerized R workflow<a class="anchor" aria-label="anchor" href="#the-containerized-r-workflow"></a>
+<h2 id="the-problem-with-it-works-on-my-machine">The problem with “it works on my machine”<a class="anchor" aria-label="anchor" href="#the-problem-with-it-works-on-my-machine"></a>
 </h2>
-<p>Containerizing an R project with <code>containr</code> follows four steps. The first three happen inside R; authentication with the container registry happens once in the terminal before you push.</p>
-<p><strong>1. Generate a Dockerfile</strong> — <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> reads your <code>renv.lock</code> file, auto-detects the system libraries your packages need, and writes a ready-to-use <code>Dockerfile</code>. Run this as many times as needed while refining the configuration. It only writes a text file, so iteration is fast and cheap.</p>
-<p><strong>2. Build the container image</strong> — <code><a href="reference/build_image.html">build_image()</a></code> passes your <code>Dockerfile</code> to <code>podman</code> or <code>docker</code> and builds the image locally. The first build takes time — it downloads the base image and installs all R packages from scratch. Subsequent builds reuse cached layers and are much faster, so rebuilding after adding packages to your <code>renv.lock</code> is not as costly as it looks.</p>
-<p><strong>3. Inspect local images</strong> — <code><a href="reference/list_images.html">list_images()</a></code> returns a data frame of images in the local store, equivalent to running <code>podman image ls</code> in the terminal. Use it to find the image ID you need to pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
-<p><strong>4. Push to a registry</strong> — <code><a href="reference/push_image.html">push_image()</a></code> tags the image with the full registry path and pushes it to the container registry. Currently targets the UW-Madison CHTC registry at <code>registry.doit.wisc.edu</code> by default.</p>
-<div class="section level3">
-<h3 id="authentication--one-time-setup-outside-r">Authentication — one-time setup outside R<a class="anchor" aria-label="anchor" href="#authentication--one-time-setup-outside-r"></a>
-</h3>
-<p>Before pushing, you need to authenticate with the registry once in a terminal. <code>containr</code> checks whether you are logged in before attempting a push and errors with instructions if not. The full authentication guide, including how to create a Personal Access Token (PAT) with the right scopes, is at:</p>
-<p><a href="https://git.doit.wisc.edu/ERWIN.LARES/container-registry" class="external-link uri">https://git.doit.wisc.edu/ERWIN.LARES/container-registry</a></p>
+<p>An R analysis that runs cleanly on your laptop can fail on a collaborator’s computer, produce different results after a system update, or break when moved to a computing cluster. The cause is often the same: the software environment is only implicit. The R version, package versions, system libraries, and command-line tools needed by the project are scattered across one machine instead of recorded as part of the analysis.</p>
+<p>That fragility becomes more expensive over time. A project may need to be reviewed, rerun, shared with a collaborator, archived with a publication, or scaled up on high-throughput computing infrastructure. If the environment is not captured, reproducing the analysis becomes a reconstruction project.</p>
+<p>Containers help solve this problem by packaging the analysis together with the software environment it needs. A container image can run on your laptop, on a collaborator’s machine, on a cloud server, or on CHTC with the same core software stack.</p>
+<p><code>containr</code> helps researchers containerize R projects from inside R. It reads your <code>renv.lock</code> file, generates a <code>Dockerfile</code>, builds a container image, and pushes that image to a registry. The goal is not to make every researcher a container expert. The goal is to make a reliable, repeatable containerization path available from the workflow researchers already use.</p>
+<p>If you are new to containers, <code>containr</code> gives you a guided path through the core steps. If you already use Docker or Podman, it reduces boilerplate and helps standardize container generation across projects.</p>
+<hr>
 </div>
+<div class="section level2">
+<h2 id="when-to-use-containr">When to use containr<a class="anchor" aria-label="anchor" href="#when-to-use-containr"></a>
+</h2>
+<p>Use <code>containr</code> when you are:</p>
+<ul>
+<li>preparing an R project that needs to run somewhere other than your laptop;</li>
+<li>sharing an analysis with collaborators who need the same software environment;</li>
+<li>archiving a computational workflow for reproducibility;</li>
+<li>preparing a project to run on CHTC or another HTCondor-based system;</li>
+<li>teaching researchers how <code>renv</code>, containers, and reproducible execution fit together;</li>
+<li>standardizing container creation across multiple R projects;</li>
+<li>moving from “this works on my machine” to “this environment is captured and portable.”</li>
+</ul>
+<p><code>containr</code> is useful on its own. You do not need to submit jobs to CHTC to benefit from a containerized R project. A container can support collaboration, review, preservation, training, and reproducible reruns even when all work stays local.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="the-toolero-family">The toolero family<a class="anchor" aria-label="anchor" href="#the-toolero-family"></a>
+</h2>
+<p><code>containr</code> is also the second step in a three-package family for reproducible research workflows, from local project setup to containerization and high-throughput computing submission:</p>
+<pre class="text"><code>toolero     organize, scaffold, split
+  └─ containr   freeze the software environment in a container
+       └─ submitr    send the analysis to CHTC and retrieve results</code></pre>
+<p>Each package is useful on its own. Together, they form a path from a new local R project to a containerized analysis that can run on high-throughput computing infrastructure.</p>
+<p>You can adopt these packages one at a time. <code>containr</code> does not require <code>toolero</code>, and it does not require <code>submitr</code>. If you used <code>toolero::init_project()</code> to start your project, <code>renv</code> is already initialized and <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> will produce the lockfile that <code>containr</code> needs. If you did not use <code>toolero</code>, run <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> in your project root before proceeding.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="before-you-start">Before you start<a class="anchor" aria-label="anchor" href="#before-you-start"></a>
+</h2>
+<p><code>containr</code> assumes your project already has enough structure to describe its R package environment.</p>
+<p>Before using it, check that:</p>
+<ul>
+<li>your project uses <code>renv</code>;</li>
+<li>
+<code>renv.lock</code> exists in the project root;</li>
+<li>Podman or Docker is installed;</li>
+<li>the container engine is running;</li>
+<li>you have access to a container registry if you plan to push the image.</li>
+</ul>
+<p>At UW-Madison, <code>registry.doit.wisc.edu</code> is the default registry used by the CHTC-oriented workflow.</p>
+<hr>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install <code>containr</code> from CRAN:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
-<p>Or install the development version from <a href="https://github.com/erwinlares/containr" class="external-link">GitHub</a>:</p>
+<p>Install from CRAN:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
+<p>Install the development version from GitHub:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"erwinlares/containr"</span><span class="op">)</span></span></code></pre></div>
+<hr>
 </div>
 <div class="section level2">
-<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+<h2 id="a-first-workflow">A first workflow<a class="anchor" aria-label="anchor" href="#a-first-workflow"></a>
 </h2>
-<div class="section level3">
-<h3 id="step-1--generate-a-dockerfile">Step 1 — Generate a Dockerfile<a class="anchor" aria-label="anchor" href="#step-1--generate-a-dockerfile"></a>
-</h3>
-<p><code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> requires an <code>renv.lock</code> in the current working directory. If you are starting a new project, <code>toolero::init_project()</code> scaffolds a standard folder structure and initializes <code>renv</code> for you. Once your project is set up, <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> produces the lockfile that <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> reads.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<p>The core workflow has four steps: generate a <code>Dockerfile</code>, build the image, inspect local images, and push the image to a registry.</p>
+<p>The first three steps happen inside R. Authentication with the container registry happens once in the terminal before you push.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/erwinlares/containr" class="external-link">containr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Generate a Dockerfile from the current project</span></span>
+<span><span class="co"># 1. Generate a Dockerfile from renv.lock</span></span>
+<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
+<span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. Build the image locally</span></span>
+<span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. Inspect local images</span></span>
+<span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 4. Push the image to the registry</span></span>
+<span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
+<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>For a first pass, use <code>comments = TRUE</code> when generating the <code>Dockerfile</code> and <code>dry_run = TRUE</code> before running commands that build or push. The annotations and previews make the container workflow easier to inspect, teach, and debug.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="core-workflow-functions">Core workflow functions<a class="anchor" aria-label="anchor" href="#core-workflow-functions"></a>
+</h2>
+<div class="section level3">
+<h3 id="generate_dockerfile">
+<code>generate_dockerfile()</code><a class="anchor" aria-label="anchor" href="#generate_dockerfile"></a>
+</h3>
+<p><code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> reads your <code>renv.lock</code>, identifies the R packages used by the project, queries their system library requirements, and writes a <code>Dockerfile</code>.</p>
+<p>The generated <code>Dockerfile</code> is a text file. You can inspect it, edit it, delete it, and regenerate it as many times as needed while refining your setup. This makes <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> a low-risk entry point into containerization: the first step is not building an image; it is making the container recipe visible.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Generate a Dockerfile from the current project</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, output <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Use an RStudio Server image instead of plain R</span></span>
-<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, r_mode <span class="op">=</span> <span class="st">"rstudio"</span>, output <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  r_mode    <span class="op">=</span> <span class="st">"rstudio"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Add extra system libraries not caught by auto-detection</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
@@ -108,41 +182,58 @@
 <span>  output          <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Guided generation with progress messages and annotated output</span></span>
+<span><span class="co"># Guided generation with progress messages and annotated Dockerfile</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  verbose   <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>The <code>comments = TRUE</code> argument annotates each instruction in the generated <code>Dockerfile</code> with an explanation of what it does. This is useful when you are learning containerization, reviewing the file with collaborators, or teaching why each layer exists.</p>
+<hr>
 </div>
 <div class="section level3">
-<h3 id="step-2--build-the-image">Step 2 — Build the image<a class="anchor" aria-label="anchor" href="#step-2--build-the-image"></a>
+<h3 id="build_image">
+<code>build_image()</code><a class="anchor" aria-label="anchor" href="#build_image"></a>
 </h3>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<p><code><a href="reference/build_image.html">build_image()</a></code> passes your <code>Dockerfile</code> to Podman or Docker and builds the image locally.</p>
+<p>The first build can take time because the container engine must download the base image and install the R package environment from scratch. Later builds are usually faster because Podman and Docker reuse cached layers when the earlier parts of the <code>Dockerfile</code> have not changed.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build from the Dockerfile in the current directory</span></span>
 <span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Preview the build command without running it</span></span>
 <span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>Use <code>dry_run = TRUE</code> when you want to see the command before running it. This is especially helpful in examples, tutorials, and package documentation because it shows what would happen without requiring a live container engine.</p>
+<hr>
 </div>
 <div class="section level3">
-<h3 id="step-3--inspect-local-images">Step 3 — Inspect local images<a class="anchor" aria-label="anchor" href="#step-3--inspect-local-images"></a>
+<h3 id="list_images">
+<code>list_images()</code><a class="anchor" aria-label="anchor" href="#list_images"></a>
 </h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Returns a data frame: repository, tag, image_id, created, size</span></span>
-<span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Untagged images — those built without a <code>tag</code> argument — appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
+<p><code><a href="reference/list_images.html">list_images()</a></code> returns a data frame of images in the local image store. It is the R equivalent of checking which images are available with <code>podman image ls</code> or <code>docker image ls</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                                      repository       tag      image_id</span></span>
+<span><span class="co">#&gt; 1 registry.doit.wisc.edu/netid/my-analysis     1.0.0  974123909a36</span></span>
+<span><span class="co">#&gt;       created    size</span></span>
+<span><span class="co">#&gt; 1 2 hours ago 1.59 GB</span></span></code></pre></div>
+<p>Untagged images — those built without a name — appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
+<hr>
 </div>
 <div class="section level3">
-<h3 id="step-4--push-to-the-registry">Step 4 — Push to the registry<a class="anchor" aria-label="anchor" href="#step-4--push-to-the-registry"></a>
+<h3 id="push_image">
+<code>push_image()</code><a class="anchor" aria-label="anchor" href="#push_image"></a>
 </h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<p><code><a href="reference/push_image.html">push_image()</a></code> tags a local image with a registry path and pushes it to a container registry.</p>
+<p>Before pushing, authenticate with the registry once in a terminal. <code>containr</code> checks whether you are logged in before attempting the push and errors with instructions if not. The UW-Madison authentication guide, including how to create a Personal Access Token with the right scopes, is here:</p>
+<p><a href="https://git.doit.wisc.edu/ERWIN.LARES/container-registry" class="external-link uri">https://git.doit.wisc.edu/ERWIN.LARES/container-registry</a></p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Push to the UW-Madison CHTC registry</span></span>
 <span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"container-registry"</span>,</span>
+<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
 <span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -150,48 +241,64 @@
 <span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"container-registry"</span>,</span>
+<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
 <span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span>,</span>
 <span>  dry_run  <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Guided push with step-by-step explanations</span></span>
-<span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
-<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"container-registry"</span>,</span>
-<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span>,</span>
-<span>  verbose  <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  comments <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Using explicit version tags (e.g. <code>"1.0.0"</code>) is recommended for reproducibility — <code>"latest"</code> is overwritten on every push and makes it harder to trace which image was used for a given analysis.</p>
+<p>Use explicit version tags, such as <code>"1.0.0"</code>, for reproducibility. Avoid relying on <code>"latest"</code> for analyses that need to be reviewed, rerun, cited, or submitted to a cluster. The <code>"latest"</code> tag is overwritten on every push, which makes it harder to reconstruct which image was used for a specific result.</p>
+<hr>
 </div>
+</div>
+<div class="section level2">
+<h2 id="what-comes-next">What comes next<a class="anchor" aria-label="anchor" href="#what-comes-next"></a>
+</h2>
+<p>Once your image is in the registry, it can be referenced by any workflow that knows how to run container images. For CHTC and other HTCondor-based systems, that image URI becomes part of the submit file.</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">container_image</span> <span class="op">&lt;-</span> <span class="st">"docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"</span></span></code></pre></div>
+<p>The <code>submitr</code> package handles the next step in the CHTC-oriented workflow: generating the HTCondor submit file, generating the executable script, uploading files to the submit node, submitting the job, monitoring progress, and retrieving results.</p>
+<p>You can stop at <code>containr</code> if your goal is a portable, reviewable, shareable R environment. You can continue to <code>submitr</code> when your goal is to run that environment on CHTC.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="a-note-on-renv-and-containers">A note on <code>renv</code> and containers<a class="anchor" aria-label="anchor" href="#a-note-on-renv-and-containers"></a>
+</h2>
+<p><code>renv</code> and containers solve related but different reproducibility problems.</p>
+<p><code>renv</code> records the R package versions used by your project. That is the right starting point because it makes the R package environment explicit.</p>
+<p>A container goes one level lower. It captures the operating-system-level environment needed to install and run those packages: system libraries, command-line tools, and the base image that supplies the runtime environment.</p>
+<p><code>containr</code> connects these layers by using <code>renv.lock</code> as the source for the generated <code>Dockerfile</code>. In other words, the lockfile records the R package environment, and the container recipe turns that record into a portable runtime.</p>
+<hr>
 </div>
 <div class="section level2">
 <h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a>
 </h2>
-<p><code>containr</code> includes functions that wrap system commands (<code>podman</code>, <code>docker</code>). These cannot be tested end-to-end in a standard test suite because they require a running container daemon, real images, and in the case of <code><a href="reference/push_image.html">push_image()</a></code>, a live registry with valid credentials. The test suite addresses this with a three-layer strategy.</p>
-<p><strong>Layer 1 — Argument validation.</strong> Tests that bad arguments error correctly and required arguments are enforced. These are pure R checks with no system dependencies and always run on every platform, including CRAN.</p>
-<p><strong>Layer 2 — Command construction.</strong> Tests that the correct system command is assembled from the supplied arguments. <code>dry_run = TRUE</code> is the key mechanism — it causes the function to print the command that would be executed without running it. <code>local_mocked_bindings()</code> intercepts <code><a href="reference/dot-resolve_tool.html">.resolve_tool()</a></code> and <code><a href="reference/dot-check_tool_responsive.html">.check_tool_responsive()</a></code> so these tests run without any container tool installed. These always run on every platform.</p>
-<p><strong>Layer 3 — Integration.</strong> Tests that call real system commands against a live container environment. Guarded behind an explicit opt-in environment variable — they only run when you set <code>CONTAINR_INTEGRATION_TESTS=true</code> in your session before calling <code>devtools::test()</code>. These never run automatically on CRAN or CI, and are intended to be run locally before a release as part of the manual pre-submission checklist.</p>
-</div>
-<div class="section level2">
-<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
-</h2>
-<p>To cite <code>containr</code> in publications:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
+<p><code>containr</code> wraps system commands (<code>podman</code>, <code>docker</code>) that cannot be tested end-to-end without a running container daemon, real images, and, for <code><a href="reference/push_image.html">push_image()</a></code>, a live registry. The test suite addresses this with a three-layer strategy.</p>
+<p><strong>Layer 1 — Argument validation.</strong> Pure R checks that bad arguments error correctly and required arguments are enforced. These tests run on every platform, including CRAN.</p>
+<p><strong>Layer 2 — Command construction.</strong> Tests that the correct system command is assembled from the supplied arguments. <code>dry_run = TRUE</code> causes the function to print the command without running it. Mocked bindings intercept internal container checks so these tests can run without Podman or Docker installed.</p>
+<p><strong>Layer 3 — Integration.</strong> Tests that call real system commands against a live container environment. These tests are guarded behind an explicit opt-in:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Sys.setenv.html" class="external-link">Sys.setenv</a></span><span class="op">(</span>CONTAINR_INTEGRATION_TESTS <span class="op">=</span> <span class="st">"true"</span><span class="op">)</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Integration tests never run automatically on CRAN or CI. They are intended for local pre-release verification.</p>
+<hr>
 </div>
 <div class="section level2">
 <h2 id="related-packages">Related packages<a class="anchor" aria-label="anchor" href="#related-packages"></a>
 </h2>
-<p><code>containr</code> is part of a family of R packages for reproducible research workflows:</p>
+<p><code>containr</code> is part of a family of packages for reproducible research workflows:</p>
 <ul>
 <li>
-<a href="https://github.com/erwinlares/toolero" class="external-link">toolero</a> — scaffolds R projects, splits datasets for parallel processing, and provides utilities for reproducible data analysis workflows. A natural starting point before containerizing with <code>containr</code>.</li>
+<a href="https://github.com/erwinlares/toolero" class="external-link">toolero</a> — organize and scaffold research projects</li>
 <li>
-<a href="https://github.com/erwinlares/curriculr" class="external-link">curriculr</a> — generates data-driven CVs from an Excel workbook using Quarto and Typst. No LaTeX required.</li>
+<strong>containr</strong> — containerize the project (this package)</li>
+<li>
+<a href="https://github.com/erwinlares/submitr" class="external-link">submitr</a> — submit containerized R jobs to CHTC and retrieve results</li>
 </ul>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
@@ -231,7 +338,17 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://doi.org/10.5281/zenodo.19462130" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19462130.svg" alt="DOI"></a></li>
+<li><a href="https://CRAN.R-project.org/package=containr" class="external-link"><img src="https://www.r-pkg.org/badges/version/containr" alt="CRAN status"></a></li>
+<li><a href="https://cran.r-project.org/package=containr" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/containr" alt="CRAN downloads"></a></li>
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+<li><a href="https://app.codecov.io/gh/erwinlares/containr" class="external-link"><img src="https://codecov.io/gh/erwinlares/containr/graph/badge.svg" alt="Codecov test coverage"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>
