@@ -1,8 +1,10 @@
 pandoc: 3.8.3
 pkgdown: 2.2.0
 pkgdown_sha: ~
-articles: {}
-last_built: 2026-05-09T17:55Z
+articles:
+  containr-workflow: containr-workflow.html
+  why-containers: why-containers.html
+last_built: 2026-05-12T19:09Z
 urls:
   reference: https://erwinlares.github.io/containr/reference
   article: https://erwinlares.github.io/containr/articles

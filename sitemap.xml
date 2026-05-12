@@ -1,8 +1,12 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://erwinlares.github.io/containr/404.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/CONTRIBUTING.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/JOURNAL.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/LICENSE.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/PLAN.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/articles/containr-workflow.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/articles/index.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/articles/why-containers.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/authors.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/index.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/news/index.html</loc></url>

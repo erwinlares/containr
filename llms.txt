@@ -59,9 +59,9 @@ even when all work stays local.
 
 ## The toolero family
 
-`containr` is also the second step in a three-package family for
-reproducible research workflows, from local project setup to
-containerization and high-throughput computing submission:
+`containr` is the second step in a three-package family for reproducible
+research workflows, from local project setup to containerization and
+high-throughput computing submission:
 
 ``` text
 toolero     organize, scaffold, split
@@ -88,14 +88,10 @@ in your project root before proceeding.
 ## Before you start
 
 `containr` assumes your project already has enough structure to describe
-its R package environment.
+its R package environment. Before using it, confirm that:
 
-Before using it, check that:
-
-- your project uses `renv`;
-- `renv.lock` exists in the project root;
-- Podman or Docker is installed;
-- the container engine is running;
+- your project uses `renv` and `renv.lock` exists in the project root;
+- Podman or Docker is installed and running;
 - you have access to a container registry if you plan to push the image.
 
 At UW-Madison, `registry.doit.wisc.edu` is the default registry used by
@@ -125,10 +121,9 @@ pak::pak("erwinlares/containr")
 ## A first workflow
 
 The core workflow has four steps: generate a `Dockerfile`, build the
-image, inspect local images, and push the image to a registry.
-
-The first three steps happen inside R. Authentication with the container
-registry happens once in the terminal before you push.
+image, inspect local images, and push the image to a registry. The first
+three steps happen inside R. Authentication with the container registry
+happens once in the terminal before you push.
 
 ``` r
 
@@ -171,9 +166,9 @@ teach, and debug.
 reads your `renv.lock`, identifies the R packages used by the project,
 queries their system library requirements, and writes a `Dockerfile`.
 
-The generated `Dockerfile` is a text file. You can inspect it, edit it,
-delete it, and regenerate it as many times as needed while refining your
-setup. This makes
+The generated `Dockerfile` is a plain text file. You can inspect it,
+edit it, delete it, and regenerate it as many times as needed while
+refining your setup. This makes
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
 a low-risk entry point into containerization: the first step is not
 building an image; it is making the container recipe visible.
@@ -250,10 +245,9 @@ or `docker image ls`.
 ``` r
 
 imgs <- list_images()
-#>                                      repository       tag      image_id
-#> 1 registry.doit.wisc.edu/netid/my-analysis     1.0.0  974123909a36
-#>       created    size
-#> 1 2 hours ago 1.59 GB
+#>                                              repository    tag      image_id      created     size
+#> 1  registry.doit.wisc.edu/your.netid/my-analysis  1.0.0  974123909a36  2 hours ago  1.59 GB
+#> 2                                          <none>  <none>  3b8f20dc1a47  3 hours ago  1.21 GB
 ```
 
 Untagged images — those built without a name — appear with `<none>` in
@@ -267,13 +261,11 @@ hash you pass to
 
 [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
 tags a local image with a registry path and pushes it to a container
-registry.
-
-Before pushing, authenticate with the registry once in a terminal.
-`containr` checks whether you are logged in before attempting the push
-and errors with instructions if not. The UW-Madison authentication
-guide, including how to create a Personal Access Token with the right
-scopes, is here:
+registry. Before pushing, authenticate with the registry once in a
+terminal. `containr` checks whether you are logged in before attempting
+the push and errors with instructions if not. The UW-Madison
+authentication guide, including how to create a Personal Access Token
+with the right scopes, is here:
 
 <https://git.doit.wisc.edu/ERWIN.LARES/container-registry>
 
@@ -297,11 +289,9 @@ push_image(
 )
 ```
 
-Use explicit version tags, such as `"1.0.0"`, for reproducibility. Avoid
-relying on `"latest"` for analyses that need to be reviewed, rerun,
-cited, or submitted to a cluster. The `"latest"` tag is overwritten on
-every push, which makes it harder to reconstruct which image was used
-for a specific result.
+Use explicit version tags such as `"1.0.0"` rather than `"latest"`. The
+`"latest"` tag is overwritten on every push, which makes it harder to
+reconstruct which image was used for a specific result.
 
 ------------------------------------------------------------------------
 
@@ -309,17 +299,14 @@ for a specific result.
 
 Once your image is in the registry, it can be referenced by any workflow
 that knows how to run container images. For CHTC and other
-HTCondor-based systems, that image URI becomes part of the submit file.
+HTCondor-based systems, that image URI becomes part of the submit file:
 
-``` r
-
-container_image <- "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"
-```
+    container_image = docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0
 
 The `submitr` package handles the next step in the CHTC-oriented
-workflow: generating the HTCondor submit file, generating the executable
-script, uploading files to the submit node, submitting the job,
-monitoring progress, and retrieving results.
+workflow: generating the HTCondor submit file, uploading files to the
+submit node, submitting the job, monitoring progress, and retrieving
+results.
 
 You can stop at `containr` if your goal is a portable, reviewable,
 shareable R environment. You can continue to `submitr` when your goal is
@@ -327,58 +314,43 @@ to run that environment on CHTC.
 
 ------------------------------------------------------------------------
 
-## A note on `renv` and containers
+## renv and containers
 
-`renv` and containers solve related but different reproducibility
-problems.
+`renv` records the R package versions used by your project – the right
+starting point for reproducibility. A container goes one level lower,
+capturing the operating-system-level environment needed to install and
+run those packages: system libraries, command-line tools, and the base
+image that supplies the runtime. `containr` connects these layers by
+using `renv.lock` as the source for the generated `Dockerfile`.
 
-`renv` records the R package versions used by your project. That is the
-right starting point because it makes the R package environment
-explicit.
-
-A container goes one level lower. It captures the operating-system-level
-environment needed to install and run those packages: system libraries,
-command-line tools, and the base image that supplies the runtime
-environment.
-
-`containr` connects these layers by using `renv.lock` as the source for
-the generated `Dockerfile`. In other words, the lockfile records the R
-package environment, and the container recipe turns that record into a
-portable runtime.
+In other words, `renv` and containers are not alternatives. They are
+complementary layers of the same reproducibility stack. The vignette
+[From renv to containers: why recording your R packages may not be
+enough](https://erwinlares.github.io/containr/articles/why-containers.html)
+covers this relationship in more depth, with concrete scenarios where
+`renv` alone is not sufficient.
 
 ------------------------------------------------------------------------
 
-## Testing
+## Learn more
 
-`containr` wraps system commands (`podman`, `docker`) that cannot be
-tested end-to-end without a running container daemon, real images, and,
-for
-[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
-a live registry. The test suite addresses this with a three-layer
-strategy.
+The package vignettes cover the full containerization workflow and the
+conceptual relationship between `renv` and containers:
 
-**Layer 1 — Argument validation.** Pure R checks that bad arguments
-error correctly and required arguments are enforced. These tests run on
-every platform, including CRAN.
+- [From renv to containers: why recording your R packages may not be
+  enough](https://erwinlares.github.io/containr/articles/why-containers.html)
+  – the case for containers as a complement to `renv`, with concrete
+  scenarios where `renv` alone is not sufficient.
 
-**Layer 2 — Command construction.** Tests that the correct system
-command is assembled from the supplied arguments. `dry_run = TRUE`
-causes the function to print the command without running it. Mocked
-bindings intercept internal container checks so these tests can run
-without Podman or Docker installed.
-
-**Layer 3 — Integration.** Tests that call real system commands against
-a live container environment. These tests are guarded behind an explicit
-opt-in:
-
-``` r
-
-Sys.setenv(CONTAINR_INTEGRATION_TESTS = "true")
-devtools::test()
-```
-
-Integration tests never run automatically on CRAN or CI. They are
-intended for local pre-release verification.
+- [A first containerization workflow with
+  containr](https://erwinlares.github.io/containr/articles/containr-workflow.html)
+  – a step-by-step walkthrough of
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md),
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md),
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md),
+  and
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+  with annotated output at each step.
 
 ------------------------------------------------------------------------
 
@@ -392,6 +364,8 @@ workflows:
 - **containr** — containerize the project (this package)
 - [submitr](https://github.com/erwinlares/submitr) — submit
   containerized R jobs to CHTC and retrieve results
+
+------------------------------------------------------------------------
 
 ## Citation
 
@@ -417,3 +391,11 @@ Apache License (\>= 2) © Erwin Lares
 - [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
   : Tag and push a container image to a registry
 
+# Articles
+
+### All vignettes
+
+- [A first containerization workflow with
+  containr](https://erwinlares.github.io/containr/articles/containr-workflow.md):
+- [From renv to containers: why recording your R packages may not be
+  enough](https://erwinlares.github.io/containr/articles/why-containers.md):
