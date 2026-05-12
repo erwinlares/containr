@@ -17,3 +17,5 @@
 on-testing.md
 JOURNAL.md
 PLAN.md
+^doc$
+^Meta$

@@ -8,3 +8,5 @@ docs
 inst/doc
 Dockerfile
 .positai
+/doc/
+/Meta/
