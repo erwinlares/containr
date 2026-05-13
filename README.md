@@ -2,9 +2,10 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19462130.svg)](https://doi.org/10.5281/zenodo.19462130)
 [![CRAN status](https://www.r-pkg.org/badges/version/containr)](https://CRAN.R-project.org/package=containr)
 [![CRAN downloads](https://cranlogs.r-pkg.org/badges/containr)](https://cran.r-project.org/package=containr)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19462130.svg)](https://doi.org/10.5281/zenodo.19462130)
+[![r-universe](https://erwinlares.r-universe.dev/badges/containr)](https://erwinlares.r-universe.dev/containr)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Codecov test coverage](https://codecov.io/gh/erwinlares/containr/graph/badge.svg)](https://app.codecov.io/gh/erwinlares/containr)
 <!-- badges: end -->
