@@ -29,6 +29,7 @@ Suggests:
     withr
 Imports: 
     cli,
+    fs,
     glue,
     httr2,
     jsonlite,

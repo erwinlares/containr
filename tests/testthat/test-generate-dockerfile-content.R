@@ -263,7 +263,7 @@ test_that("Dockerfile contains COPY line for data_file", {
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
     generate_dockerfile(r_version = "4.3.0", data_file = "data.csv", output = tmp)
     lines <- read_dockerfile(tmp)
-    expect_true(any(grepl("COPY.*data\\.csv.*/home/data/data\\.csv", lines)))
+    expect_true(any(grepl("COPY.*data\\.csv.*/home/.*data\\.csv", lines)))
 })
 
 test_that("Dockerfile contains COPY line for code_file", {

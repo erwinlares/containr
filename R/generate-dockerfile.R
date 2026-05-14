@@ -284,8 +284,10 @@ generate_dockerfile <- function(r_version       = "current",
         ),
         data = list(
             instruction = if (!is.null(data_file)) {
-                purrr::map_chr(data_file,
-                               ~ glue::glue("COPY {.x} /home/data/{basename(.x)}"))
+                purrr::map_chr(data_file, function(f) {
+                    rel <- fs::path_rel(f, start = getwd())
+                    glue::glue("COPY {rel} /home/{rel}")
+                })
             } else {
                 NULL
             },
@@ -298,8 +300,10 @@ generate_dockerfile <- function(r_version       = "current",
         ),
         code = list(
             instruction = if (!is.null(code_file)) {
-                purrr::map_chr(code_file,
-                               ~ glue::glue("COPY {.x} /home/{basename(.x)}"))
+                purrr::map_chr(code_file, function(f) {
+                    rel <- fs::path_rel(f, start = getwd())
+                    glue::glue("COPY {rel} /home/{rel}")
+                })
             } else {
                 NULL
             },
@@ -312,8 +316,10 @@ generate_dockerfile <- function(r_version       = "current",
         ),
         misc = list(
             instruction = if (!is.null(misc_file)) {
-                purrr::map_chr(misc_file,
-                               ~ glue::glue("COPY {.x} /home/{basename(.x)}"))
+                purrr::map_chr(misc_file, function(f) {
+                    rel <- fs::path_rel(f, start = getwd())
+                    glue::glue("COPY {rel} /home/{rel}")
+                })
             } else {
                 NULL
             },

@@ -65,6 +65,7 @@ path and pushes it to a container registry. It handles both the
 \verb{podman tag} and \verb{podman push} steps in a single call. Auto-detects
 which container tool is available unless \code{tool} is specified explicitly.
 Use \code{dry_run = TRUE} to preview the exact commands without executing them.
+The format for the is registry.doit.wisc.edu/\if{html}{\out{<netid>}}/\if{html}{\out{<image-name>}}:\if{html}{\out{<version>}}
 }
 \section{Prerequisites}{
 

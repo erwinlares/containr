@@ -5,6 +5,8 @@
 #' `podman tag` and `podman push` steps in a single call. Auto-detects
 #' which container tool is available unless `tool` is specified explicitly.
 #' Use `dry_run = TRUE` to preview the exact commands without executing them.
+#' The format for the is registry.doit.wisc.edu/<netid>/<image-name>:<version>
+
 #'
 #' @param image_id A character string. The local image ID or name to push,
 #'   as shown in `podman image ls` or `docker image ls`. This is typically
