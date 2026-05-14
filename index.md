@@ -108,7 +108,7 @@ Install from CRAN:
 install.packages("containr")
 ```
 
-Install the development version from GitHub:
+For the latest development features, install from GitHub:
 
 ``` r
 
@@ -132,6 +132,8 @@ library(containr)
 # 1. Generate a Dockerfile from renv.lock
 generate_dockerfile(
   r_version = "4.4.0",
+  data_file = "data-raw/sample.csv",
+  code_file = "analysis.R",
   output    = ".",
   comments  = TRUE
 )
@@ -173,10 +175,25 @@ refining your setup. This makes
 a low-risk entry point into containerization: the first step is not
 building an image; it is making the container recipe visible.
 
+When you include files via `data_file`, `code_file`, or `misc_file`, the
+generated `COPY` instructions preserve your local directory structure
+inside the container under `/home/`. A file at `data-raw/sample.csv`
+locally ends up at `/home/data-raw/sample.csv` in the container – not
+flattened into `/home/data/`. This means your R scripts can use the same
+relative paths inside the container that they use on your machine.
+
 ``` r
 
 # Generate a Dockerfile from the current project
 generate_dockerfile(r_version = "4.4.0", output = ".")
+
+# Include a data file -- preserves directory structure in the container
+generate_dockerfile(
+  r_version = "4.4.0",
+  data_file = "data-raw/penguins.csv",
+  code_file = "analysis.R",
+  output    = "."
+)
 
 # Use an RStudio Server image instead of plain R
 generate_dockerfile(
@@ -212,7 +229,10 @@ collaborators, or teaching why each layer exists.
 
 [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
 passes your `Dockerfile` to Podman or Docker and builds the image
-locally.
+locally. The build context is the current working directory, so all file
+paths in the `COPY` instructions are resolved relative to where you call
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+– typically the project root.
 
 The first build can take time because the container engine must download
 the base image and install the R package environment from scratch. Later
@@ -250,7 +270,7 @@ imgs <- list_images()
 #> 2                                          <none>  <none>  3b8f20dc1a47  3 hours ago  1.21 GB
 ```
 
-Untagged images — those built without a name — appear with `<none>` in
+Untagged images – those built without a name – appear with `<none>` in
 the `repository` and `tag` columns. The `image_id` column contains the
 hash you pass to
 [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md).
@@ -359,10 +379,10 @@ conceptual relationship between `renv` and containers:
 `containr` is part of a family of packages for reproducible research
 workflows:
 
-- [toolero](https://github.com/erwinlares/toolero) — organize and
+- [toolero](https://github.com/erwinlares/toolero) – organize and
   scaffold research projects
-- **containr** — containerize the project (this package)
-- [submitr](https://github.com/erwinlares/submitr) — submit
+- **containr** – containerize the project (this package)
+- [submitr](https://github.com/erwinlares/submitr) – submit
   containerized R jobs to CHTC and retrieve results
 
 ------------------------------------------------------------------------
@@ -376,4 +396,4 @@ citation("containr")
 
 ## License
 
-Apache License (\>= 2) © Erwin Lares
+Apache License (\>= 2) (c) Erwin Lares

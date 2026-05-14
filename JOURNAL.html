@@ -124,6 +124,51 @@
 <ul><li>Layer 3 tests for <code><a href="reference/build_image.html">build_image()</a></code> and <code><a href="reference/push_image.html">push_image()</a></code> are not yet written. They require a running daemon, a real image, and for <code><a href="reference/push_image.html">push_image()</a></code>, valid registry credentials. Deferred to a future session.</li>
 <li>
 <code>containerize()</code> — a convenience wrapper around <code><a href="reference/build_image.html">build_image()</a></code> + <code><a href="reference/push_image.html">push_image()</a></code> — is on the roadmap but not yet drafted.</li>
+</ul><hr></div>
+</div>
+<div class="section level2">
+<h2 id="session-3--2026-05-13">Session 3 — 2026-05-13<a class="anchor" aria-label="anchor" href="#session-3--2026-05-13"></a></h2>
+<div class="section level3">
+<h3 id="what-we-set-out-to-do-1">What we set out to do<a class="anchor" aria-label="anchor" href="#what-we-set-out-to-do-1"></a></h3>
+<p>This session fixed two related bugs in <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> that surfaced during an end-to-end test of the notebook-to-cluster pipeline. The first build attempt failed because absolute file paths leaked into the generated Dockerfile’s <code>COPY</code> instructions. Fixing that revealed a second issue: the <code>COPY</code> destinations flattened the local directory structure, so a file at <code>data-raw/sample.csv</code> ended up at <code>/home/data/sample.csv</code> instead of <code>/home/data-raw/sample.csv</code>.</p>
+<p>Both issues were fixed together.</p>
+<hr></div>
+<div class="section level3">
+<h3 id="changes-to-generate_dockerfile-1">Changes to <code>generate_dockerfile()</code>
+<a class="anchor" aria-label="anchor" href="#changes-to-generate_dockerfile-1"></a></h3>
+<p><strong>Directory-preserving <code>COPY</code> instructions</strong> — the three <code>COPY</code> blocks (<code>data_file</code>, <code>code_file</code>, <code>misc_file</code>) now preserve the local directory structure inside the container under <code>/home/</code>. Previously, <code>data_file</code> paths were flattened into <code>/home/data/</code> (using <code><a href="https://rdrr.io/r/base/basename.html" class="external-link">basename()</a></code>) and <code>code_file</code> / <code>misc_file</code> paths were flattened into <code>/home/</code>. The new behavior mirrors the source path on both sides of the <code>COPY</code> instruction:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Before (broken)</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="kw">COPY</span> /Users/lares/Desktop/project/data-raw/sample.csv /home/data/sample.csv</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co"># After (fixed)</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="kw">COPY</span> data-raw/sample.csv /home/data-raw/sample.csv</span></code></pre></div>
+<p>This means R scripts inside the container can use the same relative paths they use locally, which is the whole point of containerizing a project without rewriting its file references.</p>
+<p><strong>Relative source paths</strong> — <code>COPY</code> source paths are now computed via <code>fs::path_rel(f, start = getwd())</code> so that absolute paths from <code><a href="reference/dot-validate_file_arg.html">.validate_file_arg()</a></code> are converted to paths relative to the build context before being written to the Dockerfile. This fixes the <code>podman build</code> error “no such file or directory” that occurred when the Dockerfile contained absolute paths pointing outside the build context.</p>
+<p>The implementation replaces <code>basename(.x)</code> with <code><a href="https://fs.r-lib.org/reference/path_math.html" class="external-link">fs::path_rel()</a></code> in all three <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::map_chr()</a></code> blocks:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">purrr</span><span class="fu">::</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map_chr</a></span><span class="op">(</span><span class="va">data_file</span>, <span class="kw">function</span><span class="op">(</span><span class="va">f</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">rel</span> <span class="op">&lt;-</span> <span class="fu">fs</span><span class="fu">::</span><span class="fu"><a href="https://fs.r-lib.org/reference/path_math.html" class="external-link">path_rel</a></span><span class="op">(</span><span class="va">f</span>, start <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="fu">glue</span><span class="fu">::</span><span class="fu"><a href="https://glue.tidyverse.org/reference/glue.html" class="external-link">glue</a></span><span class="op">(</span><span class="st">"COPY {rel} /home/{rel}"</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
+<hr></div>
+<div class="section level3">
+<h3 id="testing-1">Testing<a class="anchor" aria-label="anchor" href="#testing-1"></a></h3>
+<p>Updated <code>test-generate-dockerfile-content.R</code> to expect the new directory-preserving <code>COPY</code> destinations instead of the old flattened <code>/home/data/</code> pattern. The test at line 266 was the only failure after the code change.</p>
+<p><strong>Test counts after this session:</strong> 132 passing, 0 failing, 0 warnings, 3 skipped (Layer 3 integration tests).</p>
+<hr></div>
+<div class="section level3">
+<h3 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a></h3>
+<ul><li>Updated <code>@param</code> roxygen2 docs for <code>data_file</code>, <code>code_file</code>, and <code>misc_file</code> to describe the directory-preserving behavior.</li>
+<li>Updated README to explain the new <code>COPY</code> behavior and show examples with <code>data_file</code> and <code>code_file</code> arguments.</li>
+<li>Updated NEWS.md with two breaking change entries.</li>
+</ul><hr></div>
+<div class="section level3">
+<h3 id="open-questions-carried-forward-1">Open questions carried forward<a class="anchor" aria-label="anchor" href="#open-questions-carried-forward-1"></a></h3>
+<ul><li>Layer 3 integration tests for <code><a href="reference/build_image.html">build_image()</a></code> and <code><a href="reference/push_image.html">push_image()</a></code> are still not written (carried from Session 2).</li>
+<li>
+<code>containerize()</code> convenience wrapper still on the roadmap (carried from Session 2).</li>
+<li>
+<code><a href="reference/dot-validate_file_arg.html">.validate_file_arg()</a></code> could be updated to return relative paths directly, consolidating the <code><a href="https://fs.r-lib.org/reference/path_math.html" class="external-link">fs::path_rel()</a></code> conversion into one place instead of three. Deferred — the current approach works and the duplication is minimal.</li>
 </ul></div>
 </div>
 </div>

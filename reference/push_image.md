@@ -5,7 +5,7 @@ path and pushes it to a container registry. It handles both the
 `podman tag` and `podman push` steps in a single call. Auto-detects
 which container tool is available unless `tool` is specified explicitly.
 Use `dry_run = TRUE` to preview the exact commands without executing
-them.
+them. The format for the is registry.doit.wisc.edu//:
 
 ## Usage
 

@@ -121,7 +121,7 @@
 <p>Install from CRAN:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
-<p>Install the development version from GitHub:</p>
+<p>For the latest development features, install from GitHub:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("pak")</span></span>
 <span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"erwinlares/containr"</span><span class="op">)</span></span></code></pre></div>
@@ -137,6 +137,8 @@
 <span><span class="co"># 1. Generate a Dockerfile from renv.lock</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  data_file <span class="op">=</span> <span class="st">"data-raw/sample.csv"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
@@ -166,9 +168,18 @@
 </h3>
 <p><code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> reads your <code>renv.lock</code>, identifies the R packages used by the project, queries their system library requirements, and writes a <code>Dockerfile</code>.</p>
 <p>The generated <code>Dockerfile</code> is a plain text file. You can inspect it, edit it, delete it, and regenerate it as many times as needed while refining your setup. This makes <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> a low-risk entry point into containerization: the first step is not building an image; it is making the container recipe visible.</p>
+<p>When you include files via <code>data_file</code>, <code>code_file</code>, or <code>misc_file</code>, the generated <code>COPY</code> instructions preserve your local directory structure inside the container under <code>/home/</code>. A file at <code>data-raw/sample.csv</code> locally ends up at <code>/home/data-raw/sample.csv</code> in the container – not flattened into <code>/home/data/</code>. This means your R scripts can use the same relative paths inside the container that they use on your machine.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Generate a Dockerfile from the current project</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, output <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Include a data file -- preserves directory structure in the container</span></span>
+<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  data_file <span class="op">=</span> <span class="st">"data-raw/penguins.csv"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Use an RStudio Server image instead of plain R</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
@@ -198,7 +209,7 @@
 <h3 id="build_image">
 <code>build_image()</code><a class="anchor" aria-label="anchor" href="#build_image"></a>
 </h3>
-<p><code><a href="reference/build_image.html">build_image()</a></code> passes your <code>Dockerfile</code> to Podman or Docker and builds the image locally.</p>
+<p><code><a href="reference/build_image.html">build_image()</a></code> passes your <code>Dockerfile</code> to Podman or Docker and builds the image locally. The build context is the current working directory, so all file paths in the <code>COPY</code> instructions are resolved relative to where you call <code><a href="reference/build_image.html">build_image()</a></code> – typically the project root.</p>
 <p>The first build can take time because the container engine must download the base image and install the R package environment from scratch. Later builds are usually faster because Podman and Docker reuse cached layers when the earlier parts of the <code>Dockerfile</code> have not changed.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build from the Dockerfile in the current directory</span></span>
@@ -219,7 +230,7 @@
 <span><span class="co">#&gt;                                              repository    tag      image_id      created     size</span></span>
 <span><span class="co">#&gt; 1  registry.doit.wisc.edu/your.netid/my-analysis  1.0.0  974123909a36  2 hours ago  1.59 GB</span></span>
 <span><span class="co">#&gt; 2                                          &lt;none&gt;  &lt;none&gt;  3b8f20dc1a47  3 hours ago  1.21 GB</span></span></code></pre></div>
-<p>Untagged images — those built without a name — appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
+<p>Untagged images – those built without a name – appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
 <hr>
 </div>
 <div class="section level3">
@@ -281,11 +292,11 @@
 <p><code>containr</code> is part of a family of packages for reproducible research workflows:</p>
 <ul>
 <li>
-<a href="https://github.com/erwinlares/toolero" class="external-link">toolero</a> — organize and scaffold research projects</li>
+<a href="https://github.com/erwinlares/toolero" class="external-link">toolero</a> – organize and scaffold research projects</li>
 <li>
-<strong>containr</strong> — containerize the project (this package)</li>
+<strong>containr</strong> – containerize the project (this package)</li>
 <li>
-<a href="https://github.com/erwinlares/submitr" class="external-link">submitr</a> — submit containerized R jobs to CHTC and retrieve results</li>
+<a href="https://github.com/erwinlares/submitr" class="external-link">submitr</a> – submit containerized R jobs to CHTC and retrieve results</li>
 </ul>
 <hr>
 </div>
@@ -298,7 +309,7 @@
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
 </h2>
-<p>Apache License (&gt;= 2) © Erwin Lares</p>
+<p>Apache License (&gt;= 2) (c) Erwin Lares</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

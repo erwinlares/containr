@@ -170,3 +170,105 @@ without touching the project’s real `renv.lock`.
   [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md) +
   [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
   — is on the roadmap but not yet drafted.
+
+------------------------------------------------------------------------
+
+## Session 3 — 2026-05-13
+
+### What we set out to do
+
+This session fixed two related bugs in
+[`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+that surfaced during an end-to-end test of the notebook-to-cluster
+pipeline. The first build attempt failed because absolute file paths
+leaked into the generated Dockerfile’s `COPY` instructions. Fixing that
+revealed a second issue: the `COPY` destinations flattened the local
+directory structure, so a file at `data-raw/sample.csv` ended up at
+`/home/data/sample.csv` instead of `/home/data-raw/sample.csv`.
+
+Both issues were fixed together.
+
+------------------------------------------------------------------------
+
+### Changes to `generate_dockerfile()`
+
+**Directory-preserving `COPY` instructions** — the three `COPY` blocks
+(`data_file`, `code_file`, `misc_file`) now preserve the local directory
+structure inside the container under `/home/`. Previously, `data_file`
+paths were flattened into `/home/data/` (using
+[`basename()`](https://rdrr.io/r/base/basename.html)) and `code_file` /
+`misc_file` paths were flattened into `/home/`. The new behavior mirrors
+the source path on both sides of the `COPY` instruction:
+
+``` dockerfile
+# Before (broken)
+COPY /Users/lares/Desktop/project/data-raw/sample.csv /home/data/sample.csv
+
+# After (fixed)
+COPY data-raw/sample.csv /home/data-raw/sample.csv
+```
+
+This means R scripts inside the container can use the same relative
+paths they use locally, which is the whole point of containerizing a
+project without rewriting its file references.
+
+**Relative source paths** — `COPY` source paths are now computed via
+`fs::path_rel(f, start = getwd())` so that absolute paths from
+[`.validate_file_arg()`](https://erwinlares.github.io/containr/reference/dot-validate_file_arg.md)
+are converted to paths relative to the build context before being
+written to the Dockerfile. This fixes the `podman build` error “no such
+file or directory” that occurred when the Dockerfile contained absolute
+paths pointing outside the build context.
+
+The implementation replaces `basename(.x)` with
+[`fs::path_rel()`](https://fs.r-lib.org/reference/path_math.html) in all
+three
+[`purrr::map_chr()`](https://purrr.tidyverse.org/reference/map.html)
+blocks:
+
+``` r
+
+purrr::map_chr(data_file, function(f) {
+    rel <- fs::path_rel(f, start = getwd())
+    glue::glue("COPY {rel} /home/{rel}")
+})
+```
+
+------------------------------------------------------------------------
+
+### Testing
+
+Updated `test-generate-dockerfile-content.R` to expect the new
+directory-preserving `COPY` destinations instead of the old flattened
+`/home/data/` pattern. The test at line 266 was the only failure after
+the code change.
+
+**Test counts after this session:** 132 passing, 0 failing, 0 warnings,
+3 skipped (Layer 3 integration tests).
+
+------------------------------------------------------------------------
+
+### Documentation
+
+- Updated `@param` roxygen2 docs for `data_file`, `code_file`, and
+  `misc_file` to describe the directory-preserving behavior.
+- Updated README to explain the new `COPY` behavior and show examples
+  with `data_file` and `code_file` arguments.
+- Updated NEWS.md with two breaking change entries.
+
+------------------------------------------------------------------------
+
+### Open questions carried forward
+
+- Layer 3 integration tests for
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  and
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  are still not written (carried from Session 2).
+- `containerize()` convenience wrapper still on the roadmap (carried
+  from Session 2).
+- [`.validate_file_arg()`](https://erwinlares.github.io/containr/reference/dot-validate_file_arg.md)
+  could be updated to return relative paths directly, consolidating the
+  [`fs::path_rel()`](https://fs.r-lib.org/reference/path_math.html)
+  conversion into one place instead of three. Deferred — the current
+  approach works and the duplication is minimal.
