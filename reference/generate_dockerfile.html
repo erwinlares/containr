@@ -113,20 +113,25 @@ be written. Defaults to <code><a href="https://rdrr.io/r/base/tempfile.html" cla
 
 
 <dt id="arg-data-file">data_file<a class="anchor" aria-label="anchor" href="#arg-data-file"></a></dt>
-<dd><p>A character string. Path to an optional data file to copy
-into the container under <code>/home/data/</code>. Defaults to <code>NULL</code>.</p></dd>
+<dd><p>A character string or <code>NULL</code>. Path to a data file to copy
+into the container. The local directory structure is preserved under
+<code>/home/</code> – e.g. <code>"data-raw/sample.csv"</code> becomes
+<code>/home/data-raw/sample.csv</code> inside the container. The file must be inside
+the current working directory (the build context). Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-code-file">code_file<a class="anchor" aria-label="anchor" href="#arg-code-file"></a></dt>
-<dd><p>A character string. Path to an optional script file (e.g.
-<code>.R</code>, <code>.qmd</code>, <code>.rmd</code>) to copy into the container under <code>/home/</code>.
-Defaults to <code>NULL</code>.</p></dd>
+<dd><p>A character string or <code>NULL</code>. Path to a script file (e.g.
+<code>.R</code>, <code>.qmd</code>, <code>.rmd</code>) to copy into the container. The local directory
+structure is preserved under <code>/home/</code>. The file must be inside the current
+working directory. Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-misc-file">misc_file<a class="anchor" aria-label="anchor" href="#arg-misc-file"></a></dt>
-<dd><p>A character string. Path to an optional miscellaneous file
-(e.g. an image or shell script) to copy into the container under
-<code>/home/</code>. Defaults to <code>NULL</code>.</p></dd>
+<dd><p>A character string or <code>NULL</code>. Path to a miscellaneous file
+(e.g. an image or shell script) to copy into the container. The local
+directory structure is preserved under <code>/home/</code>. The file must be inside
+the current working directory. Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-add-user">add_user<a class="anchor" aria-label="anchor" href="#arg-add-user"></a></dt>
@@ -173,7 +178,7 @@ Returns <code>invisible(NULL)</code>.</p>
 <p><code>generate_dockerfile()</code> requires an <code>renv.lock</code> file in the current working
 directory. Create one with <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> before calling this function.
 If the lock file is out of sync with your project library, a warning is
-issued — run <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> to update it before building the image.</p>
+issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> to update it before building the image.</p>
     </div>
 
     <div class="section level2">
@@ -196,10 +201,11 @@ issued — run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span>  output          <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Include a data file and annotate the Dockerfile with comments</span></span></span>
+<span class="r-in"><span><span class="co"># Include a data file -- directory structure is preserved in the container</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
-<span class="r-in"><span>  data_file <span class="op">=</span> <span class="st">"data/penguins.csv"</span>,</span></span>
+<span class="r-in"><span>  data_file <span class="op">=</span> <span class="st">"data-raw/penguins.csv"</span>,</span></span>
+<span class="r-in"><span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span></span>
 <span class="r-in"><span>  comments  <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>

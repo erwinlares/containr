@@ -3,7 +3,8 @@
 Internal helper used by
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
 to check that optional file arguments (e.g. `data_file`, `code_file`,
-`misc_file`) are valid.
+`misc_file`) are valid. Returns a path relative to the current working
+directory, which serves as the Docker/Podman build context.
 
 ## Usage
 
@@ -24,5 +25,5 @@ to check that optional file arguments (e.g. `data_file`, `code_file`,
 
 ## Value
 
-A normalized file path if validation succeeds, or `NULL` if the input
-was `NULL`.
+A file path relative to the current working directory if validation
+succeeds, or `NULL` if the input was `NULL`.
