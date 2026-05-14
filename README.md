@@ -177,7 +177,10 @@ generated `COPY` instructions preserve your local directory structure inside
 the container under `/home/`. A file at `data-raw/sample.csv` locally ends up
 at `/home/data-raw/sample.csv` in the container -- not flattened into
 `/home/data/`. This means your R scripts can use the same relative paths
-inside the container that they use on your machine.
+inside the container that they use on your machine. All files must be inside
+the current working directory (the build context) -- files outside it will
+produce an error, since Dockerfile `COPY` cannot reach beyond the build
+context.
 
 ```r
 # Generate a Dockerfile from the current project

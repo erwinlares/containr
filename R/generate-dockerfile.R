@@ -26,14 +26,19 @@
 #'   `c("libuv1-dev", "libwebp-dev")`. Defaults to `NULL`.
 #' @param output A character string. Directory path where the `Dockerfile` will
 #'   be written. Defaults to `tempdir()`.
-#' @param data_file A character string. Path to an optional data file to copy
-#'   into the container under `/home/data/`. Defaults to `NULL`.
-#' @param code_file A character string. Path to an optional script file (e.g.
-#'   `.R`, `.qmd`, `.rmd`) to copy into the container under `/home/`.
-#'   Defaults to `NULL`.
-#' @param misc_file A character string. Path to an optional miscellaneous file
-#'   (e.g. an image or shell script) to copy into the container under
-#'   `/home/`. Defaults to `NULL`.
+#' @param data_file A character string or `NULL`. Path to a data file to copy
+#'   into the container. The local directory structure is preserved under
+#'   `/home/` -- e.g. `"data-raw/sample.csv"` becomes
+#'   `/home/data-raw/sample.csv` inside the container. The file must be inside
+#'   the current working directory (the build context). Defaults to `NULL`.
+#' @param code_file A character string or `NULL`. Path to a script file (e.g.
+#'   `.R`, `.qmd`, `.rmd`) to copy into the container. The local directory
+#'   structure is preserved under `/home/`. The file must be inside the current
+#'   working directory. Defaults to `NULL`.
+#' @param misc_file A character string or `NULL`. Path to a miscellaneous file
+#'   (e.g. an image or shell script) to copy into the container. The local
+#'   directory structure is preserved under `/home/`. The file must be inside
+#'   the current working directory. Defaults to `NULL`.
 #' @param add_user A character string. Name of a Linux user to create inside
 #'   the container with sudo access. Defaults to `NULL`.
 #' @param home_dir A character string. The working directory set inside the
@@ -56,7 +61,7 @@
 #' `generate_dockerfile()` requires an `renv.lock` file in the current working
 #' directory. Create one with `renv::snapshot()` before calling this function.
 #' If the lock file is out of sync with your project library, a warning is
-#' issued — run `renv::snapshot()` to update it before building the image.
+#' issued -- run `renv::snapshot()` to update it before building the image.
 #'
 #' @export
 #'
@@ -79,10 +84,11 @@
 #'   output          = "."
 #' )
 #'
-#' # Include a data file and annotate the Dockerfile with comments
+#' # Include a data file -- directory structure is preserved in the container
 #' generate_dockerfile(
 #'   r_version = "4.3.0",
-#'   data_file = "data/penguins.csv",
+#'   data_file = "data-raw/penguins.csv",
+#'   code_file = "analysis.R",
 #'   comments  = TRUE,
 #'   output    = "."
 #' )
@@ -126,6 +132,8 @@ generate_dockerfile <- function(r_version       = "current",
     }
 
     # -- 3. Validate file arguments --------------------------------------------
+    # .validate_file_arg() returns paths relative to getwd() (the build
+    # context). Files outside the build context error immediately.
     data_file <- .validate_file_arg("data_file", data_file)
     code_file <- .validate_file_arg("code_file", code_file)
     misc_file <- .validate_file_arg("misc_file", misc_file)
@@ -175,7 +183,7 @@ generate_dockerfile <- function(r_version       = "current",
     }
 
     # -- 7. Resolve system libraries -------------------------------------------
-    # curl is always installed as a baseline — renv needs it for downloads
+    # curl is always installed as a baseline -- renv needs it for downloads
     # inside the container regardless of what packages are in renv.lock.
     baseline_syslibs <- c("curl")
 
@@ -284,48 +292,42 @@ generate_dockerfile <- function(r_version       = "current",
         ),
         data = list(
             instruction = if (!is.null(data_file)) {
-                purrr::map_chr(data_file, function(f) {
-                    rel <- fs::path_rel(f, start = getwd())
-                    glue::glue("COPY {rel} /home/{rel}")
-                })
+                purrr::map_chr(data_file,
+                               ~ glue::glue("COPY {.x} /home/{.x}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy data files into the container",
             comment     = if (!is.null(data_file)) {
-                "Optionally copy data files from the host into the container"
+                "Copy data files -- directory structure preserved under /home/"
             } else {
                 NULL
             }
         ),
         code = list(
             instruction = if (!is.null(code_file)) {
-                purrr::map_chr(code_file, function(f) {
-                    rel <- fs::path_rel(f, start = getwd())
-                    glue::glue("COPY {rel} /home/{rel}")
-                })
+                purrr::map_chr(code_file,
+                               ~ glue::glue("COPY {.x} /home/{.x}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy script files into the container",
             comment     = if (!is.null(code_file)) {
-                "Optionally copy script files from the host into the container"
+                "Copy script files -- directory structure preserved under /home/"
             } else {
                 NULL
             }
         ),
         misc = list(
             instruction = if (!is.null(misc_file)) {
-                purrr::map_chr(misc_file, function(f) {
-                    rel <- fs::path_rel(f, start = getwd())
-                    glue::glue("COPY {rel} /home/{rel}")
-                })
+                purrr::map_chr(misc_file,
+                               ~ glue::glue("COPY {.x} /home/{.x}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy miscellaneous files into the container",
             comment     = if (!is.null(misc_file)) {
-                "Optionally copy additional files into the container"
+                "Copy additional files -- directory structure preserved under /home/"
             } else {
                 NULL
             }

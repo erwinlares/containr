@@ -13,12 +13,13 @@
 \item{value}{A character path to a file, or \code{NULL}.}
 }
 \value{
-A normalized file path if validation succeeds, or \code{NULL}
-if the input was \code{NULL}.
+A file path relative to the current working directory if
+validation succeeds, or \code{NULL} if the input was \code{NULL}.
 }
 \description{
 Internal helper used by \code{generate_dockerfile()} to check that
 optional file arguments (e.g. \code{data_file}, \code{code_file},
-\code{misc_file}) are valid.
+\code{misc_file}) are valid. Returns a path relative to the current
+working directory, which serves as the Docker/Podman build context.
 }
 \keyword{internal}

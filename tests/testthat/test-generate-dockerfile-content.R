@@ -306,6 +306,17 @@ test_that("Dockerfile omits COPY data line when data_file = NULL", {
     expect_false(any(grepl("/home/data/", lines, fixed = TRUE)))
 })
 
+test_that("validate_file_arg errors when file is outside build context", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    outside <- withr::local_tempdir()
+    writeLines("data", file.path(outside, "outside.csv"))
+    expect_error(
+        .validate_file_arg("data_file", file.path(outside, "outside.csv")),
+        "outside the build context"
+    )
+})
+
 # ---------------------------------------------------------------------------
 # User creation
 # ---------------------------------------------------------------------------

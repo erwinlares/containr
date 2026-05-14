@@ -47,16 +47,21 @@ element should be a valid \code{apt} package name, e.g.
 \item{output}{A character string. Directory path where the \code{Dockerfile} will
 be written. Defaults to \code{tempdir()}.}
 
-\item{data_file}{A character string. Path to an optional data file to copy
-into the container under \verb{/home/data/}. Defaults to \code{NULL}.}
+\item{data_file}{A character string or \code{NULL}. Path to a data file to copy
+into the container. The local directory structure is preserved under
+\verb{/home/} -- e.g. \code{"data-raw/sample.csv"} becomes
+\verb{/home/data-raw/sample.csv} inside the container. The file must be inside
+the current working directory (the build context). Defaults to \code{NULL}.}
 
-\item{code_file}{A character string. Path to an optional script file (e.g.
-\code{.R}, \code{.qmd}, \code{.rmd}) to copy into the container under \verb{/home/}.
-Defaults to \code{NULL}.}
+\item{code_file}{A character string or \code{NULL}. Path to a script file (e.g.
+\code{.R}, \code{.qmd}, \code{.rmd}) to copy into the container. The local directory
+structure is preserved under \verb{/home/}. The file must be inside the current
+working directory. Defaults to \code{NULL}.}
 
-\item{misc_file}{A character string. Path to an optional miscellaneous file
-(e.g. an image or shell script) to copy into the container under
-\verb{/home/}. Defaults to \code{NULL}.}
+\item{misc_file}{A character string or \code{NULL}. Path to a miscellaneous file
+(e.g. an image or shell script) to copy into the container. The local
+directory structure is preserved under \verb{/home/}. The file must be inside
+the current working directory. Defaults to \code{NULL}.}
 
 \item{add_user}{A character string. Name of a Linux user to create inside
 the container with sudo access. Defaults to \code{NULL}.}
@@ -94,7 +99,7 @@ inline documentation comments.
 \code{generate_dockerfile()} requires an \code{renv.lock} file in the current working
 directory. Create one with \code{renv::snapshot()} before calling this function.
 If the lock file is out of sync with your project library, a warning is
-issued — run \code{renv::snapshot()} to update it before building the image.
+issued -- run \code{renv::snapshot()} to update it before building the image.
 }
 
 \examples{
@@ -116,10 +121,11 @@ generate_dockerfile(
   output          = "."
 )
 
-# Include a data file and annotate the Dockerfile with comments
+# Include a data file -- directory structure is preserved in the container
 generate_dockerfile(
   r_version = "4.3.0",
-  data_file = "data/penguins.csv",
+  data_file = "data-raw/penguins.csv",
+  code_file = "analysis.R",
   comments  = TRUE,
   output    = "."
 )
