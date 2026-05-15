@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Provides tools for containerizing 'R' projects. The core function, 'generate_dockerfile()', analyzes an 'R' project's environment and dependencies via an 'renv' lock file and generates a ready-to-use 'Dockerfile' that encapsulates the computational setup. Designed to help researchers build portable, reproducible workflows that can be reliably shared, archived, and rerun across systems. See R Core Team (2025) \url{https://www.R-project.org/}, Ushey et al. (2025) \url{https://CRAN.R-project.org/package=renv}, and Docker Inc. (2025) \url{https://www.docker.com/}.
+Provides tools for containerizing 'R' projects. Reads an 'renv' lock file, generates a ready-to-use 'Dockerfile', builds the container image, and pushes it to a registry. Generated 'COPY' instructions preserve the local directory structure inside the container. Cross-platform builds are supported via 'Docker' buildx for targeting 'linux/amd64' from ARM hosts. Designed to help researchers build portable, reproducible workflows that can be reliably shared, archived, and rerun across systems. See R Core Team (2025) \url{https://www.R-project.org/}, Ushey et al. (2025) \url{https://CRAN.R-project.org/package=renv}, and Docker Inc. (2025) \url{https://www.docker.com/}.
 }
 \seealso{
 Useful links:

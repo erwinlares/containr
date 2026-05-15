@@ -31,7 +31,7 @@ in the local image store, as reported by \verb{podman image ls} or
 
 After calling \code{\link[=build_image]{build_image()}}, run \code{list_images()} to find the image ID
 of the image you just built. Untagged images appear with \verb{<none>} in the
-\code{repository} and \code{tag} columns — the \code{image_id} column contains the hash
+\code{repository} and \code{tag} columns -- the \code{image_id} column contains the hash
 you need to pass to \code{\link[=push_image]{push_image()}}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{imgs <- list_images()

@@ -6,7 +6,13 @@
 
 * `build_image()` builds a container image from a `Dockerfile` using either
   `podman` or `docker`. Auto-detects which tool is available, preferring
-  `podman`. Supports `dry_run = TRUE` to preview the build command without
+  `podman`. New `platform` argument defaults to `"linux/amd64"` for HPC/HTC
+  cluster compatibility. When the target platform differs from the host
+  architecture (e.g. building `linux/amd64` on Apple Silicon), the function
+  automatically uses `docker buildx build` with `--load` for Docker, or
+  passes `--platform` directly for Podman. A warning is emitted for
+  cross-platform builds to alert the user about potential QEMU emulation
+  issues. Supports `dry_run = TRUE` to preview the build command without
   executing it. `verbose` and `comments` follow the same contract as
   `generate_dockerfile()`.
 
@@ -87,6 +93,15 @@
   of the old flattened `/home/data/` pattern.
 * Added lifecycle and Codecov badges.
 * Updated hex sticker and favicon.
+* Added tests for `build_image()` `platform` parameter: invalid platform
+  validation, `--platform` flag inclusion/omission, `docker buildx` vs
+  `docker build` selection, `--load` flag for cross-arch Docker builds,
+  cross-compilation warning, and same-architecture no-warning behavior.
+* `.validate_file_arg()` now returns paths relative to the working directory
+  instead of absolute paths. Files outside the build context (including files
+  on a different drive on Windows) produce an informative error. This fixes
+  cross-drive build failures on Windows CI where `fs::path_rel()` could not
+  compute a relative path
 
 ## Dependency changes
 

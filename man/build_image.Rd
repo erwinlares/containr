@@ -7,6 +7,7 @@
 build_image(
   dockerfile = "Dockerfile",
   tag = NULL,
+  platform = "linux/amd64",
   tool = NULL,
   dry_run = FALSE,
   verbose = FALSE,
@@ -22,6 +23,12 @@ the built image, including the registry prefix, e.g.
 \code{"registry.doit.wisc.edu/netid/myimage"}. If \code{NULL}, no tag is applied
 and the image is identified only by its image ID. Defaults to \code{NULL}.}
 
+\item{platform}{A character string or \code{NULL}. The target platform for the
+container image. Defaults to \code{"linux/amd64"}, which is the architecture
+used by most HPC and HTC clusters. Set to \code{"linux/arm64"} for ARM-based
+systems (Apple Silicon, AWS Graviton). Set to \code{NULL} to let the
+container tool build for the host architecture.}
+
 \item{tool}{A character string or \code{NULL}. The container tool to use for
 building. One of \code{"podman"} or \code{"docker"}. If \code{NULL} (the default),
 the function auto-detects which tool is available, preferring \code{podman}
@@ -35,7 +42,7 @@ to a potentially slow build. Defaults to \code{FALSE}.}
 Defaults to \code{FALSE}.}
 
 \item{comments}{Logical. If \code{TRUE}, prints explanatory context before each
-step — what the command does, why it is needed, and common pitfalls.
+step -- what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container build workflow.
 Defaults to \code{FALSE}.}
 }
@@ -48,17 +55,40 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 unless \code{tool} is specified explicitly. Use \code{dry_run = TRUE} to preview the
 exact command that would be run without executing it.
 }
+\details{
+When the target \code{platform} differs from the host architecture (e.g.
+building \code{linux/amd64} on an Apple Silicon Mac), \code{build_image()}
+automatically uses \verb{docker buildx build} instead of \verb{docker build}, and
+includes \code{--load} to ensure the image is available in the local store.
+For \code{podman}, \code{--platform} is passed directly to \verb{podman build}.
+}
 \section{Prerequisites}{
 
 Before calling \code{build_image()}, ensure the following are in place:
 \enumerate{
 \item A \code{Dockerfile} exists at \code{dockerfile}. Use
 \code{\link[=generate_dockerfile]{generate_dockerfile()}} to create one if needed.
-\item An \code{renv.lock} file is present in \code{output} — the generated \code{Dockerfile}
-uses it to restore the R package environment inside the container.
+\item An \code{renv.lock} file is present in the build context -- the generated
+\code{Dockerfile} uses it to restore the R package environment inside the
+container.
 \item Either \code{podman} or \code{docker} is installed and the daemon (for \code{docker})
 or the Podman service is running. Verify with \verb{podman info} or
 \verb{docker info} in a terminal.
+}
+}
+
+\section{Cross-platform builds}{
+
+Building for a different architecture than the host requires emulation.
+On Apple Silicon Macs, building \code{linux/amd64} images uses QEMU emulation
+under Podman, which can be slow and unstable. Docker Desktop handles
+cross-platform builds more reliably via \code{buildx} and Rosetta 2.
+
+If builds fail with QEMU segfaults, consider:
+\itemize{
+\item Using Docker Desktop instead of Podman (\code{tool = "docker"})
+\item Building on a native x86_64 machine (e.g. via GitHub Actions)
+\item Building directly on the target cluster if it supports container builds
 }
 }
 
@@ -70,17 +100,23 @@ For UW-Madison CHTC, the full tag format is:
 For example: \verb{registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0}
 
 The version tag defaults to \code{latest} if omitted. Using explicit version
-tags (e.g. \verb{1.0.0}) is recommended for reproducibility — \code{latest} will
+tags (e.g. \verb{1.0.0}) is recommended for reproducibility -- \code{latest} will
 be overwritten each time you push.
 }
 
 \examples{
 \dontrun{
-# Build with auto-detected tool and no tag
+# Build for linux/amd64 (default) with auto-detected tool
 build_image()
 
 # Build and tag for CHTC registry
 build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
+
+# Build for the host architecture (no --platform flag)
+build_image(platform = NULL)
+
+# Build for ARM64 (e.g. local use on Apple Silicon)
+build_image(platform = "linux/arm64")
 
 # Preview the build command without running it
 build_image(
@@ -88,7 +124,7 @@ build_image(
   dry_run = TRUE
 )
 
-# Guided build for first-time users — run from your project directory
+# Guided build for first-time users
 build_image(
   tag      = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
   verbose  = TRUE,

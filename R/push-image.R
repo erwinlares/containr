@@ -18,7 +18,7 @@
 #'   container registry, e.g. `"container-registry"`.
 #' @param tag A character string. The version tag to assign to the image.
 #'   Defaults to `"latest"`. Using explicit version tags (e.g. `"1.0.0"`)
-#'   is recommended for reproducibility — `"latest"` is overwritten on
+#'   is recommended for reproducibility -- `"latest"` is overwritten on
 #'   every push.
 #' @param registry A character string. The registry hostname. Defaults to
 #'   `"registry.doit.wisc.edu"` (UW-Madison CHTC).
@@ -33,7 +33,7 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages at each step.
 #'   Defaults to `FALSE`.
 #' @param comments Logical. If `TRUE`, prints explanatory context before each
-#'   step — what the command does, why it is needed, and common pitfalls.
+#'   step -- what the command does, why it is needed, and common pitfalls.
 #'   Useful for first-time users learning the container push workflow.
 #'   Defaults to `FALSE`.
 #'
@@ -55,7 +55,7 @@
 #'
 #' @section Authentication:
 #' The GitLab container registry requires authentication before pushing.
-#' Use a Personal Access Token (PAT) rather than your NetID password —
+#' Use a Personal Access Token (PAT) rather than your NetID password --
 #' PATs can be scoped to registry access only and revoked independently.
 #' Authentication is cached by `podman` or `docker` after the first login,
 #' so you only need to run `podman login` once per machine per session.

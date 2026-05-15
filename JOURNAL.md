@@ -220,11 +220,84 @@ the code change.
 
 ### Open questions carried forward
 
+### Open questions carried forward
+
 - Layer 3 integration tests for `build_image()` and `push_image()` are
   still not written (carried from Session 2).
 - `containerize()` convenience wrapper still on the roadmap (carried from
   Session 2).
-- `.validate_file_arg()` could be updated to return relative paths directly,
-  consolidating the `fs::path_rel()` conversion into one place instead of
-  three. Deferred — the current approach works and the duplication is
-  minimal.
+
+---
+
+## Session 4 — 2026-05-14
+
+### What we set out to do
+
+This session added cross-platform build support to `build_image()`. The
+immediate trigger was an end-to-end test of the notebook-to-cluster pipeline:
+the container image built on an Apple Silicon Mac was `arm64`, which CHTC's
+`x86_64` execute nodes rejected with "Image Architecture arm64 not compatible
+with this machine." Building with `--platform linux/amd64` via Podman failed
+due to QEMU emulation segfaults. Docker Desktop's `buildx` handled the
+cross-platform build successfully.
+
+### Changes to `build_image()`
+
+**New `platform` parameter** — defaults to `"linux/amd64"` since HPC/HTC
+clusters are almost universally `x86_64`. Also accepts `"linux/arm64"` or
+`NULL` (build for the host architecture). Invalid values error with the
+valid options listed.
+
+**Automatic `buildx` selection** — when the resolved tool is `docker` and
+the target platform differs from the host architecture, `build_image()`
+automatically uses `docker buildx build` with `--load` instead of plain
+`docker build`. The `--load` flag is required for `buildx` to store the
+image in the local image store. For Podman, `--platform` is passed directly
+to `podman build` since Podman handles it natively.
+
+**Cross-compilation warning** — when the target platform differs from the
+host (detected via `Sys.info()[["machine"]]`), a `cli::cli_warn()` fires
+explaining that emulation may be slow or unstable and suggesting Docker
+Desktop or a native x86_64 build as alternatives.
+
+### Changes to `.validate_file_arg()`
+
+Resolved the deferred item from Session 3. `.validate_file_arg()` now
+returns paths relative to the working directory instead of absolute paths.
+Both the file path and `getwd()` are normalized before computing the
+relative path. Files outside the build context (including cross-drive paths
+on Windows) produce an informative error. This consolidates the
+`fs::path_rel()` conversion into one place and removes the three duplicate
+calls from `generate_dockerfile()`.
+
+The COPY blocks in `generate_dockerfile()` are now simple
+`glue::glue("COPY {.x} /home/{.x}")` since `.validate_file_arg()` guarantees
+the input is already relative.
+
+### Testing
+
+Added new tests in `test-container-workflow.R`:
+
+- Invalid platform validation
+- `--platform` flag inclusion and omission
+- `docker buildx build` vs `docker build` selection based on architecture
+- `--load` flag for cross-architecture Docker builds
+- Cross-compilation warning fires when architectures differ
+- No warning for same-architecture builds
+- Existing tests wrapped with `suppressWarnings()` where the default
+  `platform = "linux/amd64"` triggers the cross-compilation warning on
+  `arm64` test hosts
+
+Added build-context boundary test in `test-generate-dockerfile-content.R`:
+files outside the working directory now error instead of producing a broken
+Dockerfile.
+
+### Open questions carried forward
+
+- Layer 3 integration tests for `build_image()` and `push_image()` are
+  still not written (carried from Session 2).
+- `containerize()` convenience wrapper still on the roadmap (carried from
+  Session 2).
+- GitHub Actions workflow for building and pushing images on x86_64 runners
+  is scoped but not yet implemented. This would eliminate QEMU emulation
+  entirely for Apple Silicon users.

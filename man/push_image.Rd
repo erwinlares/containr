@@ -31,7 +31,7 @@ container registry, e.g. \code{"container-registry"}.}
 
 \item{tag}{A character string. The version tag to assign to the image.
 Defaults to \code{"latest"}. Using explicit version tags (e.g. \code{"1.0.0"})
-is recommended for reproducibility — \code{"latest"} is overwritten on
+is recommended for reproducibility -- \code{"latest"} is overwritten on
 every push.}
 
 \item{registry}{A character string. The registry hostname. Defaults to
@@ -52,7 +52,7 @@ without executing them. Defaults to \code{FALSE}.}
 Defaults to \code{FALSE}.}
 
 \item{comments}{Logical. If \code{TRUE}, prints explanatory context before each
-step — what the command does, why it is needed, and common pitfalls.
+step -- what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container push workflow.
 Defaults to \code{FALSE}.}
 }
@@ -87,7 +87,7 @@ Enter your NetID as the username and your PAT as the password.
 \section{Authentication}{
 
 The GitLab container registry requires authentication before pushing.
-Use a Personal Access Token (PAT) rather than your NetID password —
+Use a Personal Access Token (PAT) rather than your NetID password --
 PATs can be scoped to registry access only and revoked independently.
 Authentication is cached by \code{podman} or \code{docker} after the first login,
 so you only need to run \verb{podman login} once per machine per session.

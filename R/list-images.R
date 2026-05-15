@@ -20,7 +20,7 @@
 #' @section Finding your image ID:
 #' After calling [build_image()], run `list_images()` to find the image ID
 #' of the image you just built. Untagged images appear with `<none>` in the
-#' `repository` and `tag` columns — the `image_id` column contains the hash
+#' `repository` and `tag` columns -- the `image_id` column contains the hash
 #' you need to pass to [push_image()]:
 #'
 #' ```r

@@ -1,5 +1,5 @@
 # Internal helpers for build_image() and push_image()
-# These are not exported — they are called by the container workflow functions.
+# These are not exported -- they are called by the container workflow functions.
 
 
 #' Resolve which container tool to use
