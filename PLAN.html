@@ -80,7 +80,7 @@ submitr::htc_fetch_results()    -- retrieve results</code></pre>
 </div>
 <div class="section level3">
 <h3 id="build_image"><code>build_image()</code><a class="anchor" aria-label="anchor" href="#build_image"></a></h3>
-<p>Builds a container image from a <code>Dockerfile</code> using <code>podman</code> or <code>docker</code>. Auto-detects tool, validates Dockerfile, checks daemon responsiveness. Supports <code>dry_run = TRUE</code>, <code>verbose</code>, <code>comments</code>.</p>
+<p>Builds a container image from a <code>Dockerfile</code> using <code>podman</code> or <code>docker</code>. Auto-detects tool, validates Dockerfile, checks daemon responsiveness. <code>platform</code> defaults to <code>"linux/amd64"</code> for HPC/HTC cluster compatibility. Automatically uses <code>docker buildx build</code> with <code>--load</code> for cross-platform Docker builds. Warns when the target platform differs from the host architecture. Supports <code>dry_run = TRUE</code>, <code>verbose</code>, <code>comments</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="list_images"><code>list_images()</code><a class="anchor" aria-label="anchor" href="#list_images"></a></h3>
@@ -160,6 +160,10 @@ submitr::htc_fetch_results()    -- retrieve results</code></pre>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="github-actions-workflow-for-image-builds">GitHub Actions workflow for image builds<a class="anchor" aria-label="anchor" href="#github-actions-workflow-for-image-builds"></a></h3>
+<p>Apple Silicon users cannot reliably build <code>linux/amd64</code> images locally due to QEMU emulation failures. A GitHub Actions workflow running on <code>x86_64</code> runners would build and push images natively. Could be triggered manually via <code>workflow_dispatch</code> or automatically on tagged releases. Scoped but not yet implemented.</p>
+</div>
+<div class="section level3">
 <h3 id="layer-3-tests-for-build_image-and-push_image">Layer 3 tests for <code>build_image()</code> and <code>push_image()</code>
 <a class="anchor" aria-label="anchor" href="#layer-3-tests-for-build_image-and-push_image"></a></h3>
 <p>Deferred from the current session. Require a running daemon and valid registry credentials. Will follow the same <code>CONTAINR_INTEGRATION_TESTS</code> guard as the <code><a href="reference/list_images.html">list_images()</a></code> Layer 3 tests.</p>
@@ -178,6 +182,7 @@ submitr::htc_fetch_results()    -- retrieve results</code></pre>
 <ol style="list-style-type: decimal"><li><p>Should <code>containerize()</code> accept an <code>image_id</code> or always use the most recently built image? The latter is more convenient but less explicit.</p></li>
 <li><p>Should <code><a href="reference/push_image.html">push_image()</a></code> eventually support <code>ghcr.io</code> and <code>quay.io</code> via a <code>registry</code> argument, or should separate registry-specific functions be added?</p></li>
 <li><p>When Singularity/Apptainer support arrives, should <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> gain a <code>format</code> argument to produce <code>.def</code> files instead of <code>Dockerfile</code>?</p></li>
+<li><p>Should <code><a href="reference/build_image.html">build_image()</a></code> offer a <code>github_actions = TRUE</code> mode that generates and triggers a workflow file instead of building locally? Or should the workflow be a separate function entirely?</p></li>
 </ol></div>
 </div>
 

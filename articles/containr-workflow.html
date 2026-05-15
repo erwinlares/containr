@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>A first containerization workflow with containr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-05-14</h4>
+updated 2026-05-15</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/containr/blob/main/vignettes/containr-workflow.Rmd" class="external-link"><code>vignettes/containr-workflow.Rmd</code></a></small>
       <div class="d-none name"><code>containr-workflow.Rmd</code></div>
@@ -178,10 +178,25 @@ unusual system library requirements that
 <span>  output          <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  install_syslibs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"libuv1-dev"</span>, <span class="st">"libwebp-dev"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>If your analysis depends on data files or scripts that should be
+available inside the container, pass them via <code>data_file</code> and
+<code>code_file</code>. The generated <code>COPY</code> instructions
+preserve your local directory structure under <code>/home/</code> – a
+file at <code>data-raw/sample.csv</code> locally becomes
+<code>/home/data-raw/sample.csv</code> in the container. All files must
+be inside the current working directory (the build context).</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  data_file <span class="op">=</span> <span class="st">"data-raw/sample.csv"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
+<span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <p>If your project uses RStudio Server rather than plain R, pass
 <code>r_mode = "rstudio"</code> to use the <code>rocker/rstudio</code>
 base image instead:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  r_mode    <span class="op">=</span> <span class="st">"rstudio"</span>,</span>
@@ -200,24 +215,46 @@ Podman or Docker and builds the image locally. The first build pulls the
 base image and installs every R package in your <code>renv.lock</code>
 from scratch, so it can take several minutes depending on the size of
 your package library and your network connection.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>The <code>platform</code> argument defaults to
+<code>"linux/amd64"</code>, which is the architecture used by CHTC and
+most HPC clusters. On Apple Silicon Macs, this means the image targets a
+different architecture than the host. When Docker is the resolved tool,
+<code><a href="../reference/build_image.html">build_image()</a></code> automatically uses
+<code>docker buildx build</code> with <code>--load</code> for
+cross-platform builds. For Podman, <code>--platform</code> is passed
+directly. If the target platform differs from the host, a warning is
+emitted about potential emulation issues.</p>
+<p>Docker Desktop handles cross-platform builds more reliably than
+Podman’s QEMU emulation layer. If builds fail with segfaults under
+Podman, try <code>tool = "docker"</code> or build on a native x86_64
+machine.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Build for the host architecture (e.g. local use on Apple Silicon)</span></span>
+<span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>platform <span class="op">=</span> <span class="cn">NULL</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Build for ARM64 explicitly</span></span>
+<span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>platform <span class="op">=</span> <span class="st">"linux/arm64"</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>With <code>verbose = TRUE</code>, the build output streams to the
 console so you can watch the installation progress. The output looks
 something like this:</p>
-<pre><code>ℹ Building image from Dockerfile in /home/user/my-analysis
-ℹ Running: podman build -t my-analysis .
-STEP 1/7: FROM rocker/r-ver:4.4.0
-STEP 2/7: ENV DEBIAN_FRONTEND=noninteractive
-STEP 3/7: RUN apt-get update &amp;&amp; apt-get install -y ...
-...
-STEP 6/7: RUN R -e "install.packages('renv', ...)"
-STEP 7/7: RUN R -e "renv::restore()"
-✔ Image built successfully: my-analysis</code></pre>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="ex">i</span> Resolving tool: using <span class="st">"docker"</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="ex">i</span> Target platform: <span class="st">"linux/amd64"</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="ex">i</span> Building image <span class="er">(</span><span class="ex">no</span> tag applied<span class="kw">)</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="ex">i</span> Build context: /home/user/my-analysis, Dockerfile: Dockerfile</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="ex">STEP</span> 1/7: FROM rocker/r-ver:4.4.0</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="ex">STEP</span> 2/7: ENV DEBIAN_FRONTEND=noninteractive</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="ex">STEP</span> 3/7: RUN apt-get update <span class="kw">&amp;&amp;</span> <span class="ex">apt-get</span> install <span class="at">-y</span> ...</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="ex">...</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="ex">STEP</span> 6/7: RUN R <span class="at">-e</span> <span class="st">"install.packages('renv', ...)"</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="ex">STEP</span> 7/7: RUN R <span class="at">-e</span> <span class="st">"renv::restore()"</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="ex">v</span> Image built successfully.</span></code></pre></div>
 <p>If you want to preview the build command without running it:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="co">#&gt; podman build -t my-analysis .</span></span></code></pre></div>
+<span><span class="co">#&gt; docker buildx build --platform linux/amd64 --load -f Dockerfile .</span></span></code></pre></div>
 <p>Subsequent builds are usually faster because Podman and Docker cache
 layers. If only your <code>renv.lock</code> changed, the system library
 installation step is reused from cache and only the R package
@@ -228,7 +265,6 @@ about a missing header file or a failed compilation, add the relevant
 library to <code>install_syslibs</code> in
 <code><a href="../reference/generate_dockerfile.html">generate_dockerfile()</a></code>, regenerate the
 <code>Dockerfile</code>, and rebuild.</p>
-<hr>
 </div>
 <div class="section level2">
 <h2 id="step-3-inspect-local-images">Step 3: Inspect local images<a class="anchor" aria-label="anchor" href="#step-3-inspect-local-images"></a>
@@ -236,7 +272,7 @@ library to <code>install_syslibs</code> in
 <p><code><a href="../reference/list_images.html">list_images()</a></code> returns a data frame of images in the
 local image store. It is the R equivalent of
 <code>podman image ls</code> or <code>docker image ls</code>.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">imgs</span></span></code></pre></div>
 <pre><code>                                    repository   tag      image_id    created    size
@@ -260,7 +296,7 @@ pushes it to a container registry. Before pushing, authenticate with the
 registry once in a terminal. <code>containr</code> checks whether you
 are logged in before attempting the push and errors with clear
 instructions if not.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
@@ -275,7 +311,7 @@ instructions if not.</p>
 ✔ Image pushed successfully.
 ℹ Image URI: docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0</code></pre>
 <p>To preview the tag and push commands without running them:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
@@ -299,7 +335,7 @@ data management plans.</p>
 </h2>
 <p>The complete workflow from a project with a <code>renv.lock</code> to
 a pushed container image takes four function calls:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/erwinlares/containr" class="external-link">containr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 1. Generate the Dockerfile</span></span>
@@ -355,6 +391,13 @@ primarily by the number of R packages in your <code>renv.lock</code> and
 their system library dependencies. This is expected. A project with many
 packages will produce a large image. Size can be reduced by trimming
 unused packages from the lockfile before building.</p>
+<p><strong>The build fails with a QEMU segfault on Apple
+Silicon.</strong> Building <code>linux/amd64</code> images on ARM hosts
+requires emulation, which can crash during R package installation.
+Switch to Docker Desktop (<code>tool = "docker"</code>), which uses
+<code>buildx</code> and handles cross-platform builds more reliably.
+Alternatively, build on a native x86_64 machine or via GitHub
+Actions.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

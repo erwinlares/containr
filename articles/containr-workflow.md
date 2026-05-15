@@ -120,6 +120,24 @@ generate_dockerfile(
 )
 ```
 
+If your analysis depends on data files or scripts that should be
+available inside the container, pass them via `data_file` and
+`code_file`. The generated `COPY` instructions preserve your local
+directory structure under `/home/` – a file at `data-raw/sample.csv`
+locally becomes `/home/data-raw/sample.csv` in the container. All files
+must be inside the current working directory (the build context).
+
+``` r
+
+generate_dockerfile(
+  r_version = "4.4.0",
+  data_file = "data-raw/sample.csv",
+  code_file = "analysis.R",
+  output    = ".",
+  comments  = TRUE
+)
+```
+
 If your project uses RStudio Server rather than plain R, pass
 `r_mode = "rstudio"` to use the `rocker/rstudio` base image instead:
 
@@ -152,26 +170,54 @@ connection.
 build_image(verbose = TRUE)
 ```
 
+The `platform` argument defaults to `"linux/amd64"`, which is the
+architecture used by CHTC and most HPC clusters. On Apple Silicon Macs,
+this means the image targets a different architecture than the host.
+When Docker is the resolved tool,
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+automatically uses `docker buildx build` with `--load` for
+cross-platform builds. For Podman, `--platform` is passed directly. If
+the target platform differs from the host, a warning is emitted about
+potential emulation issues.
+
+Docker Desktop handles cross-platform builds more reliably than Podman’s
+QEMU emulation layer. If builds fail with segfaults under Podman, try
+`tool = "docker"` or build on a native x86_64 machine.
+
+``` r
+
+# Build for the host architecture (e.g. local use on Apple Silicon)
+build_image(platform = NULL, verbose = TRUE)
+
+# Build for ARM64 explicitly
+build_image(platform = "linux/arm64", verbose = TRUE)
+```
+
 With `verbose = TRUE`, the build output streams to the console so you
 can watch the installation progress. The output looks something like
 this:
 
-    ℹ Building image from Dockerfile in /home/user/my-analysis
-    ℹ Running: podman build -t my-analysis .
-    STEP 1/7: FROM rocker/r-ver:4.4.0
-    STEP 2/7: ENV DEBIAN_FRONTEND=noninteractive
-    STEP 3/7: RUN apt-get update && apt-get install -y ...
-    ...
-    STEP 6/7: RUN R -e "install.packages('renv', ...)"
-    STEP 7/7: RUN R -e "renv::restore()"
-    ✔ Image built successfully: my-analysis
+``` bash
+
+i Resolving tool: using "docker"
+i Target platform: "linux/amd64"
+i Building image (no tag applied)
+i Build context: /home/user/my-analysis, Dockerfile: Dockerfile
+STEP 1/7: FROM rocker/r-ver:4.4.0
+STEP 2/7: ENV DEBIAN_FRONTEND=noninteractive
+STEP 3/7: RUN apt-get update && apt-get install -y ...
+...
+STEP 6/7: RUN R -e "install.packages('renv', ...)"
+STEP 7/7: RUN R -e "renv::restore()"
+v Image built successfully.
+```
 
 If you want to preview the build command without running it:
 
 ``` r
 
 build_image(dry_run = TRUE)
-#> podman build -t my-analysis .
+#> docker buildx build --platform linux/amd64 --load -f Dockerfile .
 ```
 
 Subsequent builds are usually faster because Podman and Docker cache
@@ -185,8 +231,6 @@ fails inside the container with a message about a missing header file or
 a failed compilation, add the relevant library to `install_syslibs` in
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md),
 regenerate the `Dockerfile`, and rebuild.
-
-------------------------------------------------------------------------
 
 ## Step 3: Inspect local images
 
@@ -340,3 +384,10 @@ of R packages in your `renv.lock` and their system library dependencies.
 This is expected. A project with many packages will produce a large
 image. Size can be reduced by trimming unused packages from the lockfile
 before building.
+
+**The build fails with a QEMU segfault on Apple Silicon.** Building
+`linux/amd64` images on ARM hosts requires emulation, which can crash
+during R package installation. Switch to Docker Desktop
+(`tool = "docker"`), which uses `buildx` and handles cross-platform
+builds more reliably. Alternatively, build on a native x86_64 machine or
+via GitHub Actions.

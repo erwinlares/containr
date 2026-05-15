@@ -55,6 +55,7 @@ exact command that would be run without executing it.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">build_image</span><span class="op">(</span></span>
 <span>  dockerfile <span class="op">=</span> <span class="st">"Dockerfile"</span>,</span>
 <span>  tag <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  platform <span class="op">=</span> <span class="st">"linux/amd64"</span>,</span>
 <span>  tool <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -78,6 +79,14 @@ the built image, including the registry prefix, e.g.
 and the image is identified only by its image ID. Defaults to <code>NULL</code>.</p></dd>
 
 
+<dt id="arg-platform">platform<a class="anchor" aria-label="anchor" href="#arg-platform"></a></dt>
+<dd><p>A character string or <code>NULL</code>. The target platform for the
+container image. Defaults to <code>"linux/amd64"</code>, which is the architecture
+used by most HPC and HTC clusters. Set to <code>"linux/arm64"</code> for ARM-based
+systems (Apple Silicon, AWS Graviton). Set to <code>NULL</code> to let the
+container tool build for the host architecture.</p></dd>
+
+
 <dt id="arg-tool">tool<a class="anchor" aria-label="anchor" href="#arg-tool"></a></dt>
 <dd><p>A character string or <code>NULL</code>. The container tool to use for
 building. One of <code>"podman"</code> or <code>"docker"</code>. If <code>NULL</code> (the default),
@@ -98,7 +107,7 @@ Defaults to <code>FALSE</code>.</p></dd>
 
 <dt id="arg-comments">comments<a class="anchor" aria-label="anchor" href="#arg-comments"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, prints explanatory context before each
-step — what the command does, why it is needed, and common pitfalls.
+step – what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container build workflow.
 Defaults to <code>FALSE</code>.</p></dd>
 
@@ -108,17 +117,38 @@ Defaults to <code>FALSE</code>.</p></dd>
     <p>Called for its side effects. Returns <code>invisible(NULL)</code>.</p>
     </div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>When the target <code>platform</code> differs from the host architecture (e.g.
+building <code>linux/amd64</code> on an Apple Silicon Mac), <code>build_image()</code>
+automatically uses <code>docker buildx build</code> instead of <code>docker build</code>, and
+includes <code>--load</code> to ensure the image is available in the local store.
+For <code>podman</code>, <code>--platform</code> is passed directly to <code>podman build</code>.</p>
+    </div>
+    <div class="section level2">
     <h2 id="prerequisites">Prerequisites<a class="anchor" aria-label="anchor" href="#prerequisites"></a></h2>
 
 
 <p>Before calling <code>build_image()</code>, ensure the following are in place:</p><ol><li><p>A <code>Dockerfile</code> exists at <code>dockerfile</code>. Use
 <code><a href="generate_dockerfile.html">generate_dockerfile()</a></code> to create one if needed.</p></li>
-<li><p>An <code>renv.lock</code> file is present in <code>output</code> — the generated <code>Dockerfile</code>
-uses it to restore the R package environment inside the container.</p></li>
+<li><p>An <code>renv.lock</code> file is present in the build context – the generated
+<code>Dockerfile</code> uses it to restore the R package environment inside the
+container.</p></li>
 <li><p>Either <code>podman</code> or <code>docker</code> is installed and the daemon (for <code>docker</code>)
 or the Podman service is running. Verify with <code>podman info</code> or
 <code>docker info</code> in a terminal.</p></li>
 </ol></div>
+    <div class="section level2">
+    <h2 id="cross-platform-builds">Cross-platform builds<a class="anchor" aria-label="anchor" href="#cross-platform-builds"></a></h2>
+
+
+<p>Building for a different architecture than the host requires emulation.
+On Apple Silicon Macs, building <code>linux/amd64</code> images uses QEMU emulation
+under Podman, which can be slow and unstable. Docker Desktop handles
+cross-platform builds more reliably via <code>buildx</code> and Rosetta 2.</p>
+<p>If builds fail with QEMU segfaults, consider:</p><ul><li><p>Using Docker Desktop instead of Podman (<code>tool = "docker"</code>)</p></li>
+<li><p>Building on a native x86_64 machine (e.g. via GitHub Actions)</p></li>
+<li><p>Building directly on the target cluster if it supports container builds</p></li>
+</ul></div>
     <div class="section level2">
     <h2 id="tagging-convention-for-chtc">Tagging convention for CHTC<a class="anchor" aria-label="anchor" href="#tagging-convention-for-chtc"></a></h2>
 
@@ -127,18 +157,24 @@ or the Podman service is running. Verify with <code>podman info</code> or
 <code>registry.doit.wisc.edu/&lt;netid&gt;/&lt;image-name&gt;:&lt;version&gt;</code></p>
 <p>For example: <code>registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0</code></p>
 <p>The version tag defaults to <code>latest</code> if omitted. Using explicit version
-tags (e.g. <code>1.0.0</code>) is recommended for reproducibility — <code>latest</code> will
+tags (e.g. <code>1.0.0</code>) is recommended for reproducibility – <code>latest</code> will
 be overwritten each time you push.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Build with auto-detected tool and no tag</span></span></span>
+<span class="r-in"><span><span class="co"># Build for linux/amd64 (default) with auto-detected tool</span></span></span>
 <span class="r-in"><span><span class="fu">build_image</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Build and tag for CHTC registry</span></span></span>
 <span class="r-in"><span><span class="fu">build_image</span><span class="op">(</span>tag <span class="op">=</span> <span class="st">"registry.doit.wisc.edu/netid/my-analysis:1.0.0"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Build for the host architecture (no --platform flag)</span></span></span>
+<span class="r-in"><span><span class="fu">build_image</span><span class="op">(</span>platform <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Build for ARM64 (e.g. local use on Apple Silicon)</span></span></span>
+<span class="r-in"><span><span class="fu">build_image</span><span class="op">(</span>platform <span class="op">=</span> <span class="st">"linux/arm64"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Preview the build command without running it</span></span></span>
 <span class="r-in"><span><span class="fu">build_image</span><span class="op">(</span></span></span>
@@ -146,7 +182,7 @@ be overwritten each time you push.</p>
 <span class="r-in"><span>  dry_run <span class="op">=</span> <span class="cn">TRUE</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Guided build for first-time users — run from your project directory</span></span></span>
+<span class="r-in"><span><span class="co"># Guided build for first-time users</span></span></span>
 <span class="r-in"><span><span class="fu">build_image</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  tag      <span class="op">=</span> <span class="st">"registry.doit.wisc.edu/netid/my-analysis:1.0.0"</span>,</span></span>
 <span class="r-in"><span>  verbose  <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>

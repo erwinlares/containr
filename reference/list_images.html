@@ -84,7 +84,7 @@ console. Returns an empty data frame if no images are found.</p>
 
 <p>After calling <code><a href="build_image.html">build_image()</a></code>, run <code>list_images()</code> to find the image ID
 of the image you just built. Untagged images appear with <code>&lt;none&gt;</code> in the
-<code>repository</code> and <code>tag</code> columns — the <code>image_id</code> column contains the hash
+<code>repository</code> and <code>tag</code> columns – the <code>image_id</code> column contains the hash
 you need to pass to <code><a href="push_image.html">push_image()</a></code>:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>

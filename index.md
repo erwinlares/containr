@@ -237,6 +237,21 @@ paths in the `COPY` instructions are resolved relative to where you call
 [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
 – typically the project root.
 
+The `platform` argument defaults to `"linux/amd64"`, which is the
+architecture used by most HPC and HTC clusters. On Apple Silicon Macs,
+this means the build targets a different architecture than the host.
+When Docker is the resolved tool,
+[`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+automatically switches to `docker buildx build` with `--load` for
+cross-platform builds. For Podman, `--platform` is passed directly. Set
+`platform = NULL` to build for the host architecture instead.
+
+If the target platform differs from the host, a warning is emitted about
+potential QEMU emulation issues. Docker Desktop handles cross-platform
+builds more reliably than Podman’s QEMU layer. If builds fail with
+segfaults under Podman, try `tool = "docker"` or build on a native
+x86_64 machine.
+
 The first build can take time because the container engine must download
 the base image and install the R package environment from scratch. Later
 builds are usually faster because Podman and Docker reuse cached layers
@@ -244,8 +259,19 @@ when the earlier parts of the `Dockerfile` have not changed.
 
 ``` r
 
-# Build from the Dockerfile in the current directory
+# Build for linux/amd64 (default) -- suitable for CHTC and most clusters
 build_image(verbose = TRUE)
+
+# Build and tag for the CHTC registry
+build_image(
+  tag = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"
+)
+
+# Build for the host architecture (e.g. local use on Apple Silicon)
+build_image(platform = NULL)
+
+# Build for ARM64 explicitly
+build_image(platform = "linux/arm64")
 
 # Preview the build command without running it
 build_image(dry_run = TRUE)

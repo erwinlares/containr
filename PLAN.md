@@ -68,7 +68,11 @@ check — warns if lockfile is out of sync - Supports `r_mode`: `"base"`,
 
 Builds a container image from a `Dockerfile` using `podman` or `docker`.
 Auto-detects tool, validates Dockerfile, checks daemon responsiveness.
-Supports `dry_run = TRUE`, `verbose`, `comments`.
+`platform` defaults to `"linux/amd64"` for HPC/HTC cluster
+compatibility. Automatically uses `docker buildx build` with `--load`
+for cross-platform Docker builds. Warns when the target platform differs
+from the host architecture. Supports `dry_run = TRUE`, `verbose`,
+`comments`.
 
 ### `list_images()`
 
@@ -160,6 +164,14 @@ containerize(
 )
 ```
 
+### GitHub Actions workflow for image builds
+
+Apple Silicon users cannot reliably build `linux/amd64` images locally
+due to QEMU emulation failures. A GitHub Actions workflow running on
+`x86_64` runners would build and push images natively. Could be
+triggered manually via `workflow_dispatch` or automatically on tagged
+releases. Scoped but not yet implemented.
+
 ### Layer 3 tests for `build_image()` and `push_image()`
 
 Deferred from the current session. Require a running daemon and valid
@@ -201,3 +213,9 @@ HPC support.
     [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
     gain a `format` argument to produce `.def` files instead of
     `Dockerfile`?
+
+4.  Should
+    [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+    offer a `github_actions = TRUE` mode that generates and triggers a
+    workflow file instead of building locally? Or should the workflow be
+    a separate function entirely?
