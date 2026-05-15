@@ -212,9 +212,10 @@ test_that("build_image() uses docker build for same-arch docker builds", {
     host_arch <- Sys.info()[["machine"]]
     host_platform <- switch(host_arch,
                             "x86_64"  = "linux/amd64",
+                            "x86-64"  = "linux/amd64",
                             "aarch64" = "linux/arm64",
                             "arm64"   = "linux/arm64",
-                            "linux/amd64"
+                            NULL
     )
     msg <- capture.output(
         build_image(platform = host_platform, dry_run = TRUE, verbose = TRUE),

@@ -141,6 +141,7 @@ build_image <- function(dockerfile = "Dockerfile",
         # Map host machine strings to platform equivalents
         host_platform <- switch(host_arch,
                                 "x86_64"  = "linux/amd64",
+                                "x86-64"  = "linux/amd64",
                                 "aarch64" = "linux/arm64",
                                 "arm64"   = "linux/arm64",
                                 NULL
