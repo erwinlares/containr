@@ -13,7 +13,9 @@
 A character string, either \code{"podman"} or \code{"docker"}.
 }
 \description{
-Checks the PATH for \code{podman} and \code{docker}. When \code{tool = NULL}, prefers
-\code{podman} if both are found. Errors informatively if neither is found.
+When \code{tool} is specified explicitly, validates that it is installed and
+responsive. When \code{tool = NULL}, tries each candidate in preference order
+(Podman first, then Docker), selecting the first one that is both
+installed and responsive. Errors informatively if no tool is available.
 }
 \keyword{internal}

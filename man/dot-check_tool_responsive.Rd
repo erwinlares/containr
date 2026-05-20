@@ -17,4 +17,9 @@ Runs \verb{<tool> info} and checks the exit code. Errors informatively if the
 tool is found but not responsive -- typically because the daemon is not
 running.
 }
+\details{
+This function is retained for backward compatibility with existing
+calling code. New code should rely on \code{.resolve_tool()}, which
+incorporates responsiveness checking into tool selection.
+}
 \keyword{internal}

@@ -281,9 +281,9 @@ or `docker image ls`.
 
 ```r
 imgs <- list_images()
-#>                                              repository    tag      image_id      created     size
+#>                                      repository    tag      image_id      created     size
 #> 1  registry.doit.wisc.edu/your.netid/my-analysis  1.0.0  974123909a36  2 hours ago  1.59 GB
-#> 2                                          <none>  <none>  3b8f20dc1a47  3 hours ago  1.21 GB
+#> 2                                        <none>  <none>  3b8f20dc1a47  3 hours ago  1.21 GB
 ```
 
 Untagged images -- those built without a name -- appear with `<none>` in the

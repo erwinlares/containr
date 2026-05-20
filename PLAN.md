@@ -43,10 +43,10 @@ containr::list_images()         -- inspect local images
 containr::push_image()          -- push to registry
 submitr::htc_gen_submit()       -- generate .sub file
 submitr::htc_gen_executable()   -- generate .sh file
-submitr::htc_stage()            -- copy files to CHTC
+submitr::htc_upload()           -- copy files to CHTC
 submitr::htc_submit()           -- submit job
 submitr::htc_status()           -- monitor job
-submitr::htc_fetch_results()    -- retrieve results
+submitr::htc_download()         -- retrieve results
 ```
 
 ---
@@ -189,6 +189,24 @@ Apptainer rather than Podman/Docker. Adding these as valid `tool` values in
 `.resolve_tool()` is the entry point. Scoped for a future release alongside
 `submitr`'s HPC support.
 
+### Fix `.resolve_tool()` fallthrough logic
+
+`.resolve_tool()` prefers Podman but does not fall through to Docker when
+Podman is installed but unresponsive (daemon not running). Currently,
+`.check_tool_responsive()` errors immediately instead of trying the next
+available tool. The fix: `.resolve_tool()` should check responsiveness as
+part of its selection logic and fall through to Docker if Podman is
+unresponsive, rather than errorring out.
+
+### Fix `push_image()` login check for Docker
+
+The login verification uses `docker login --get-login`, which is a
+Podman-only flag. Docker returns exit code 125. The fix: parse
+`~/.docker/config.json` for the registry entry when the tool is Docker,
+or attempt a lightweight operation and catch the auth error. The
+`check_login = FALSE` workaround exists but should not be necessary.
+
+
 ---
 
 ## Open design questions
@@ -206,3 +224,6 @@ Apptainer rather than Podman/Docker. Adding these as valid `tool` values in
 4. Should `build_image()` offer a `github_actions = TRUE` mode that
    generates and triggers a workflow file instead of building locally?
    Or should the workflow be a separate function entirely?
+5. Should `.resolve_tool()` accept a preference order (e.g.
+   `tool_preference = c("podman", "docker")`) and try each in sequence,
+   or should it always prefer Podman and fall through silently?

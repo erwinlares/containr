@@ -465,7 +465,7 @@ test_that("list_images() returns a data frame with correct columns", {
         "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
     )
     skip_if_not(
-        nchar(Sys.which("podman")) > 0,
+        nchar(.sys_which("podman")) > 0,
         "podman not available on this system"
     )
     result <- list_images()
@@ -479,7 +479,7 @@ test_that("list_images() returns all character columns", {
         "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
     )
     skip_if_not(
-        nchar(Sys.which("podman")) > 0,
+        nchar(.sys_which("podman")) > 0,
         "podman not available on this system"
     )
     result <- list_images()
@@ -492,7 +492,7 @@ test_that("list_images() returns a data frame even when no images exist", {
         "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
     )
     skip_if_not(
-        nchar(Sys.which("podman")) > 0,
+        nchar(.sys_which("podman")) > 0,
         "podman not available on this system"
     )
     local_mocked_bindings(
@@ -509,4 +509,136 @@ test_that("list_images() returns a data frame even when no images exist", {
     expect_s3_class(result, "data.frame")
     expect_equal(nrow(result), 0L)
     expect_named(result, c("repository", "tag", "image_id", "created", "size"))
+})
+
+# ---------------------------------------------------------------------------
+# .is_responsive() -- internal helper
+# ---------------------------------------------------------------------------
+
+test_that(".is_responsive() returns TRUE when tool responds", {
+    local_mocked_bindings(
+        `system2` = function(...) 0L,
+        .package = "base"
+    )
+    expect_true(.is_responsive("podman"))
+})
+
+test_that(".is_responsive() returns FALSE when tool does not respond", {
+    local_mocked_bindings(
+        `system2` = function(...) 1L,
+        .package = "base"
+    )
+    expect_false(.is_responsive("podman"))
+})
+
+# ---------------------------------------------------------------------------
+# .resolve_tool() -- explicit tool
+# ---------------------------------------------------------------------------
+
+test_that(".resolve_tool() returns the tool when explicitly specified and responsive", {
+    local_mocked_bindings(
+        `.sys_which`      = function(x) setNames("/usr/bin/podman", x),
+        `.is_responsive` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_equal(.resolve_tool("podman"), "podman")
+})
+
+test_that(".resolve_tool() errors when explicit tool is not installed", {
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames("", x),
+        .package = "containr"
+    )
+    expect_error(
+        .resolve_tool("podman"),
+        regexp = "not installed"
+    )
+})
+
+test_that(".resolve_tool() errors when explicit podman is installed but not responsive", {
+    local_mocked_bindings(
+        `.sys_which`      = function(x) setNames("/usr/bin/podman", x),
+        `.is_responsive` = function(...) FALSE,
+        .package = "containr"
+    )
+    expect_error(
+        .resolve_tool("podman"),
+        regexp = "not responsive"
+    )
+})
+
+test_that(".resolve_tool() errors when explicit docker is installed but not responsive", {
+    local_mocked_bindings(
+        `.sys_which`      = function(x) setNames("/usr/bin/docker", x),
+        `.is_responsive` = function(...) FALSE,
+        .package = "containr"
+    )
+    expect_error(
+        .resolve_tool("docker"),
+        regexp = "daemon is not running"
+    )
+})
+
+# ---------------------------------------------------------------------------
+# .resolve_tool() -- auto-detection
+# ---------------------------------------------------------------------------
+
+test_that(".resolve_tool() auto-detects podman when both are installed and responsive", {
+    local_mocked_bindings(
+        `.sys_which`      = function(x) setNames(paste0("/usr/bin/", x), x),
+        `.is_responsive` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_equal(.resolve_tool(), "podman")
+})
+
+test_that(".resolve_tool() falls through to docker when podman is installed but not responsive", {
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames(paste0("/usr/bin/", x), x),
+        `.is_responsive` = function(tool) tool == "docker",
+        .package = "containr"
+    )
+    expect_equal(.resolve_tool(), "docker")
+})
+
+test_that(".resolve_tool() falls through to docker when podman is not installed", {
+    local_mocked_bindings(
+        `.sys_which` = function(x) {
+            if (x == "podman") setNames("", x)
+            else setNames("/usr/bin/docker", x)
+        },
+        `.is_responsive` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_equal(.resolve_tool(), "docker")
+})
+
+test_that(".resolve_tool() errors when both are installed but neither is responsive", {
+    local_mocked_bindings(
+        `.sys_which`      = function(x) setNames(paste0("/usr/bin/", x), x),
+        `.is_responsive` = function(...) FALSE,
+        .package = "containr"
+    )
+    expect_error(
+        .resolve_tool(),
+        regexp = "not responsive"
+    )
+})
+
+test_that(".resolve_tool() errors when neither tool is installed", {
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames("", x),
+        .package = "containr"
+    )
+    expect_error(
+        .resolve_tool(),
+        regexp = "Neither.*found"
+    )
+})
+
+test_that(".resolve_tool() errors with invalid tool name", {
+    expect_error(
+        .resolve_tool("singularity"),
+        regexp = "podman|docker"
+    )
 })
