@@ -16,9 +16,11 @@
 <url><loc>https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-get_r_ver_tags.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/reference/dot-is_responsive.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-r_ver_exists.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-read_renv_packages.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-resolve_tool.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/reference/dot-sys_which.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-validate_file_arg.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/generate_dockerfile.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/index.html</loc></url>

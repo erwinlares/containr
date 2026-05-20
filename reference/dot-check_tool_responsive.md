@@ -19,3 +19,10 @@ running.
 ## Value
 
 Called for its side effects. Returns `invisible(NULL)`.
+
+## Details
+
+This function is retained for backward compatibility with existing
+calling code. New code should rely on
+[`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md),
+which incorporates responsiveness checking into tool selection.

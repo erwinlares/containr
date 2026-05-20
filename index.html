@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="favicon.ico">
 <link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Containerize Your R Project">
 <meta name="description" content="Provides tools for containerizing R projects. Reads an renv lock file, generates a ready-to-use Dockerfile, builds the container image, and pushes it to a registry. Generated COPY instructions preserve the local directory structure inside the container. Cross-platform builds are supported via Docker buildx for targeting linux/amd64 from ARM hosts. Designed to help researchers build portable, reproducible workflows that can be reliably shared, archived, and rerun across systems. See R Core Team (2025) &lt;https://www.R-project.org/&gt;, Ushey et al. (2025) &lt;https://CRAN.R-project.org/package=renv&gt;, and Docker Inc. (2025) &lt;https://www.docker.com/&gt;.">
@@ -240,9 +240,9 @@
 <p><code><a href="reference/list_images.html">list_images()</a></code> returns a data frame of images in the local image store. It is the R equivalent of checking which images are available with <code>podman image ls</code> or <code>docker image ls</code>.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt;                                              repository    tag      image_id      created     size</span></span>
+<span><span class="co">#&gt;                                      repository    tag      image_id      created     size</span></span>
 <span><span class="co">#&gt; 1  registry.doit.wisc.edu/your.netid/my-analysis  1.0.0  974123909a36  2 hours ago  1.59 GB</span></span>
-<span><span class="co">#&gt; 2                                          &lt;none&gt;  &lt;none&gt;  3b8f20dc1a47  3 hours ago  1.21 GB</span></span></code></pre></div>
+<span><span class="co">#&gt; 2                                        &lt;none&gt;  &lt;none&gt;  3b8f20dc1a47  3 hours ago  1.21 GB</span></span></code></pre></div>
 <p>Untagged images – those built without a name – appear with <code>&lt;none&gt;</code> in the <code>repository</code> and <code>tag</code> columns. The <code>image_id</code> column contains the hash you pass to <code><a href="reference/push_image.html">push_image()</a></code>.</p>
 <hr>
 </div>
