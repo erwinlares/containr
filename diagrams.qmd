@@ -1,0 +1,559 @@
+---
+title: "containr: Component Diagrams and Reference"
+subtitle: "A working map of the package for internal use"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+---
+
+## About this document
+
+This document exists to manage complexity, not to teach containr from
+scratch -- it assumes familiarity with `README.md` and is meant as a
+working reference while the package grows. It reflects the source as of
+`0.1.3.9000` (the state on `main` as of 2026-07-27). Once the
+`container-modes-0.2.0` branch lands, the diagrams and reference tables
+below will need updating to match -- most notably, Part 3's helper list
+will grow past the current nine functions once the r_mode registry
+consolidation ships.
+
+The document has three parts:
+
+1. **High-level overview** -- what containr does, its four public
+   functions, and how a typical user moves through them.
+2. **Public function detail** -- one section per exported function,
+   covering its behavior and internal control flow, including every
+   helper it calls.
+3. **Exhaustive helper reference** -- every internal (`.`-prefixed)
+   function: what it does, who calls it, its arguments, and its return
+   value.
+
+---
+
+# Part 1: High-level overview
+
+containr containerizes an R project by reading its `renv.lock`, generating
+a `Dockerfile`, building an image from it, and pushing that image to a
+registry. It exports exactly four functions, and a typical session moves
+through all four in a fixed order -- each one produces the artifact the
+next one consumes.
+
+```{mermaid}
+flowchart LR
+    subgraph before["Before containr"]
+        A["toolero::init_project()"]
+        B["renv::snapshot()"]
+    end
+    subgraph containr["containr"]
+        C["generate_dockerfile()"]
+        D["build_image()"]
+        E["list_images()"]
+        F["push_image()"]
+    end
+    subgraph after["After containr"]
+        G["submitr::htc_gen_submit() ..."]
+    end
+    A --> B --> C --> D --> E --> F --> G
+```
+
+`generate_dockerfile()` writes a `Dockerfile` to disk. `build_image()`
+reads that `Dockerfile` and produces an image in the local Podman/Docker
+image store. `list_images()` reads that local store and surfaces the
+`image_id` needed for the next step. `push_image()` takes that `image_id`
+and uploads the image to a registry. Each function's output is the next
+function's input -- there's no shared state beyond the filesystem and the
+container engine's own local store, which is why the sequence below reads
+left to right with no branching.
+
+```{mermaid}
+sequenceDiagram
+    actor User
+    participant GD as generate_dockerfile()
+    participant BI as build_image()
+    participant LI as list_images()
+    participant PI as push_image()
+    participant Engine as Podman / Docker
+    participant Registry as Container Registry
+
+    User->>GD: generate_dockerfile(r_version, r_mode, ...)
+    GD-->>User: writes Dockerfile to output/
+
+    User->>BI: build_image(dockerfile, tag, platform)
+    BI->>Engine: build (podman build / docker build)
+    Engine-->>BI: image stored locally
+    BI-->>User: invisible(NULL)
+
+    User->>LI: list_images()
+    LI->>Engine: image ls
+    Engine-->>LI: repository, tag, image_id, created, size
+    LI-->>User: data frame
+
+    User->>PI: push_image(image_id, netid, project, tag)
+    PI->>Engine: tag, then push
+    Engine->>Registry: upload image layers
+    Registry-->>Engine: push confirmed
+    PI-->>User: invisible(NULL)
+```
+
+A few things worth noting at this level, before Part 2 goes into each
+function individually:
+
+- **Only `generate_dockerfile()` touches `renv.lock`.** The other three
+  functions know nothing about R packages, `renv`, or the project's
+  dependencies -- they operate purely on the `Dockerfile` and the
+  container engine.
+- **`build_image()`, `list_images()`, and `push_image()` share a common
+  first step**: all three resolve which container tool to use
+  (`.resolve_tool()`) before doing anything else. This is the main seam
+  where Part 3's helper functions live.
+- **`list_images()` is the hinge between building and pushing.** It's the
+  only way to discover the `image_id` that `push_image()` requires, unless
+  `build_image()` was called with an explicit `tag`.
+
+---
+
+# Part 2: Public function detail
+
+## `generate_dockerfile()`
+
+Reads `renv.lock` from the current working directory, resolves system
+library requirements and the R version, and writes a `Dockerfile`. This is
+the only one of the four public functions that doesn't touch a container
+engine at all -- it's pure file generation, which is why `dry_run` isn't
+one of its arguments the way it is for the other three (the whole function
+already behaves like a preview until `build_image()` is called).
+
+Key behaviors: `r_mode` selects the base Rocker image (`"base"`,
+`"tidyverse"`, `"rstudio"`, `"tidystudio"`); `auto_syslibs` drives an
+automatic system-library lookup against `renv.lock`'s package list; and
+`data_file`/`code_file`/`misc_file` each go through the same validation
+helper before being written into `COPY` instructions.
+
+```{mermaid}
+flowchart TD
+    Start(["generate_dockerfile() called"]) --> ValMode{"r_mode valid?"}
+    ValMode -- no --> Abort1["cli_abort: invalid r_mode"]
+    ValMode -- yes --> WarnPort{"expose_port customized\nand r_mode != rstudio?"}
+    WarnPort -- yes --> Warn1["cli_warn: expose_port ignored"]
+    WarnPort -- no --> ValFiles
+    Warn1 --> ValFiles[".validate_file_arg() x3\n(data_file, code_file, misc_file)"]
+    ValFiles --> LockExists{"renv.lock exists?"}
+    LockExists -- no --> Abort2["cli_abort: renv.lock not found"]
+    LockExists -- yes --> Status["renv::status() check"]
+    Status --> StatusWarn{"synchronized?"}
+    StatusWarn -- no --> Warn2["cli_warn: lockfile out of sync"]
+    StatusWarn -- yes --> ResolveVer
+    Warn2 --> ResolveVer["Resolve r_version\n(current -> getRversion())"]
+    ResolveVer --> VerExists{".r_ver_exists()"}
+    VerExists -- no --> Abort3["cli_abort: version not found"]
+    VerExists -- yes --> AutoSys{"auto_syslibs?"}
+    AutoSys -- yes --> ReadPkgs[".read_renv_packages()"]
+    ReadPkgs --> FetchSys[".fetch_sysreqs()"]
+    FetchSys --> Merge
+    AutoSys -- no --> Merge["Merge baseline (curl) +\nauto-detected + install_syslibs"]
+    Merge --> BuildLines["Assemble Dockerfile blocks:\nFROM, ENV, syslibs, user, quarto,\nWORKDIR, COPY renv.lock,\nCOPY data/code/misc, renv-restore\nscript, EXPOSE, usage hint"]
+    BuildLines --> Write["Write Dockerfile to output/"]
+    Write --> End(["invisible(NULL)"])
+```
+
+Helpers called: `.validate_file_arg()` (three times), `.r_ver_exists()`,
+`.read_renv_packages()`, `.fetch_sysreqs()`. Full argument-by-argument
+detail for each is in Part 3.
+
+## `build_image()`
+
+Wraps `podman build` or `docker build`. Its job is mostly command
+assembly -- validating inputs, deciding whether cross-platform emulation
+is needed, and building the right argument vector for `system2()`.
+
+```{mermaid}
+flowchart TD
+    Start(["build_image() called"]) --> FileCheck{"Dockerfile exists?"}
+    FileCheck -- no --> Abort1["cli_abort: Dockerfile not found"]
+    FileCheck -- yes --> PlatCheck{"platform valid?\n(linux/amd64, linux/arm64, NULL)"}
+    PlatCheck -- no --> Abort2["cli_abort: invalid platform"]
+    PlatCheck -- yes --> Resolve[".resolve_tool(tool)"]
+    Resolve --> CheckResp[".check_tool_responsive()"]
+    CheckResp --> ArchDetect["Detect host arch via Sys.info()"]
+    ArchDetect --> CrossCheck{"platform != host_platform?"}
+    CrossCheck -- yes --> WarnCross["cli_warn: cross-platform build,\nQEMU emulation risk"]
+    CrossCheck -- no --> AssembleArgs
+    WarnCross --> AssembleArgs["Assemble args:\nbuildx if docker + cross-platform,\n--platform, -t tag, --load if buildx"]
+    AssembleArgs --> DryRun{"dry_run?"}
+    DryRun -- yes --> Preview["Print command, return"]
+    DryRun -- no --> Exec["system2(resolved_tool, args)"]
+    Exec --> ExitCheck{"exit code == 0?"}
+    ExitCheck -- no --> Abort3["cli_abort: build failed"]
+    ExitCheck -- yes --> Success["cli_alert_success"]
+    Success --> End(["invisible(NULL)"])
+    Preview --> End
+```
+
+Helpers called: `.resolve_tool()`, `.check_tool_responsive()`. As noted in
+the planning discussion, this second call is redundant --
+`.resolve_tool()` already guarantees a responsive tool -- and is slated
+for removal in Phase 3 of the `0.2.0` plan.
+
+## `list_images()`
+
+The simplest of the four. Wraps `podman image ls` / `docker image ls`
+with a Go-template format string, parses the tab-separated output into a
+data frame, prints it, and returns it invisibly.
+
+```{mermaid}
+flowchart TD
+    Start(["list_images() called"]) --> Resolve[".resolve_tool(tool)"]
+    Resolve --> CheckResp[".check_tool_responsive()"]
+    CheckResp --> Query["system2: <tool> image ls\n--format <tab-separated template>"]
+    Query --> Empty{"output empty?"}
+    Empty -- yes --> ReturnEmpty["Return empty data frame\n(5 columns, 0 rows)"]
+    Empty -- no --> Parse["Split each line on tab,\nbuild data frame"]
+    Parse --> PrintReturn["print(); return invisibly"]
+    ReturnEmpty --> End(["data frame"])
+    PrintReturn --> End
+```
+
+Helpers called: `.resolve_tool()`, `.check_tool_responsive()` (same
+redundancy as `build_image()`).
+
+## `push_image()`
+
+Tags a local image with a full registry path and pushes it, handling
+login verification along the way. This is the function with the most
+branching of the four, because of the optional login check and the
+two-step tag-then-push sequence, each of which can fail independently.
+
+```{mermaid}
+flowchart TD
+    Start(["push_image() called"]) --> ReqCheck{"image_id, netid, project\nall supplied?"}
+    ReqCheck -- no --> Abort1["cli_abort: missing required argument"]
+    ReqCheck -- yes --> TagWarn{"tag == 'latest'?"}
+    TagWarn -- yes --> Inform1["cli_inform: latest will be\noverwritten on next push"]
+    TagWarn -- no --> Assemble
+    Inform1 --> Assemble["Assemble destination:\nregistry/netid/project:tag"]
+    Assemble --> Resolve[".resolve_tool(tool)"]
+    Resolve --> CheckResp[".check_tool_responsive()"]
+    CheckResp --> LoginCheck{"check_login?"}
+    LoginCheck -- yes --> LoginSys["system2: tool login\n--get-login registry"]
+    LoginSys --> LoginOk{"exit status ok?"}
+    LoginOk -- no --> Abort2["cli_abort: not logged in"]
+    LoginOk -- yes --> AssembleCmds
+    LoginCheck -- no --> AssembleCmds["Assemble tag + push\ncommand strings"]
+    AssembleCmds --> DryRun{"dry_run?"}
+    DryRun -- yes --> Preview["Print both commands, return"]
+    DryRun -- no --> Tag["system2: tool tag image_id destination"]
+    Tag --> TagOk{"exit code == 0?"}
+    TagOk -- no --> Abort3["cli_abort: tag failed"]
+    TagOk -- yes --> Push["system2: tool push destination"]
+    Push --> PushOk{"exit code == 0?"}
+    PushOk -- no --> Abort4["cli_abort: push failed"]
+    PushOk -- yes --> Success["cli_alert_success"]
+    Success --> End(["invisible(NULL)"])
+    Preview --> End
+```
+
+Helpers called: `.resolve_tool()`, `.check_tool_responsive()` (same
+redundancy again -- all three container-facing functions share this
+pattern). The `--get-login` flag used in the login check is Podman-only
+and misbehaves under Docker (exit code 125); this is the bug slated for
+Phase 4 of the `0.2.0` plan.
+
+---
+
+# Part 3: Exhaustive helper function reference
+
+None of the functions below are exported -- all nine are `.`-prefixed,
+internal, and documented with `@keywords internal`. The call graph below
+shows every helper and which public function(s) reach it, either directly
+or (for `.get_r_ver_tags()` and `.is_responsive()`) indirectly through
+another helper.
+
+```{mermaid}
+flowchart LR
+    subgraph Public["Public functions"]
+        GD["generate_dockerfile()"]
+        BI["build_image()"]
+        LI["list_images()"]
+        PI["push_image()"]
+    end
+    subgraph Helpers["Internal helpers"]
+        VFA[".validate_file_arg()"]
+        RRP[".read_renv_packages()"]
+        FS[".fetch_sysreqs()"]
+        RVE[".r_ver_exists()"]
+        GRT[".get_r_ver_tags()"]
+        RT[".resolve_tool()"]
+        CTR[".check_tool_responsive()"]
+        IR[".is_responsive()"]
+        SW[".sys_which()"]
+    end
+    GD --> VFA
+    GD --> RRP
+    GD --> FS
+    GD --> RVE
+    RVE --> GRT
+    BI --> RT
+    BI --> CTR
+    LI --> RT
+    LI --> CTR
+    PI --> RT
+    PI --> CTR
+    RT --> SW
+    RT --> IR
+    CTR --> IR
+```
+
+Three helpers -- `.resolve_tool()`, `.check_tool_responsive()`, and
+`.is_responsive()` -- live in `container-helpers.R` and are shared across
+all three container-facing public functions. `.sys_which()` exists purely
+so `.resolve_tool()`'s calls to `Sys.which()` can be mocked in tests via
+`local_mocked_bindings()`.
+
+## `.validate_file_arg()`
+
+**File:** `validate-args.R`
+
+**What it does:** validates one of `generate_dockerfile()`'s optional file
+arguments (`data_file`, `code_file`, or `misc_file`) and converts it to a
+path relative to the working directory -- the form `COPY` instructions
+need, since Docker/Podman `COPY` can only reach files inside the build
+context.
+
+**Called by:** `generate_dockerfile()` -- once each for `data_file`,
+`code_file`, and `misc_file`.
+
+| Argument   | Type                     | Default | Description |
+|------------|--------------------------|---------|--------------|
+| `arg_name` | character(1)             | --      | Name of the argument being validated, used only in error messages (e.g. `"data_file"`). |
+| `value`    | character(1) or `NULL`   | --      | The file path supplied by the caller. |
+
+**Returns:** `NULL` if `value` is `NULL`; otherwise a character path
+relative to `getwd()`. Errors (via `cli_abort()`) if `value` isn't a
+length-1 non-`NA` character string, if the path doesn't exist, if it's a
+directory rather than a file, or if it resolves to somewhere outside the
+current working directory (detected via a leading `".."` or an absolute
+path after `fs::path_rel()`).
+
+## `.read_renv_packages()`
+
+**File:** `sysreqs-helpers.R`
+
+**What it does:** parses `renv.lock` and returns the names of every
+package recorded in its `Packages` section.
+
+**Called by:** `generate_dockerfile()`, only when `auto_syslibs = TRUE`.
+
+| Argument   | Type          | Default          | Description |
+|------------|---------------|------------------|--------------|
+| `lockfile` | character(1)  | `"renv.lock"`    | Path to the lockfile to read. |
+
+**Returns:** a character vector of package names, or `character(0)` if
+the lockfile has no `Packages` section or it's empty.
+
+## `.fetch_sysreqs()`
+
+**File:** `sysreqs-helpers.R`
+
+**What it does:** queries `remotes::system_requirements()` for the Ubuntu
+`apt` packages required by a set of R packages, and strips the
+`"apt-get install -y "` prefix that `remotes` returns to leave bare
+package names.
+
+**Called by:** `generate_dockerfile()`, only when `auto_syslibs = TRUE`,
+immediately after `.read_renv_packages()`.
+
+| Argument     | Type          | Default    | Description |
+|--------------|---------------|------------|--------------|
+| `packages`   | character()   | --         | Package names to query, typically the output of `.read_renv_packages()`. |
+| `os_version` | character(1)  | `"22.04"`  | Ubuntu version to query against, matching the Rocker base image. |
+| `verbose`    | logical(1)    | `FALSE`    | If `TRUE`, prints progress and detected-library messages. |
+
+**Returns:** a deduplicated character vector of bare `apt` package names.
+Returns `character(0)` immediately if `packages` is empty, or if the
+`remotes::system_requirements()` call errors (caught and converted to a
+`cli_warn()` rather than propagated, so a failed lookup doesn't block
+Dockerfile generation).
+
+## `.r_ver_exists()`
+
+**File:** `r-ver-exists.R`
+
+**What it does:** validates the format of a version string (semantic
+version, `"latest"`, or `"devel"`, optionally with CUDA/Ubuntu suffixes)
+and checks it against the tags available for the Rocker image implied by
+`r_mode`.
+
+**Called by:** `generate_dockerfile()`, after resolving `r_version` (either
+the user-supplied value or `getRversion()` when `r_version = "current"`).
+
+| Argument  | Type          | Default    | Description |
+|-----------|---------------|------------|--------------|
+| `version` | character(1)  | --         | The version tag to check, e.g. `"4.4.0"`, `"devel"`, or `"4.4.0-cuda12.2-ubuntu22.04"`. |
+| `r_mode`  | character(1)  | `"base"`   | One of `"base"`, `"rstudio"`, `"tidyverse"`, `"tidystudio"`. Determines which Rocker image's tags to check against. |
+| `verbose` | logical(1)    | `FALSE`    | If `TRUE`, prints whether the version was found. |
+
+**Returns:** `TRUE` or `FALSE`. Errors (via `cli_abort()`) if `r_mode`
+isn't one of the four valid modes, if `version` isn't a length-1 non-`NA`
+character string, or if `version` doesn't match the expected tag pattern.
+
+## `.get_r_ver_tags()`
+
+**File:** `get-r-ver-tags.R`
+
+**What it does:** queries the Docker Hub API for every tag published for
+a given Rocker image, following pagination until exhausted. Maintains its
+own `r_mode` -> Docker Hub repository-suffix mapping, independent of
+`generate_dockerfile()`'s `image_map` and `.r_ver_exists()`'s
+`valid_modes` -- this is the third copy of r_mode knowledge flagged in the
+`0.2.0` planning discussion (`PLAN.md`, Phase 1).
+
+**Called by:** `.r_ver_exists()`.
+
+| Argument  | Type          | Default    | Description |
+|-----------|---------------|------------|--------------|
+| `r_mode`  | character(1)  | `"base"`   | One of `"base"`, `"rstudio"`, `"tidyverse"`, `"tidystudio"`. `"base"` maps to `"rocker/r-ver"`. |
+| `verbose` | logical(1)    | `FALSE`    | If `TRUE`, prints the request URL and pagination progress. |
+
+**Returns:** a named list with three elements -- `image` (full Docker
+image name, e.g. `"rocker/rstudio"`), `tags` (character vector of every
+available tag), and `source` (the Docker Hub API base URL). Errors (via
+`cli_abort()`) if `r_mode` isn't valid, or if the Docker Hub API responds
+with a non-200 status.
+
+## `.resolve_tool()`
+
+**File:** `container-helpers.R`
+
+**What it does:** decides whether `build_image()`, `push_image()`, or
+`list_images()` should use `podman` or `docker`. If `tool` is supplied
+explicitly, validates that it's installed and responsive. If `tool` is
+`NULL`, tries `"podman"` then `"docker"` in order, returning the first one
+that's both installed (`.sys_which()`) and responsive
+(`.is_responsive()`) -- this loop is what gives the auto-detect path its
+fallthrough behavior.
+
+**Called by:** `build_image()`, `push_image()`, `list_images()` -- always
+the first thing each of these three does.
+
+| Argument | Type                    | Default | Description |
+|----------|-------------------------|---------|--------------|
+| `tool`   | character(1) or `NULL`  | `NULL`  | `"podman"`, `"docker"`, or `NULL` for auto-detection. |
+
+**Returns:** character(1), either `"podman"` or `"docker"`. Errors (via
+`cli_abort()`) if an explicitly-requested tool isn't installed or isn't
+responsive; if auto-detecting and nothing is both installed and
+responsive, distinguishes between "nothing installed" and
+"installed but not responsive" to give a more specific error message.
+
+## `.check_tool_responsive()`
+
+**File:** `container-helpers.R`
+
+**What it does:** runs `<tool> info` and errors informatively if the exit
+code isn't 0. Its own roxygen docs mark it as legacy: *"retained for
+backward compatibility with existing calling code. New code should rely
+on `.resolve_tool()`, which incorporates responsiveness checking into tool
+selection."*
+
+**Called by:** `build_image()`, `push_image()`, `list_images()` --
+immediately after each one calls `.resolve_tool()`. As documented in
+Part 2, this call is redundant in all three call sites, since
+`.resolve_tool()` already guarantees the tool it returns is responsive.
+Slated for removal (not replacement) in Phase 3 of the `0.2.0` plan.
+
+| Argument | Type          | Default | Description |
+|----------|---------------|---------|--------------|
+| `tool`   | character(1)  | --      | `"podman"` or `"docker"`. |
+
+**Returns:** `invisible(NULL)`. Errors (via `cli_abort()`, with different
+messages for Docker vs. Podman) if the tool isn't responsive.
+
+## `.is_responsive()`
+
+**File:** `container-helpers.R`
+
+**What it does:** the non-erroring primitive underneath both
+`.resolve_tool()` and `.check_tool_responsive()`. Runs `<tool> info` via
+`system2()` with output suppressed and returns whether the exit code was
+0, without raising a condition either way.
+
+**Called by:** `.resolve_tool()` (inside its auto-detect loop and its
+explicit-tool validation path) and `.check_tool_responsive()`.
+
+| Argument | Type          | Default | Description |
+|----------|---------------|---------|--------------|
+| `tool`   | character(1)  | --      | `"podman"` or `"docker"`. |
+
+**Returns:** logical(1) -- `TRUE` if `<tool> info` exited 0, `FALSE`
+otherwise. Never errors.
+
+## `.sys_which()`
+
+**File:** `container-helpers.R`
+
+**What it does:** a one-line wrapper around `Sys.which()`. Exists solely
+so that `testthat::local_mocked_bindings()` can intercept it during
+tests -- `Sys.which()` itself, being a base-package function, can't be
+mocked the same way inside containr's namespace.
+
+**Called by:** `.resolve_tool()`, to check whether a candidate tool is
+installed before checking whether it's responsive.
+
+| Argument | Type          | Default | Description |
+|----------|---------------|---------|--------------|
+| `tool`   | character(1)  | --      | The executable name to look up, e.g. `"podman"`. |
+
+**Returns:** character(1) -- the full path to the executable if found, or
+`""` if not found (identical to `Sys.which()`'s own return contract).
+
+---
+
+# Part 4: Test coverage cross-reference
+
+Every function from Parts 2 and 3, cross-referenced against
+`tests/testthat/`. "Tested" means at least one test exercises the
+function's own real logic (mocking a function's *dependencies* to isolate
+it still counts; mocking the function itself so its own code never runs
+does not). Nine of the thirteen functions clear that bar; four don't.
+
+```{mermaid}
+pie title Function coverage (13 total)
+    "Tested" : 9
+    "Untested -- no dedicated test" : 4
+```
+
+## Public functions
+
+| Function | Test file(s) | Status | Notes |
+|----------|--------------|--------|-------|
+| `generate_dockerfile()` | `test-generate-dockerfile-content.R`, `test-generate-dockerfile-file-args.R`, `test-project-prereqs.R` | **Tested** | The most thoroughly covered function in the package -- every `r_mode`, file-arg, and `comments`/`verbose` branch has a dedicated test. |
+| `build_image()` | `test-container-workflow.R` | **Tested, with a known gap** | Full Layer 1 (validation) and Layer 2 (command construction via `dry_run` + mocked `.resolve_tool()`/`.check_tool_responsive()`) coverage. No Layer 3 test -- the actual `system2()` call to a running Podman/Docker is never exercised by the test suite. Already tracked as Phase 3 of the `0.2.0` plan. |
+| `list_images()` | `test-container-workflow.R` | **Tested** | The only one of the three container-facing functions with real Layer 3 coverage (`skip_if_not()`-guarded, runs only when Podman is actually present locally). |
+| `push_image()` | `test-container-workflow.R` | **Tested, with a known gap** | Layer 1/2 coverage for argument validation, the `"latest"` warning, and dry-run tag/push command assembly. Every test that reaches the login-check step passes `check_login = FALSE` -- the `check_login = TRUE` branch, including the actual `system2(tool, c("login", "--get-login", registry))` call, has **zero test coverage at any layer**. Worth flagging on its own, separate from the general Layer 3 gap: this is precisely the branch with the known `--get-login`-is-Podman-only bug (Phase 4), so it's a bug that could have been caught by a test that doesn't exist yet. |
+
+## Internal helpers
+
+| Function | Test file(s) | Status | Notes |
+|----------|--------------|--------|-------|
+| `.validate_file_arg()` | `test-validate-file-arg.R`, plus indirectly via `test-generate-dockerfile-content.R` | **Tested** | Dedicated file covering every validation branch (type, existence, directory-vs-file, outside-build-context). |
+| `.read_renv_packages()` | -- | **Untested** | Zero mentions anywhere in `tests/testthat/` -- not called directly, not mocked, not exercised as a dependency of another test. The `auto_syslibs = TRUE` path in `generate_dockerfile()`'s tests always mocks `.fetch_sysreqs()` directly (see below), which short-circuits before `.read_renv_packages()`'s own output would matter, so this function's actual `renv.lock`-parsing logic has never run under test. |
+| `.fetch_sysreqs()` | Referenced only as a mock target | **Untested** | Appears in the test suite exclusively as `local_mocked_bindings(.fetch_sysreqs = function(...) character(0))`, used throughout `test-generate-dockerfile-content.R`, `test-generate-dockerfile-file-args.R`, and `test-project-prereqs.R` to keep `generate_dockerfile()` tests offline. That's the right call for testing `generate_dockerfile()` in isolation, but it means `.fetch_sysreqs()`'s own logic -- the `remotes::system_requirements()` call, the `"apt-get install -y "` prefix-stripping, and the `tryCatch()` fallback to `character(0)` on error -- has no test of its own anywhere. |
+| `.r_ver_exists()` | `test-r-ver-exists.R`, plus indirectly via `test-generate-dockerfile-file-args.R` | **Tested** | Thorough: format validation, all four `r_mode` values, and version-matching logic, with `.get_r_ver_tags()` mocked at the boundary so no network call is needed. |
+| `.get_r_ver_tags()` | `test-r-ver-tags.R` | **Tested** | Real pagination/parsing/error-handling logic runs; only the network layer (`httr2::req_perform()`, `resp_status()`, `resp_body_json()`) is mocked, which is the correct boundary to mock at. |
+| `.resolve_tool()` | `test-container-workflow.R` | **Tested** | Extensive -- explicit-tool validation, auto-detect preference order, and (importantly, given the earlier planning discussion) a test literally named `.resolve_tool() falls through to docker when podman is installed but not responsive`, confirming the fallthrough behavior is both real and already verified. |
+| `.check_tool_responsive()` | Referenced only as a mock target | **Untested** | Appears in the test suite exclusively as `local_mocked_bindings(.check_tool_responsive = function(...) invisible(NULL))` across every Layer 2 test in `test-container-workflow.R`. Its own two `cli_abort()` branches (Docker-not-running vs. Podman-not-responsive) have never been exercised by a test. Given this function is already slated for deletion in Phase 3 (it's redundant now that `.resolve_tool()` covers the same ground), the more useful fix here is probably removing it rather than writing a test for code that's about to be deleted -- worth deciding one way or the other rather than leaving it in this ambiguous "mocked everywhere, tested nowhere" state. |
+| `.is_responsive()` | `test-container-workflow.R` | **Tested** | Two direct tests (`TRUE`/`FALSE` on tool response), the actual primitive underneath both `.resolve_tool()` and `.check_tool_responsive()`. |
+| `.sys_which()` | `test-container-workflow.R` | **Untested** | Called directly in a few places (e.g. `nchar(.sys_which("podman")) > 0`) as *test infrastructure* -- checking whether Podman is really installed on the machine running the suite, to decide whether to `skip_if_not()` a Layer 3 test -- and mocked out everywhere else via `local_mocked_bindings()`. No test verifies `.sys_which()`'s own contract (returns the executable path if found, `""` otherwise) independent of `Sys.which()`'s own behavior. Low priority to fix given how trivial the wrapper is, but technically the one function in the package with literally no assertion made about it anywhere. |
+
+## Where this points for expanding coverage
+
+In priority order, given what each gap could actually hide:
+
+1. **`push_image()`'s `check_login = TRUE` branch** -- highest priority, since it's an untested branch with a known bug in it right now. A Layer 2 test mocking `system2()`'s return for the login check (both success and the Podman-only-flag failure mode under Docker) would have caught the Phase 4 bug on its own.
+2. **`.fetch_sysreqs()` and `.read_renv_packages()`** -- both are simple enough to unit-test directly with a fixture `renv.lock` and a mocked `remotes::system_requirements()`, without needing to go through `generate_dockerfile()` at all. Worth doing before Phase 1's registry refactor touches `generate_dockerfile()`'s surrounding code, so a future regression in either helper isn't masked by the same mock that currently makes `generate_dockerfile()`'s tests pass regardless of what these two actually do.
+3. **`.check_tool_responsive()`** -- decide removal vs. test-then-remove-later before Phase 3, rather than writing tests for code with a known deletion date.
+4. **`build_image()`/`push_image()` Layer 3 tests** -- already tracked as Phase 3 of the `0.2.0` plan; this cross-reference just confirms the gap is real and shows exactly which branches (the actual `system2()` build/tag/push calls) it would close.
+5. **`.sys_which()`** -- lowest priority; a single `expect_equal(.sys_which("R"), Sys.which("R"))`-style test would close it, but the function is trivial enough that this is more about completeness than risk.
