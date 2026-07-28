@@ -10,7 +10,7 @@
 \item{version}{Character string. The tag to check for existence, e.g. \code{"4.4.0"}, \code{"devel"}, or \code{"4.4.0-cuda12.2-ubuntu22.04"}.
 Must match semantic versioning or be one of \code{"latest"}, \code{"devel"}.}
 
-\item{r_mode}{Character string. One of \code{"base"}, \code{"rstudio"}, or \code{"tidyverse"}.
+\item{r_mode}{Character string. One of \code{"base"}, \code{"tidyverse"}, \code{"rstudio"}, or \code{"verse"}.
 Determines which Rocker image to query.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints messages indicating whether the version was found.}

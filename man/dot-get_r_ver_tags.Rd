@@ -7,8 +7,8 @@
 .get_r_ver_tags(r_mode = "base", verbose = FALSE)
 }
 \arguments{
-\item{r_mode}{Character string. One of \code{"base"}, \code{"rstudio"},
-\code{"tidyverse"}, or \code{"tidystudio"}. Determines which Rocker image to
+\item{r_mode}{Character string. One of \code{"base"}, \code{"tidyverse"},
+\code{"rstudio"}, or \code{"verse"}. Determines which Rocker image to
 query. \code{"base"} maps to \code{"rocker/r-ver"}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages during tag
@@ -21,8 +21,8 @@ name), \code{tags} (character vector of all available tags), and \code{source}
 }
 \description{
 Queries the Docker Hub API to retrieve all available tags for a specified
-Rocker image. Supports user-friendly modes: \code{"base"}, \code{"rstudio"},
-\code{"tidyverse"}, and \code{"tidystudio"}. Returns a structured list containing
+Rocker image. Supports user-friendly modes: \code{"base"}, \code{"tidyverse"},
+\code{"rstudio"}, and \code{"verse"}. Returns a structured list containing
 the image name, tag vector, and source URL.
 }
 \keyword{internal}

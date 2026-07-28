@@ -29,8 +29,8 @@ running in the current session.}
 \item{r_mode}{A character string selecting the Rocker base image. Inspired
 by the \href{https://rocker-project.org/}{Rocker Project}. One of \code{"base"} for
 plain R, \code{"tidyverse"} for R with the tidyverse, \code{"rstudio"} for RStudio
-Server, or \code{"tidystudio"} for tidyverse plus TeX Live and
-publishing-related packages. Defaults to \code{"base"}.}
+Server, or \code{"verse"} for tidyverse plus TeX Live and publishing-related
+packages. Defaults to \code{"base"}.}
 
 \item{auto_syslibs}{Logical. If \code{TRUE} (the default), reads \code{renv.lock}
 from the current working directory, queries the Posit Package Manager

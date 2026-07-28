@@ -20,3 +20,6 @@ PLAN.md
 ^doc$
 ^Meta$
 ^CONTRIBUTING\.md$
+diagrams.qmd
+^diagrams\.html$
+^diagrams_files$
