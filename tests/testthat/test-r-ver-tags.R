@@ -50,7 +50,7 @@ test_that(".get_r_ver_tags maps r_mode to the correct image name", {
             expect_equal(containr:::.get_r_ver_tags("base")$image,       "rocker/r-ver")
             expect_equal(containr:::.get_r_ver_tags("rstudio")$image,    "rocker/rstudio")
             expect_equal(containr:::.get_r_ver_tags("tidyverse")$image,  "rocker/tidyverse")
-            expect_equal(containr:::.get_r_ver_tags("tidystudio")$image, "rocker/verse")
+            expect_equal(containr:::.get_r_ver_tags("verse")$image,      "rocker/verse")
         },
         .package = "httr2"
     )

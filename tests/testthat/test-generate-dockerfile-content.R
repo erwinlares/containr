@@ -53,14 +53,14 @@ test_that("Dockerfile FROM line reflects r_mode = 'rstudio'", {
     expect_true(any(grepl("^FROM rocker/rstudio:4\\.3\\.0", lines)))
 })
 
-test_that("Dockerfile FROM line reflects r_mode = 'tidystudio'", {
+test_that("Dockerfile FROM line reflects r_mode = 'verse'", {
     tmp <- withr::local_tempdir()
     writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
-    generate_dockerfile(r_version = "4.3.0", r_mode = "tidystudio", output = tmp)
+    generate_dockerfile(r_version = "4.3.0", r_mode = "verse", output = tmp)
     lines <- read_dockerfile(tmp)
     expect_true(any(grepl("^FROM rocker/verse:4\\.3\\.0", lines)))
 })

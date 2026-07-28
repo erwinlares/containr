@@ -10,7 +10,7 @@ test_that(".r_ver_exists accepts all four valid r_mode values", {
     with_mocked_bindings(
         `.get_r_ver_tags` = function(...) mock_tags,
         {
-            for (mode in c("base", "rstudio", "tidyverse", "tidystudio")) {
+            for (mode in c("base", "rstudio", "tidyverse", "verse")) {
                 expect_error(
                     containr:::.r_ver_exists("4.3.0", r_mode = mode),
                     NA,

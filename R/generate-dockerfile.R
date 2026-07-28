@@ -12,8 +12,8 @@
 #' @param r_mode A character string selecting the Rocker base image. Inspired
 #'   by the [Rocker Project](https://rocker-project.org/). One of `"base"` for
 #'   plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for RStudio
-#'   Server, or `"tidystudio"` for tidyverse plus TeX Live and
-#'   publishing-related packages. Defaults to `"base"`.
+#'   Server, or `"verse"` for tidyverse plus TeX Live and publishing-related
+#'   packages. Defaults to `"base"`.
 #' @param auto_syslibs Logical. If `TRUE` (the default), reads `renv.lock`
 #'   from the current working directory, queries the Posit Package Manager
 #'   sysreqs database via `remotes::system_requirements()`, and automatically
@@ -109,17 +109,10 @@ generate_dockerfile <- function(r_version       = "current",
                                 verbose         = FALSE) {
 
     # -- 1. Validate r_mode early ----------------------------------------------
-    image_map <- c(
-        base       = "rocker/r-ver",
-        tidyverse  = "rocker/tidyverse",
-        rstudio    = "rocker/rstudio",
-        tidystudio = "rocker/verse"
-    )
-
-    if (!r_mode %in% names(image_map)) {
+    if (!r_mode %in% names(.r_mode_registry)) {
         cli::cli_abort(c(
             "{.val {r_mode}} is not a valid {.arg r_mode}.",
-            "i" = "Valid choices are {.val {names(image_map)}}."
+            "i" = "Valid choices are {.val {names(.r_mode_registry)}}."
         ))
     }
 
@@ -211,7 +204,7 @@ generate_dockerfile <- function(r_version       = "current",
     }
 
     # -- 8. Build Dockerfile instruction strings -------------------------------
-    image_prefix <- image_map[[r_mode]]
+    image_prefix <- .r_mode_registry[[r_mode]]$image
 
     syslibs_instruction <- if (length(all_syslibs) > 0) {
         lib_lines <- paste(

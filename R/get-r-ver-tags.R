@@ -1,12 +1,12 @@
 #' Retrieve Docker tags for a Rocker image
 #'
 #' Queries the Docker Hub API to retrieve all available tags for a specified
-#' Rocker image. Supports user-friendly modes: `"base"`, `"rstudio"`,
-#' `"tidyverse"`, and `"tidystudio"`. Returns a structured list containing
+#' Rocker image. Supports user-friendly modes: `"base"`, `"tidyverse"`,
+#' `"rstudio"`, and `"verse"`. Returns a structured list containing
 #' the image name, tag vector, and source URL.
 #'
-#' @param r_mode Character string. One of `"base"`, `"rstudio"`,
-#'   `"tidyverse"`, or `"tidystudio"`. Determines which Rocker image to
+#' @param r_mode Character string. One of `"base"`, `"tidyverse"`,
+#'   `"rstudio"`, or `"verse"`. Determines which Rocker image to
 #'   query. `"base"` maps to `"rocker/r-ver"`.
 #' @param verbose Logical. If `TRUE`, prints progress messages during tag
 #'   retrieval and pagination. Defaults to `FALSE`.
@@ -18,21 +18,14 @@
 #' @keywords internal
 .get_r_ver_tags <- function(r_mode = "base", verbose = FALSE) {
 
-    mode_map <- c(
-        base       = "r-ver",
-        rstudio    = "rstudio",
-        tidyverse  = "tidyverse",
-        tidystudio = "verse"
-    )
-
-    if (!r_mode %in% names(mode_map)) {
+    if (!r_mode %in% names(.r_mode_registry)) {
         cli::cli_abort(c(
             "{.val {r_mode}} is not a valid {.arg r_mode}.",
-            "i" = "Must be one of {.val {names(mode_map)}}."
+            "i" = "Must be one of {.val {names(.r_mode_registry)}}."
         ))
     }
 
-    image    <- paste0("rocker/", mode_map[[r_mode]])
+    image    <- .r_mode_registry[[r_mode]]$tag_repo
     base_url <- "https://hub.docker.com/v2/repositories"
     url      <- sprintf("%s/%s/tags?page_size=100", base_url, image)
 

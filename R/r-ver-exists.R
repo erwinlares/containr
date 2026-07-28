@@ -5,7 +5,7 @@
 #'
 #' @param version Character string. The tag to check for existence, e.g. \code{"4.4.0"}, \code{"devel"}, or \code{"4.4.0-cuda12.2-ubuntu22.04"}.
 #' Must match semantic versioning or be one of \code{"latest"}, \code{"devel"}.
-#' @param r_mode Character string. One of \code{"base"}, \code{"rstudio"}, or \code{"tidyverse"}.
+#' @param r_mode Character string. One of \code{"base"}, \code{"tidyverse"}, \code{"rstudio"}, or \code{"verse"}.
 #' Determines which Rocker image to query.
 #' @param verbose Logical. If \code{TRUE}, prints messages indicating whether the version was found.
 #'
@@ -15,14 +15,11 @@
 #' @keywords internal
 #'
 .r_ver_exists <- function(version, r_mode = "base", verbose = FALSE) {
-    # Define valid modes
-    valid_modes <- c("base", "rstudio", "tidyverse", "tidystudio")
-
     # Validate r_mode early
-    if (!r_mode %in% valid_modes) {
+    if (!r_mode %in% names(.r_mode_registry)) {
         cli::cli_abort(c(
             "{.val {r_mode}} is not a valid {.arg r_mode}.",
-            "i" = "Must be one of {.val {valid_modes}}."
+            "i" = "Must be one of {.val {names(.r_mode_registry)}}."
         ))
     }
 
