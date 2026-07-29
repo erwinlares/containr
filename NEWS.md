@@ -1,5 +1,47 @@
 # containr (development version)
 
+## `generate_dockerfile()`
+
+* **Breaking change:** `r_mode = "tidystudio"` has been removed. Renamed to
+  `"verse"`, matching the Rocker project's own name for the underlying
+  image (`rocker/verse`) -- `"studio"` was misleading, since RStudio Server
+  is already present via `"tidyverse"` two modes earlier, and nothing in
+  the old name hinted at the TeX Live installation that's the actual
+  differentiator. No deprecation alias; regenerate any Dockerfile built
+  with `r_mode = "tidystudio"` using `r_mode = "verse"` instead.
+
+* Two new `r_mode` values: `"shiny_server"` (`rocker/shiny`) for serving
+  Shiny apps, and `"rstudio_shiny"` (`rocker/rstudio` with Shiny Server
+  layered on top via Rocker's own `install_shiny_server.sh`) for RStudio
+  Server and Shiny Server in the same image.
+
+* `EXPOSE` now supports more than one port on a single line --
+  `rstudio_shiny` exposes both `8787` and `3838`.
+
+* `data_file`, `code_file`, and `misc_file` are copied to
+  `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`, matching
+  Shiny Server's own default app directory (`site_dir /srv/shiny-server;`).
+  The four existing modes (`"base"`, `"tidyverse"`, `"rstudio"`, `"verse"`)
+  are unaffected -- `COPY` destinations for those stay `/home/`, independent
+  of `home_dir`, exactly as before.
+
+* `expose_port` remains an override for `"rstudio"` only. `"shiny_server"`
+  and `"rstudio_shiny"` expose fixed port(s) and ignore `expose_port`, with
+  a warning if it's supplied.
+
+* `"shiny_server"` and `"rstudio_shiny"` now require R >= 4.0.0 and error
+  informatively otherwise. `/rocker_scripts/` (and the
+  `install_shiny_server.sh` script `"rstudio_shiny"` runs) only exists in
+  images built from the `rocker-versioned2` project, which covers
+  R >= 4.0.0; older tags on the same Docker Hub repositories predate that
+  entirely.
+
+* Internally, the three previously-independent, hand-maintained mappings of
+  `r_mode` to image name (`generate_dockerfile()`), Docker Hub repo
+  (`.get_r_ver_tags()`), and valid-values list (`.r_ver_exists()`) are now a
+  single shared registry (`.r_mode_registry`). No user-facing effect beyond
+  the `tidystudio` removal and the two new modes above.
+
 # containr 0.1.3.9000
 
 ## New functions

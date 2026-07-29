@@ -65,6 +65,31 @@ test_that("Dockerfile FROM line reflects r_mode = 'verse'", {
     expect_true(any(grepl("^FROM rocker/verse:4\\.3\\.0", lines)))
 })
 
+test_that("Dockerfile FROM line reflects r_mode = 'shiny_server'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^FROM rocker/shiny:4\\.3\\.0", lines)))
+})
+
+test_that("Dockerfile FROM line reflects r_mode = 'rstudio_shiny'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "rstudio_shiny", output = tmp)
+    lines <- read_dockerfile(tmp)
+    # rstudio_shiny is layered on rocker/rstudio, not a separate image
+    expect_true(any(grepl("^FROM rocker/rstudio:4\\.3\\.0", lines)))
+})
+
 test_that("Dockerfile FROM line uses resolved current R version", {
     tmp <- withr::local_tempdir()
     writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
@@ -248,6 +273,125 @@ test_that("Dockerfile EXPOSE line reflects custom expose_port", {
     expect_true(any(grepl("^EXPOSE 9090$", lines)))
 })
 
+test_that("Dockerfile contains EXPOSE 3838 when r_mode = 'shiny_server'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^EXPOSE 3838$", lines)))
+})
+
+test_that("Dockerfile contains EXPOSE 8787 3838 when r_mode = 'rstudio_shiny'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "rstudio_shiny", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^EXPOSE 8787 3838$", lines)))
+})
+
+test_that("expose_port override is ignored for shiny_server and rstudio_shiny", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    expect_warning(
+        generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server",
+                            expose_port = "9090", output = tmp),
+        "only used when"
+    )
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^EXPOSE 3838$", lines)))
+    expect_false(any(grepl("9090", lines, fixed = TRUE)))
+})
+
+# ---------------------------------------------------------------------------
+# extra_install (rstudio_shiny)
+# ---------------------------------------------------------------------------
+
+test_that("Dockerfile contains the Shiny Server install script for r_mode = 'rstudio_shiny'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "rstudio_shiny", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^RUN /rocker_scripts/install_shiny_server\\.sh$", lines)))
+})
+
+test_that("Dockerfile omits the Shiny Server install script for modes other than 'rstudio_shiny'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    for (mode in c("base", "rstudio", "shiny_server")) {
+        generate_dockerfile(r_version = "4.3.0", r_mode = mode, output = tmp)
+        lines <- read_dockerfile(tmp)
+        expect_false(any(grepl("install_shiny_server\\.sh", lines)), info = paste("mode =", mode))
+    }
+})
+
+# ---------------------------------------------------------------------------
+# copy_root routing (shiny_server / rstudio_shiny)
+# ---------------------------------------------------------------------------
+
+test_that("Dockerfile COPY destination stays /home for the four Phase 1 modes even with a custom home_dir", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    writeLines("a,b", "data.csv")
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", data_file = "data.csv",
+                        home_dir = "/workspace", output = tmp)
+    lines <- read_dockerfile(tmp)
+    # home_dir only drives WORKDIR -- COPY destination stays /home/, unchanged
+    expect_true(any(grepl("^WORKDIR /workspace$", lines)))
+    expect_true(any(grepl("COPY.*data\\.csv.*/home/.*data\\.csv", lines)))
+})
+
+test_that("Dockerfile COPY destination is /srv/shiny-server for r_mode = 'shiny_server', ignoring home_dir", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    writeLines("shiny::shinyApp(ui = fluidPage(), server = function(input, output) {})", "app.R")
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server",
+                        code_file = "app.R", home_dir = "/workspace", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("COPY.*app\\.R.*/srv/shiny-server/.*app\\.R", lines)))
+})
+
+test_that("Dockerfile COPY destination is /srv/shiny-server for r_mode = 'rstudio_shiny'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    writeLines("shiny::shinyApp(ui = fluidPage(), server = function(input, output) {})", "app.R")
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "rstudio_shiny",
+                        code_file = "app.R", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("COPY.*app\\.R.*/srv/shiny-server/.*app\\.R", lines)))
+})
+
 # ---------------------------------------------------------------------------
 # Optional file COPY lines
 # ---------------------------------------------------------------------------
@@ -384,6 +528,105 @@ test_that("rstudio comments include docker run instructions when comments = TRUE
                         comments = TRUE, output = tmp)
     content <- paste(read_dockerfile(tmp), collapse = "\n")
     expect_match(content, "docker run", fixed = TRUE)
+})
+
+test_that("shiny_server comments include docker run instructions when comments = TRUE", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server",
+                        comments = TRUE, output = tmp)
+    content <- paste(read_dockerfile(tmp), collapse = "\n")
+    expect_match(content, "-p 3838:3838", fixed = TRUE)
+})
+
+test_that("rstudio_shiny comments include both ports in the docker run instructions when comments = TRUE", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", r_mode = "rstudio_shiny",
+                        comments = TRUE, output = tmp)
+    content <- paste(read_dockerfile(tmp), collapse = "\n")
+    expect_match(content, "-p 8787:8787", fixed = TRUE)
+    expect_match(content, "-p 3838:3838", fixed = TRUE)
+})
+
+# ---------------------------------------------------------------------------
+# Minimum R version for shiny_server / rstudio_shiny
+# ---------------------------------------------------------------------------
+
+test_that("generate_dockerfile errors for shiny_server/rstudio_shiny below R 4.0.0", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"3.6.3"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    for (mode in c("shiny_server", "rstudio_shiny")) {
+        expect_error(
+            generate_dockerfile(r_version = "3.6.3", r_mode = mode, output = tmp),
+            "requires R",
+            info = paste("r_mode =", mode)
+        )
+    }
+})
+
+test_that("generate_dockerfile succeeds for shiny_server/rstudio_shiny at exactly R 4.0.0", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.0.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    for (mode in c("shiny_server", "rstudio_shiny")) {
+        expect_error(
+            generate_dockerfile(r_version = "4.0.0", r_mode = mode, output = tmp),
+            NA,
+            info = paste("r_mode =", mode)
+        )
+    }
+})
+
+test_that("generate_dockerfile succeeds for shiny_server/rstudio_shiny with r_version = 'devel'", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.4.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    for (mode in c("shiny_server", "rstudio_shiny")) {
+        expect_error(
+            generate_dockerfile(r_version = "devel", r_mode = mode, output = tmp),
+            NA,
+            info = paste("r_mode =", mode)
+        )
+    }
+})
+
+test_that("min_r_version does not affect the four Phase 1 modes at R 3.6.3", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"3.6.3"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    for (mode in c("base", "tidyverse", "rstudio", "verse")) {
+        expect_error(
+            generate_dockerfile(r_version = "3.6.3", r_mode = mode, output = tmp),
+            NA,
+            info = paste("r_mode =", mode)
+        )
+    }
 })
 
 # ---------------------------------------------------------------------------

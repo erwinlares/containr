@@ -8,8 +8,11 @@
 }
 \arguments{
 \item{r_mode}{Character string. One of \code{"base"}, \code{"tidyverse"},
-\code{"rstudio"}, or \code{"verse"}. Determines which Rocker image to
-query. \code{"base"} maps to \code{"rocker/r-ver"}.}
+\code{"rstudio"}, \code{"verse"}, \code{"shiny_server"}, or \code{"rstudio_shiny"}.
+Determines which Rocker image to query. \code{"base"} maps to
+\code{"rocker/r-ver"}. \code{"rstudio_shiny"} maps to \code{"rocker/rstudio"}, since
+it's built by layering Shiny Server onto that image rather than a
+separate Docker Hub repository.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages during tag
 retrieval and pagination. Defaults to \code{FALSE}.}
@@ -22,7 +25,7 @@ name), \code{tags} (character vector of all available tags), and \code{source}
 \description{
 Queries the Docker Hub API to retrieve all available tags for a specified
 Rocker image. Supports user-friendly modes: \code{"base"}, \code{"tidyverse"},
-\code{"rstudio"}, and \code{"verse"}. Returns a structured list containing
-the image name, tag vector, and source URL.
+\code{"rstudio"}, \code{"verse"}, \code{"shiny_server"}, and \code{"rstudio_shiny"}. Returns
+a structured list containing the image name, tag vector, and source URL.
 }
 \keyword{internal}

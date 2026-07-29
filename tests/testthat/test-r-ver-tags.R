@@ -47,10 +47,14 @@ test_that(".get_r_ver_tags maps r_mode to the correct image name", {
         resp_status    = function(...) 200L,
         resp_body_json = function(...) mock_body,
         {
-            expect_equal(containr:::.get_r_ver_tags("base")$image,       "rocker/r-ver")
-            expect_equal(containr:::.get_r_ver_tags("rstudio")$image,    "rocker/rstudio")
-            expect_equal(containr:::.get_r_ver_tags("tidyverse")$image,  "rocker/tidyverse")
-            expect_equal(containr:::.get_r_ver_tags("verse")$image,      "rocker/verse")
+            expect_equal(containr:::.get_r_ver_tags("base")$image,          "rocker/r-ver")
+            expect_equal(containr:::.get_r_ver_tags("rstudio")$image,       "rocker/rstudio")
+            expect_equal(containr:::.get_r_ver_tags("tidyverse")$image,     "rocker/tidyverse")
+            expect_equal(containr:::.get_r_ver_tags("verse")$image,         "rocker/verse")
+            expect_equal(containr:::.get_r_ver_tags("shiny_server")$image,  "rocker/shiny")
+            # rstudio_shiny queries rocker/rstudio's tags -- there's no
+            # separate rocker/rstudio_shiny repo on Docker Hub.
+            expect_equal(containr:::.get_r_ver_tags("rstudio_shiny")$image, "rocker/rstudio")
         },
         .package = "httr2"
     )

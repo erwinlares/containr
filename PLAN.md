@@ -322,17 +322,52 @@ None deleted.
 
 ### Phase 2 -- `shiny_server` and `rstudio_shiny`
 
+**Status: implemented and verified (Session 6).** Registry entries,
+`generate_dockerfile()` changes, the `min_r_version` floor check (R >= 4.0.0
+for `shiny_server`/`rstudio_shiny`, since `/rocker_scripts/` only exists in
+`rocker-versioned2`-lineage images), and test coverage are all in place on
+`containr-modes-0.2.0`. Actually run this time, not just syntax-checked:
+`devtools::test()` -- 237 passed, 0 failed, 3 skipped (Layer 3, correctly
+guarded). `devtools::check()` -- 0 errors; the 1 WARNING (locale) and 1 NOTE
+(no CRAN access) are both artifacts of the sandbox this ran in, not real
+issues. `inst/WORDLIST` gained several pre-existing gaps this surfaced
+(`DOI`, `Sys`, `URI`, `amd64`, `containr's`, `macOS`, `repo`, `sys`, `v2`,
+`x86`) plus `versioned2` for this phase's own docs. Worth Erwin re-running
+`document()`/`test()`/`check()` locally regardless, since this sandbox's R
+toolchain (installed via `apt-get`, not CRAN) may not exactly match his.
+
+**Decided in Session 6: `copy_root` is not coupled to `home_dir`.** An
+initial pass made the four Phase 1 modes' `copy_root` follow `home_dir`
+(fixing a latent inconsistency where `home_dir` drove `WORKDIR` but never
+`COPY`). Erwin rejected this as scope creep unrelated to shiny mode
+support and asked to keep `/home` and `home_dir` exactly as they are today,
+routing Shiny Server's files to `/srv/shiny-server` only because that's
+where Shiny Server's own docs place them. Reverted -- `copy_root` is
+`.r_mode_registry[[r_mode]]$copy_root` with no `home_dir` involvement for
+any mode, keeping Phase 1's byte-identical guarantee intact into Phase 2.
+
 Now two new entries in the registry rather than edits across three files:
 
 ```r
 shiny_server  = list(image = "rocker/shiny",   tag_repo = "rocker/shiny",
                       ports = "3838", extra_install = NULL,
-                      copy_root = "/srv/shiny-server"),
+                      copy_root = "/srv/shiny-server",
+                      min_r_version = "4.0.0"),
 rstudio_shiny = list(image = "rocker/rstudio", tag_repo = "rocker/rstudio",
                       ports = c("8787", "3838"),
                       extra_install = "install_shiny_server.sh",
-                      copy_root = "/srv/shiny-server")
+                      copy_root = "/srv/shiny-server",
+                      min_r_version = "4.0.0")
 ```
+
+`min_r_version` guards both new modes against R < 4.0.0 --
+`/rocker_scripts/` (and `install_shiny_server.sh` inside it) only exists in
+images built from `rocker-versioned2`, which covers R >= 4.0.0 only; older
+tags on the same Docker Hub repos predate that entirely (confirmed against
+`rocker-versioned2`'s own README). `generate_dockerfile()` checks this
+right after resolving `r_version`, via a new `.extract_r_version_prefix()`
+helper that handles the non-numeric shapes `resolved_version` can take
+(`"latest"`, `"devel"`, CUDA/Ubuntu-suffixed strings) before comparing.
 
 `rstudio_shiny`'s `tag_repo` is deliberately `"rocker/rstudio"`, not a
 `"rocker/rstudio_shiny"` that doesn't exist -- there's no separate Docker

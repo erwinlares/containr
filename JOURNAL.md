@@ -564,3 +564,228 @@ Left one small, optional question open rather than deciding it: whether
 'verse'?"`-style hint specific to that one input. Cheap either way, not a
 reintroduction of the complexity just removed, but still a piece of
 special-casing worth a direct yes/no.
+
+## Session 6 — 2026-07-28 (Phase 2: shiny_server and rstudio_shiny)
+
+### Where this picked up
+
+Fresh sandbox this session, no filesystem carryover from Session 5 -- cloned
+`erwinlares/containr` again and checked out `containr-modes-0.2.0`. Confirmed
+Phase 1 (the r_mode registry refactor) is merged on that branch: last two
+commits are "Consolidate r_mode logic into a single registry; drop
+tidystudio" and a follow-up `.Rbuildignore`/`.gitignore` fix for
+`diagrams.qmd` render output tripping up `R CMD check`. `.r_mode_registry`
+on the branch has exactly the four Phase 1 modes (`base`, `tidyverse`,
+`rstudio`, `verse`), matching `PLAN.md`.
+
+No R installation in this sandbox by default; installed `r-base-core` via
+`apt-get` (works -- `archive.ubuntu.com`/`security.ubuntu.com` are on the
+allowed network list) to at least `parse()`-check every edited file.
+Discovered mid-session that `r-cran-devtools`, `r-cran-testthat`,
+`r-cran-roxygen2`, and the package's other direct dependencies
+(`r-cran-cli`, `glue`, `purrr`, `readr`, `fs`, `withr`) are all available as
+prebuilt `apt` packages too -- CRAN itself isn't reachable from this
+sandbox, but the Ubuntu-packaged versions are, which is a real option for
+running `devtools::test()` directly here in a future session rather than
+only syntax-checking. Not used this round; Erwin is running
+`document()`/`test()`/`check()` locally instead.
+
+### Phase 2 implemented
+
+Added `shiny_server` and `rstudio_shiny` to `.r_mode_registry`, matching
+`PLAN.md`'s Phase 2 section exactly:
+
+```r
+shiny_server  = list(image = "rocker/shiny",   tag_repo = "rocker/shiny",
+                      ports = "3838", extra_install = NULL,
+                      copy_root = "/srv/shiny-server"),
+rstudio_shiny = list(image = "rocker/rstudio", tag_repo = "rocker/rstudio",
+                      ports = c("8787", "3838"),
+                      extra_install = "install_shiny_server.sh",
+                      copy_root = "/srv/shiny-server")
+```
+
+Confirmed directly (not assumed) that `/rocker_scripts/install_shiny_server.sh`
+exists on the `rocker-versioned2` `master` branch (`curl -sI` against the
+raw GitHub URL returned `200`) before wiring it in -- this was the one open
+item Phase 2 flagged before starting. Didn't smoke-build across every R
+version `.r_ver_exists()` accepts (no Docker in this sandbox), so that
+narrower claim -- the script being present for *every* accepted R version,
+not just current -- is still unverified and worth a real build test before
+release.
+
+`.r_ver_exists()` and `.get_r_ver_tags()` needed no code changes -- both
+already resolve purely through `names(.r_mode_registry)` / `$tag_repo`,
+confirming Phase 1's registry design paid off exactly as intended. Only
+their roxygen `@param r_mode` docs needed the two new mode names added.
+
+`generate_dockerfile()` changes:
+
+- `EXPOSE` now joins `ports` with a space (`EXPOSE 8787 3838` for
+  `rstudio_shiny`), reading from the registry for every mode except
+  `rstudio`, which keeps the existing user-overridable `expose_port`
+  argument for backward compatibility. Extended the existing
+  "`expose_port` ignored" warning's condition (`r_mode != "rstudio"`) to
+  cover the two new modes without changing its wording.
+- New `extra_install` block, structurally identical to the existing
+  `install_quarto` block, positioned right after `quarto` and before
+  `workdir`. Emits `RUN /rocker_scripts/install_shiny_server.sh` for
+  `rstudio_shiny` only.
+- New `shiny_server_hint` and `rstudio_shiny_hint` blocks alongside the
+  existing `rstudio_hint`, each a `comments`-only two-line `docker run`
+  usage note.
+- `copy_root` used for `data_file`/`code_file`/`misc_file` COPY
+  destinations, reading `.r_mode_registry[[r_mode]]$copy_root` directly.
+
+### `home_dir` / copy destination: proposed a coupling, Erwin rejected it, reverted
+
+First pass coupled `copy_root` to `home_dir` for the four Phase 1 modes
+(`copy_root <- if (registry value == "/home") home_dir else registry
+value`), reasoning that `home_dir` currently drives `WORKDIR` but has never
+affected where `COPY` actually lands -- read as a latent inconsistency
+worth fixing while touching this code path anyway. Erwin's read: unrelated
+scope creep bundled into a mode-support release, and asked directly why not
+just keep `/home` and `home_dir` as they are today, and route Shiny Server's
+files to `/srv/shiny-server` because that's where Shiny Server's own docs
+say they belong. No real objection -- reverted the coupling. `copy_root` is
+now `.r_mode_registry[[r_mode]]$copy_root`, full stop, no `home_dir`
+involvement for any mode. This keeps Phase 1's byte-identical guarantee
+extended cleanly into Phase 2 rather than introducing an unannounced
+behavior change riding along with the new modes. Removed the test that had
+asserted the coupling, replaced with a regression guard asserting the
+opposite (`home_dir` affects `WORKDIR` only, `COPY` for the four existing
+modes stays `/home/` regardless).
+
+### Testing
+
+Extended `test-r-mode-registry.R` (all six modes now, not four), added
+FROM/EXPOSE/extra_install/copy_root/hint coverage for both new modes to
+`test-generate-dockerfile-content.R`, updated the four files `PLAN.md`
+flagged (`test-r-ver-exists.R`, `test-r-ver-tags.R`,
+`test-generate-dockerfile-file-args.R` now loop over
+`names(containr:::.r_mode_registry)` instead of a hardcoded four-mode
+vector, so a future Phase adding another mode won't need another manual
+edit here). All edited files pass `parse()` in this sandbox; not yet run
+through `devtools::test()` -- that's happening in Erwin's local RStudio
+session.
+
+### `NEWS.md`
+
+Added a `## generate_dockerfile()` section under the unreleased
+"(development version)" header covering both the Phase 1 `tidystudio` ->
+`verse` breaking change (previously undocumented in `NEWS.md` -- Phase 1's
+commits didn't touch it, since `PLAN.md`'s Phase 7 defers the "consolidated
+NEWS.md entry" to the release pass) and this phase's two new modes.
+Documenting it now rather than waiting for Phase 7, per Erwin's request --
+worth keeping in mind that Phase 7 will need to consolidate/reword rather
+than append a second time.
+
+### Open, carried forward
+
+- Smoke build confirming `install_shiny_server.sh` across every accepted R
+  version (Phase 2's original open item -- narrowed but not closed; only
+  the script's existence at `master`, not per-version coverage, was
+  checked).
+- Full `devtools::test()` / `devtools::check()` run against this branch, in
+  Erwin's RStudio session.
+- Everything already carried forward from Session 5 for Phases 3-7 (tool-
+  resolution cleanup, registry support, Singularity/Apptainer, GitHub
+  Actions, release pass) is unchanged.
+
+## Session 6 (continued) — R version floor for shiny_server / rstudio_shiny
+
+### The check itself
+
+Erwin's framing, after the "trust Rocker's script content, verify
+availability" discussion: check whether the specific `r_version` being used
+actually has `/rocker_scripts/install_shiny_server.sh`, rather than trusting
+it blanket or live-probing an image per call.
+
+Turned out to be a one-time cutoff rather than a per-version lottery --
+confirmed directly against `rocker-versioned2`'s own README rather than
+assumed: that repository is R >= 4.0.0 only. `/rocker_scripts/` (and
+`install_shiny_server.sh` inside it) is copied into every image it builds,
+but R <= 3.6.3 tags on the same Docker Hub repos come from the predecessor
+`rocker-versioned` repo, built via a completely different Dockerfile
+lineage that predates `rocker_scripts` entirely. Since R version numbers
+don't skip around (3.6.3 -> 4.0.0 directly, no 3.7-3.9), this is a static
+floor, not something needing live re-verification.
+
+Implemented as a new `min_r_version` field on `.r_mode_registry` (`NULL`
+for the four Phase 1 modes, `"4.0.0"` for `shiny_server`/`rstudio_shiny`)
+rather than an `if (r_mode %in% c(...))` check in `generate_dockerfile()`
+-- keeps with Phase 1's whole point of not re-triaging "which modes are
+special" by name in consuming functions.
+
+### `resolved_version` string shapes broke the naive `package_version()` comparison
+
+First attempt compared `package_version(resolved_version) < package_version(min_r_version)`
+directly. Tested this in R before committing to it (this session had R
+installed via `apt-get install r-base-core`, plus discovered
+`r-cran-cli`/`r-cran-glue`/`r-cran-purrr`/`r-cran-readr`/`r-cran-fs`/
+`r-cran-withr`/`r-cran-testthat`/`r-cran-devtools`/`r-cran-roxygen2`/
+`r-cran-renv`/`r-cran-jsonlite`/`r-cran-httr2`/`r-cran-spelling` are all
+available as prebuilt Ubuntu packages, meaning the full toolchain runs in
+this sandbox even though CRAN itself is unreachable) -- and it breaks on
+every shape `resolved_version` can actually take other than a bare
+three-component version: `package_version("4.4.0-cuda12.2-ubuntu22.04")`,
+`package_version("latest")`, and even `package_version("4")` (a bare major
+version, which `.r_ver_exists()`'s own regex explicitly allows) all error
+with "invalid version specification."
+
+Fix: `.extract_r_version_prefix()`, a new internal helper in
+`r-mode-registry.R`. Pulls the leading `[0-9]+(\.[0-9]+){0,2}` numeric
+prefix via regex, pads it to three components, returns `NA_character_` if
+there's no numeric prefix at all (covers `"latest"` and `"devel"`, both of
+which always resolve to the current `rocker-versioned2` lineage and so are
+exempt from the floor). Verified each shape by hand in the R console before
+writing it into the source -- `"4.4.0-cuda12.2-ubuntu22.04"` -> `"4.4.0"`,
+`"4"` -> `"4.0.0"`, `"latest"`/`"devel"` -> `NA` (skip).
+
+Placed the check as step "6b" in `generate_dockerfile()`, right after
+`resolved_version` is computed (step 6) and before the sysreqs lookup (step
+7) -- no reason to hit the Posit Package Manager API for system libraries
+if the call is about to abort on an incompatible R version anyway.
+
+### First real test run in this sandbox
+
+Installed the full `r-cran-*` toolchain (listed above) plus
+`RENV_CONFIG_AUTOLOADER_ENABLED=FALSE` (renv's project autoloader otherwise
+fires on every `Rscript` invocation and fails, since this sandbox can't
+reach CRAN) and ran `devtools::test()` for real, not just `parse()`.
+Baseline (Phase 2 changes from earlier this session, before the
+`min_r_version` work): 214 passed, 0 failed, 3 skipped (the existing
+`CONTAINR_INTEGRATION_TESTS`-guarded Layer 3 tests, correctly skipped
+without live Docker/Podman). After adding `min_r_version` registry/behavior
+tests: 237 passed, 0 failed, same 3 skipped.
+
+Also ran `devtools::document()` and `devtools::check(document = FALSE, cran
+= FALSE, vignettes = FALSE)`. First check pass surfaced a real, if
+pre-existing, gap: `spell_check_package()` flagged `DOI`, `Sys`, `URI`,
+`amd64`, `containr's`, `macOS`, `repo`, `sys`, `v2`, `x86` as missing from
+`inst/WORDLIST` -- none introduced this session (only `versioned2`, from
+this round's own docs, was new), so this is very likely the first time
+`spelling::spell_check_package()` has actually been run against this
+branch rather than something Phase 1 or the earlier Phase 2 work broke.
+Added all of them to `inst/WORDLIST`; re-ran `spell_check_package()`
+directly -- "No spelling errors found." Final `check()`: 0 errors, 1
+WARNING (`Sys.setlocale("LC_CTYPE", "en_US.UTF-8")` failing -- this
+sandbox has no such locale installed), 1 NOTE (`renv` failing to reach
+`cloud.r-project.org` -- this sandbox has no CRAN access). Both are
+sandbox artifacts, not real issues; neither should reproduce in Erwin's
+RStudio session.
+
+`devtools::document()` was run only to verify the new roxygen (particularly
+`.extract_r_version_prefix()`'s docs) compiles cleanly -- confirmed, then
+reverted `man/*.Rd` and `DESCRIPTION`'s `RoxygenNote` bump (this sandbox's
+`r-cran-roxygen2` is 7.3.1; the package's `Config/roxygen2/version` is
+8.0.0) rather than hand it back to Erwin as a diff his own `document()` run
+would immediately overwrite anyway.
+
+### Open, carried forward
+
+- Same Phase 3-7 items from earlier Session 6 entries, unchanged.
+- `min_r_version` is a hardcoded historical fact (the rocker-versioned /
+  rocker-versioned2 split), not something that needs revisiting unless
+  Rocker's project structure changes again -- noted here so a future
+  session doesn't mistake it for a live value that's gone stale.
