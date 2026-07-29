@@ -10,7 +10,7 @@ push_image(
   project = NULL,
   tag = "latest",
   registry = "registry.doit.wisc.edu",
-  tool = NULL,
+  tool_preference = c("podman", "docker"),
   check_login = TRUE,
   dry_run = FALSE,
   verbose = FALSE,
@@ -37,9 +37,10 @@ every push.}
 \item{registry}{A character string. The registry hostname. Defaults to
 \code{"registry.doit.wisc.edu"} (UW-Madison CHTC).}
 
-\item{tool}{A character string or \code{NULL}. The container tool to use. One
-of \code{"podman"} or \code{"docker"}. If \code{NULL} (the default), the function
-auto-detects which tool is available, preferring \code{podman}.}
+\item{tool_preference}{A non-empty character vector of container tools to
+try, in order. Defaults to \code{c("podman", "docker")} -- Podman first, then
+Docker. Supply a single value (e.g. \code{"docker"}) to require that specific
+tool rather than auto-detecting.}
 
 \item{check_login}{Logical. If \code{TRUE} (the default), verifies that you
 are logged in to \code{registry} before attempting the push. If not logged
@@ -63,7 +64,8 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 \code{push_image()} tags a locally built container image with a full registry
 path and pushes it to a container registry. It handles both the
 \verb{podman tag} and \verb{podman push} steps in a single call. Auto-detects
-which container tool is available unless \code{tool} is specified explicitly.
+which container tool is available unless \code{tool_preference} is set to a
+single value.
 Use \code{dry_run = TRUE} to preview the exact commands without executing them.
 The format for the is registry.doit.wisc.edu/\if{html}{\out{<netid>}}/\if{html}{\out{<image-name>}}:\if{html}{\out{<version>}}
 }

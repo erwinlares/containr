@@ -789,3 +789,131 @@ would immediately overwrite anyway.
   rocker-versioned2 split), not something that needs revisiting unless
   Rocker's project structure changes again -- noted here so a future
   session doesn't mistake it for a live value that's gone stale.
+
+## Session 6 (continued) — Phase 3: tool-resolution cleanup + tool_preference redesign
+
+### Scope
+
+Erwin asked to tackle Phase 3 (redundant `.check_tool_responsive()` removal
++ Layer 3 backfill for `build_image()`/`push_image()`) together with the
+previously-deferred `tool_preference` redesign (open design question 5),
+since both touch `.resolve_tool()` directly and doing them separately would
+mean touching the same function's signature twice.
+
+### `tool_preference` design, worked out in discussion before writing code
+
+Erwin's first question: `tool` -> `tool_preference` is a breaking change --
+what's the argument for it over keeping `tool` and adding a separate
+argument? Answer: `tool` and a hypothetical separate `tool_preference`
+would be two arguments doing overlapping jobs with a precedence rule to
+document (`tool` wins, `tool_preference` only matters on auto-detect). A
+single argument removes the seam -- length-1 becomes a degenerate case of
+the same concept (an explicit choice) rather than a separate mode with its
+own logic. Justified as consistent with how `tidystudio` was already
+handled this release: `containr` is still `0.y.z`, and semver's convention
+at that stage is that things may change without a deprecation cycle --
+this isn't reaching for an exception, it's the normal expectation.
+
+Second question: validate `tool_preference` against a known-tools list, or
+stay permissive? Erwin: stay permissive, looking ahead to Phase 5. Then
+asked what the trade-off actually was before implementing -- worked through
+it explicitly: an allowlist and "stay permissive" are in direct tension,
+since any allowlist check is itself the hardcoded list permissive-mode is
+supposed to avoid; Phase 5 would otherwise need to come back and edit this
+exact validation line, the same "edit multiple files by hand" problem
+Phase 1 already eliminated from `r_mode`. Recommendation: drop the
+allowlist entirely, but keep *structural* validation (non-empty character,
+no `NA`) -- permissive-on-values isn't the same as permissive-on-type, and
+letting a malformed argument fall through to `Sys.which(NA)` produces a
+confusing failure rather than a clear one. Also flagged (and implemented)
+that error messages needed generalizing alongside the validation change,
+not just the validation itself -- an unrecognized tool name that happens to
+be installed-but-unresponsive would otherwise get wrong, Docker/Podman-
+specific troubleshooting text. New shared `.abort_tool_not_responsive()`
+helper handles this: known-good specific guidance for `docker`/`podman`,
+generic fallback for anything else.
+
+### Implementation
+
+`R/container-helpers.R` rewritten: `.resolve_tool(tool_preference =
+c("podman", "docker"))` replaces `.resolve_tool(tool = NULL)`. Length-1
+`tool_preference` is treated as an explicit, validated choice (same as the
+old non-NULL `tool` path); length > 1 walks the given order for
+auto-detect (same as the old NULL path, but no longer hardcoded to
+Podman-then-Docker specifically -- whatever order is supplied). Structural
+validation up front: `cli_abort()` if not a non-empty character vector or
+if it contains `NA`. `.check_tool_responsive()` now calls the same shared
+`.abort_tool_not_responsive()` helper `.resolve_tool()` uses, rather than
+duplicating the Docker/Podman-specific message text in two places.
+
+`R/build-image.R`, `R/push-image.R`, `R/list-images.R`: `tool` ->
+`tool_preference` in each signature, docs updated, and the redundant
+`.check_tool_responsive(resolved_tool)` call removed from all three (the
+actual Phase 3 ask) -- `.resolve_tool()` already guarantees responsiveness.
+Step comments renumbered after the removal in each file.
+
+Swept `README.md` and `vignettes/containr-workflow.Rmd` for `tool =
+"docker"` examples that the rename would otherwise leave silently broken --
+fixed both, rather than waiting for Phase 7's documentation pass, since a
+broken copy-pasteable example is a different kind of problem than
+docs that are merely incomplete.
+
+### Tests
+
+Removed 21 now-unused `.check_tool_responsive` mock lines from
+`test-container-workflow.R` (dead weight now that the functions under test
+don't call it). Rewrote the two `tool = "singularity"` Layer 1 tests --
+under permissive validation "singularity" isn't categorically rejected
+anymore, it's just not installed, so both now mock `.sys_which()` and
+assert on "not installed" rather than a "podman|docker" pattern from the
+old `match.arg()` rejection. Added new coverage: `tool_preference`
+structural validation (non-character, empty, `NA`), a custom preference
+order (`c("docker", "podman")` picks docker first), the generic
+not-responsive fallback for an unrecognized tool name, and direct
+`.check_tool_responsive()` tests (there weren't any before -- it was only
+ever exercised indirectly via mocks).
+
+Backfilled Layer 3 integration tests per Phase 3's other half:
+- `build_image()`: builds a real `alpine:latest` image (deliberately not an
+  R image -- these tests exercise `build_image()`'s own command
+  construction and execution, not the R install path `generate_dockerfile()`'s
+  tests already cover), verifies it via `podman image inspect`, and cleans
+  up with `on.exit()`. A second test cross-checks that the built image is
+  visible to `list_images()`.
+- `push_image()`: needs a real login and a real destination, neither of
+  which this suite can supply or should guess at. Added two more guard
+  variables on top of `CONTAINR_INTEGRATION_TESTS`: `CONTAINR_TEST_NETID`
+  and `CONTAINR_TEST_PROJECT`. Considered hardcoding the
+  `erwin.lares`/`container-registry` values already used as a docs
+  placeholder, but that risks the test silently pushing to a project it
+  was never actually told to use -- requiring both variables explicitly
+  means it only runs against a destination the developer chose on purpose.
+  Documented in `on-testing.md` and `CONTRIBUTING.md`.
+
+### Not run this session
+
+Per Erwin's standing instruction (added to memory this session): Claude
+does not install R/apt packages or run `devtools::document()`/`test()`/
+`check()` itself for containr or sibling packages going forward -- Erwin
+runs these locally. Everything above is implemented and internally
+consistent (swept for stray `tool =` references across `R/`, `tests/`,
+`README.md`, and the vignette; none found) but not verified by an actual
+test run in this session, unlike the min_r_version work earlier in Session
+6, which was. Full files handed back for Erwin's own
+`document()`/`test()`/`check()` cycle.
+
+### Open, carried forward
+
+- `.resolve_tool(NULL)` now errors (fails structural validation) rather
+  than meaning "auto-detect" the way `tool = NULL` used to. Small edge
+  case, called out in `NEWS.md`, but worth double-checking no internal
+  callers or examples still pass `tool = NULL` anywhere `document()`/
+  `check()` would catch.
+- Phase 3's own Layer 3 tests are themselves untested by this session (see
+  above) -- worth running with `CONTAINR_INTEGRATION_TESTS=true` locally,
+  including the `push_image()` one with real `CONTAINR_TEST_NETID`/
+  `CONTAINR_TEST_PROJECT` values, before considering Phase 3 fully done.
+- Same Phase 4-7 items from earlier Session 6 entries, unchanged, except
+  Phase 5's entry point description was updated to reflect that
+  `tool_preference` no longer needs a matching change when Singularity/
+  Apptainer support lands.

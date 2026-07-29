@@ -179,6 +179,17 @@ contexts. The second guard — `skip_if_not(nchar(Sys.which("podman")) > 0)`
 — is a safety check that skips if `podman` is not installed, in case the
 environment variable is set on a machine without a container tool.
 
+`push_image()`'s Layer 3 test adds two more guards on top of these:
+`CONTAINR_TEST_NETID` and `CONTAINR_TEST_PROJECT`. Unlike `build_image()`,
+which only needs a local daemon, `push_image()` needs somewhere real to
+push a throwaway test image to -- and hardcoding a destination (even a
+placeholder like the `erwin.lares`/`container-registry` example used
+elsewhere in the docs) would risk the test silently pushing to a project it
+was never actually told to use. Requiring both variables be set explicitly
+means the test only runs against a destination the developer chose on
+purpose, and skips with a clear message otherwise.
+environment variable is set on a machine without a container tool.
+
 Note that `skip_on_cran()` was considered but rejected for this purpose.
 `devtools::check()` sets `NOT_CRAN=true`, which means `skip_on_cran()` does
 not skip during `devtools::check()` — only on actual CRAN servers and bare

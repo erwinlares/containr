@@ -42,6 +42,45 @@
   single shared registry (`.r_mode_registry`). No user-facing effect beyond
   the `tidystudio` removal and the two new modes above.
 
+## `build_image()`, `push_image()`, `list_images()`
+
+* **Breaking change:** the `tool` argument (a single tool name or `NULL` for
+  auto-detect) is replaced by `tool_preference`, a non-empty character
+  vector tried in order. Defaults to `c("podman", "docker")`, matching
+  today's default behavior. A length-1 vector (e.g.
+  `tool_preference = "docker"`) behaves like the old `tool = "docker"`; a
+  longer vector lets you set a custom auto-detect order, e.g.
+  `tool_preference = c("docker", "podman")`. `tool = NULL` had no direct
+  equivalent kept -- passing `NULL` to `tool_preference` now errors, since
+  the empty/auto-detect case is expressed by supplying more than one
+  candidate instead.
+
+* `tool_preference` is not validated against a fixed list of tool names --
+  any string on the system's PATH that responds to `<tool> info` is
+  accepted. This is intentional: `tool_preference` should not need a
+  companion validation update every time a new container tool gains
+  support (e.g. Singularity/Apptainer, planned for a later release).
+  Structural validation still applies -- `tool_preference` must be a
+  non-empty character vector with no missing values.
+
+* Error messages for an unrecognized tool that's installed but not
+  responding now fall back to generic guidance (`"Start the <tool> daemon
+  or service and try again"`) rather than Docker- or Podman-specific
+  instructions that would be wrong for a different tool. `docker` and
+  `podman` keep their existing specific guidance.
+
+* Removed a redundant internal check: `build_image()`, `push_image()`, and
+  `list_images()` each called `.check_tool_responsive()` immediately after
+  `.resolve_tool()`, which already guarantees the resolved tool is
+  responsive. No user-facing behavior change.
+
+* Added integration tests (`CONTAINR_INTEGRATION_TESTS=true`) for
+  `build_image()` and `push_image()`, backfilling the two that were
+  previously only covered at the argument-validation and command-
+  construction layers. `push_image()`'s integration test additionally
+  requires `CONTAINR_TEST_NETID` and `CONTAINR_TEST_PROJECT` to be set, so
+  it never pushes a test image to an unintended destination.
+
 # containr 0.1.3.9000
 
 ## New functions

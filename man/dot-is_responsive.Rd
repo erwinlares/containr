@@ -7,7 +7,8 @@
 .is_responsive(tool)
 }
 \arguments{
-\item{tool}{A character string, either \code{"podman"} or \code{"docker"}.}
+\item{tool}{A character string naming the tool to check, e.g. \code{"podman"}
+or \code{"docker"}.}
 }
 \value{
 Logical. \code{TRUE} if the tool responded, \code{FALSE} otherwise.

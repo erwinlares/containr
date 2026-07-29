@@ -241,7 +241,7 @@ directly. Set `platform = NULL` to build for the host architecture instead.
 If the target platform differs from the host, a warning is emitted about
 potential QEMU emulation issues. Docker Desktop handles cross-platform builds
 more reliably than Podman's QEMU layer. If builds fail with segfaults under
-Podman, try `tool = "docker"` or build on a native x86_64 machine.
+Podman, try `tool_preference = "docker"` or build on a native x86_64 machine.
 
 The first build can take time because the container engine must download the
 base image and install the R package environment from scratch. Later builds are

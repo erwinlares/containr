@@ -18,8 +18,11 @@
 # Layer 2 -- Command construction
 #   Tests that the correct system command is assembled from the supplied
 #   arguments, using dry_run = TRUE and local_mocked_bindings() to intercept
-#   .resolve_tool() and .check_tool_responsive() without calling the real
-#   tool. These always run.
+#   .resolve_tool() without calling the real tool. These always run.
+#   (.resolve_tool() itself already checks installation and responsiveness,
+#   so build_image()/push_image()/list_images() no longer call
+#   .check_tool_responsive() separately -- see the .resolve_tool() section
+#   below for tests of that logic directly.)
 #
 # Layer 3 -- Integration
 #   Tests that call real system commands. Guarded with skip_if_not() so they
@@ -36,13 +39,17 @@ test_that("build_image() errors when dockerfile does not exist", {
     )
 })
 
-test_that("build_image() errors when tool is invalid", {
+test_that("build_image() errors when tool_preference names a tool that isn't installed", {
     tmp <- withr::local_tempdir()
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames("", x),
+        .package = "containr"
+    )
     expect_error(
-        build_image(tool = "singularity"),
-        regexp = "podman|docker"
+        build_image(tool_preference = "singularity"),
+        regexp = "not installed"
     )
 })
 
@@ -51,8 +58,7 @@ test_that("build_image() errors when platform is invalid", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_error(
@@ -66,8 +72,7 @@ test_that("build_image() accepts NULL platform without error", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_no_error(
@@ -80,8 +85,7 @@ test_that("build_image() returns invisible NULL", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     result <- suppressWarnings(build_image(dry_run = TRUE))
@@ -97,8 +101,7 @@ test_that("build_image() dry_run produces podman build command", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_message(
@@ -112,8 +115,7 @@ test_that("build_image() dry_run includes -f Dockerfile", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_message(
@@ -127,8 +129,7 @@ test_that("build_image() dry_run includes -t when tag is supplied", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_message(
@@ -142,8 +143,7 @@ test_that("build_image() dry_run omits -t when tag is NULL", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     msg <- capture.output(
@@ -158,8 +158,7 @@ test_that("build_image() dry_run includes --platform when platform is set", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_message(
@@ -173,8 +172,7 @@ test_that("build_image() dry_run omits --platform when platform is NULL", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     msg <- capture.output(
@@ -189,8 +187,7 @@ test_that("build_image() uses podman build with --platform for podman", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_message(
@@ -204,8 +201,7 @@ test_that("build_image() uses docker build for same-arch docker builds", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "docker",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "docker",
         .package = "containr"
     )
     # Build for the host architecture -- no cross-compilation
@@ -231,8 +227,7 @@ test_that("build_image() uses docker buildx build for cross-arch docker builds",
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "docker",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "docker",
         .package = "containr"
     )
     # Pick a platform that differs from the host
@@ -256,8 +251,7 @@ test_that("build_image() includes --load for docker buildx cross-arch builds", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "docker",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "docker",
         .package = "containr"
     )
     host_arch <- Sys.info()[["machine"]]
@@ -280,8 +274,7 @@ test_that("build_image() warns when cross-compiling", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     host_arch <- Sys.info()[["machine"]]
@@ -301,8 +294,7 @@ test_that("build_image() does not warn when building for host architecture", {
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     host_arch <- Sys.info()[["machine"]]
@@ -315,6 +307,65 @@ test_that("build_image() does not warn when building for host architecture", {
     expect_no_warning(
         build_image(platform = host_platform, dry_run = TRUE)
     )
+})
+
+# ---------------------------------------------------------------------------
+# build_image() -- Layer 3: integration (skip unless podman available)
+# ---------------------------------------------------------------------------
+#
+# Builds a real, tiny image (alpine, not an R image -- these tests exercise
+# build_image()'s own mechanics, not the R install path already covered by
+# generate_dockerfile()'s tests) and cleans it up afterward via on.exit(),
+# same as the local podman/docker store is left the way these tests found
+# it. Tagged with a random suffix so repeated local runs never collide with
+# a leftover image from a prior run.
+
+test_that("build_image() successfully builds a real image", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
+    skip_if_not(
+        nchar(.sys_which("podman")) > 0,
+        "podman not available on this system"
+    )
+
+    tmp <- withr::local_tempdir()
+    writeLines(c("FROM alpine:latest", "CMD [\"true\"]"), file.path(tmp, "Dockerfile"))
+    withr::local_dir(tmp)
+
+    test_tag <- paste0("containr-test-build-image:", as.integer(Sys.time()))
+    on.exit(system2("podman", args = c("rmi", "-f", test_tag), stdout = FALSE, stderr = FALSE), add = TRUE)
+
+    expect_no_error(
+        build_image(tag = test_tag, platform = NULL)
+    )
+
+    inspect_exit <- system2("podman", args = c("image", "inspect", test_tag), stdout = FALSE, stderr = FALSE)
+    expect_equal(inspect_exit, 0L)
+})
+
+test_that("build_image()'s output is visible to list_images()", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
+    skip_if_not(
+        nchar(.sys_which("podman")) > 0,
+        "podman not available on this system"
+    )
+
+    tmp <- withr::local_tempdir()
+    writeLines(c("FROM alpine:latest", "CMD [\"true\"]"), file.path(tmp, "Dockerfile"))
+    withr::local_dir(tmp)
+
+    test_tag <- paste0("containr-test-list-images:", as.integer(Sys.time()))
+    on.exit(system2("podman", args = c("rmi", "-f", test_tag), stdout = FALSE, stderr = FALSE), add = TRUE)
+
+    build_image(tag = test_tag, platform = NULL)
+
+    images <- list_images()
+    expect_true(any(grepl(sub(":.*$", "", test_tag), images$repository, fixed = TRUE)))
 })
 
 # ---------------------------------------------------------------------------
@@ -344,8 +395,7 @@ test_that("push_image() errors when project is NULL", {
 
 test_that("push_image() warns when tag is 'latest'", {
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     expect_message(
@@ -362,8 +412,7 @@ test_that("push_image() warns when tag is 'latest'", {
 
 test_that("push_image() returns invisible NULL on dry_run", {
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     result <- suppressMessages(push_image(
@@ -382,8 +431,7 @@ test_that("push_image() returns invisible NULL on dry_run", {
 
 test_that("push_image() dry_run produces podman tag command", {
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     msgs <- capture.output(
@@ -402,8 +450,7 @@ test_that("push_image() dry_run produces podman tag command", {
 
 test_that("push_image() dry_run produces podman push command", {
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     msgs <- capture.output(
@@ -422,8 +469,7 @@ test_that("push_image() dry_run produces podman push command", {
 
 test_that("push_image() assembles correct destination tag", {
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     msgs <- capture.output(
@@ -445,13 +491,73 @@ test_that("push_image() assembles correct destination tag", {
 })
 
 # ---------------------------------------------------------------------------
+# push_image() -- Layer 3: integration (skip unless podman, a real login,
+# and an explicit test destination are all available)
+# ---------------------------------------------------------------------------
+#
+# push_image() additionally needs a real login to registry.doit.wisc.edu and
+# a real GitLab project to push into -- neither of which this suite can
+# supply on its own, and neither of which should be guessed at or
+# hardcoded, since that risks pushing a test image to a project this test
+# wasn't actually told to use. Guarded by two more environment variables on
+# top of CONTAINR_INTEGRATION_TESTS:
+#
+#   CONTAINR_TEST_NETID    -- your UW-Madison NetID
+#   CONTAINR_TEST_PROJECT  -- a GitLab project you're willing to push a
+#                             throwaway test image to
+#
+# Run `podman login registry.doit.wisc.edu` once beforehand -- this test
+# does not attempt to authenticate for you.
+
+test_that("push_image() successfully pushes a real image to the registry", {
+    skip_if(
+        nchar(Sys.getenv("CONTAINR_INTEGRATION_TESTS")) == 0,
+        "Set CONTAINR_INTEGRATION_TESTS=true to run integration tests"
+    )
+    skip_if_not(
+        nchar(.sys_which("podman")) > 0,
+        "podman not available on this system"
+    )
+
+    test_netid   <- Sys.getenv("CONTAINR_TEST_NETID")
+    test_project <- Sys.getenv("CONTAINR_TEST_PROJECT")
+    skip_if(
+        nchar(test_netid) == 0 || nchar(test_project) == 0,
+        "Set CONTAINR_TEST_NETID and CONTAINR_TEST_PROJECT to run push_image() integration tests"
+    )
+
+    tmp <- withr::local_tempdir()
+    writeLines(c("FROM alpine:latest", "CMD [\"true\"]"), file.path(tmp, "Dockerfile"))
+    withr::local_dir(tmp)
+
+    build_tag <- paste0("containr-test-push-image:", as.integer(Sys.time()))
+    on.exit(system2("podman", args = c("rmi", "-f", build_tag), stdout = FALSE, stderr = FALSE), add = TRUE)
+    build_image(tag = build_tag, platform = NULL)
+
+    push_tag <- as.character(as.integer(Sys.time()))
+
+    expect_no_error(
+        push_image(
+            image_id = build_tag,
+            netid    = test_netid,
+            project  = test_project,
+            tag      = push_tag
+        )
+    )
+})
+
+# ---------------------------------------------------------------------------
 # list_images() -- Layer 1: argument validation
 # ---------------------------------------------------------------------------
 
-test_that("list_images() errors when tool is invalid", {
+test_that("list_images() errors when tool_preference names a tool that isn't installed", {
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames("", x),
+        .package = "containr"
+    )
     expect_error(
-        list_images(tool = "singularity"),
-        regexp = "podman|docker"
+        list_images(tool_preference = "singularity"),
+        regexp = "not installed"
     )
 })
 
@@ -496,8 +602,7 @@ test_that("list_images() returns a data frame even when no images exist", {
         "podman not available on this system"
     )
     local_mocked_bindings(
-        `.resolve_tool`          = function(...) "podman",
-        `.check_tool_responsive` = function(...) invisible(NULL),
+        `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
     # Mock system2 to return empty output
@@ -625,20 +730,122 @@ test_that(".resolve_tool() errors when both are installed but neither is respons
     )
 })
 
-test_that(".resolve_tool() errors when neither tool is installed", {
+test_that(".resolve_tool() errors when no candidate is installed", {
     local_mocked_bindings(
         `.sys_which` = function(x) setNames("", x),
         .package = "containr"
     )
     expect_error(
         .resolve_tool(),
-        regexp = "Neither.*found"
+        regexp = "None of.*found"
     )
 })
 
-test_that(".resolve_tool() errors with invalid tool name", {
+test_that(".resolve_tool() treats a single unrecognized tool as an explicit choice, not a rejected one", {
+    # tool_preference is intentionally permissive -- an unrecognized name
+    # like "singularity" is not rejected outright, it just isn't installed
+    # (per the mock below), same as any other explicit tool would be.
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames("", x),
+        .package = "containr"
+    )
     expect_error(
         .resolve_tool("singularity"),
-        regexp = "podman|docker"
+        regexp = "not installed"
+    )
+})
+
+# ---------------------------------------------------------------------------
+# .resolve_tool() -- tool_preference structural validation
+# ---------------------------------------------------------------------------
+
+test_that(".resolve_tool() rejects a non-character tool_preference", {
+    expect_error(.resolve_tool(123),  regexp = "non-empty character vector")
+    expect_error(.resolve_tool(TRUE), regexp = "non-empty character vector")
+})
+
+test_that(".resolve_tool() rejects an empty or NULL tool_preference", {
+    expect_error(.resolve_tool(character(0)), regexp = "non-empty character vector")
+    expect_error(.resolve_tool(NULL),         regexp = "non-empty character vector")
+})
+
+test_that(".resolve_tool() rejects a tool_preference containing NA", {
+    expect_error(.resolve_tool(c("podman", NA)), regexp = "non-empty character vector")
+})
+
+# ---------------------------------------------------------------------------
+# .resolve_tool() -- custom tool_preference order
+# ---------------------------------------------------------------------------
+
+test_that(".resolve_tool() honors a custom tool_preference order", {
+    local_mocked_bindings(
+        `.sys_which`     = function(x) setNames(paste0("/usr/bin/", x), x),
+        `.is_responsive` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_equal(.resolve_tool(c("docker", "podman")), "docker")
+})
+
+test_that(".resolve_tool() reports the exact custom tool_preference when nothing is found", {
+    local_mocked_bindings(
+        `.sys_which` = function(x) setNames("", x),
+        .package = "containr"
+    )
+    err <- tryCatch(
+        .resolve_tool(c("docker", "podman", "singularity")),
+        error = function(e) conditionMessage(e)
+    )
+    expect_match(err, "docker")
+    expect_match(err, "podman")
+    expect_match(err, "singularity")
+})
+
+# ---------------------------------------------------------------------------
+# .resolve_tool() -- generic fallback guidance for unrecognized tool names
+# ---------------------------------------------------------------------------
+
+test_that(".resolve_tool() gives generic guidance for an unrecognized tool that is installed but unresponsive", {
+    local_mocked_bindings(
+        `.sys_which`      = function(x) setNames("/usr/local/bin/apptainer", x),
+        `.is_responsive` = function(...) FALSE,
+        .package = "containr"
+    )
+    err <- tryCatch(
+        .resolve_tool("apptainer"),
+        error = function(e) conditionMessage(e)
+    )
+    expect_match(err, "apptainer")
+    expect_match(err, "not responsive")
+})
+
+# ---------------------------------------------------------------------------
+# .check_tool_responsive() -- internal helper
+# ---------------------------------------------------------------------------
+
+test_that(".check_tool_responsive() is silent when the tool responds", {
+    local_mocked_bindings(
+        `.is_responsive` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_no_error(.check_tool_responsive("podman"))
+})
+
+test_that(".check_tool_responsive() gives specific guidance for docker and podman", {
+    local_mocked_bindings(
+        `.is_responsive` = function(...) FALSE,
+        .package = "containr"
+    )
+    expect_error(.check_tool_responsive("docker"), regexp = "daemon is not running")
+    expect_error(.check_tool_responsive("podman"), regexp = "not responsive")
+})
+
+test_that(".check_tool_responsive() falls back to generic guidance for other tools", {
+    local_mocked_bindings(
+        `.is_responsive` = function(...) FALSE,
+        .package = "containr"
+    )
+    expect_error(
+        .check_tool_responsive("apptainer"),
+        regexp = "Start the apptainer daemon"
     )
 })

@@ -8,7 +8,7 @@ build_image(
   dockerfile = "Dockerfile",
   tag = NULL,
   platform = "linux/amd64",
-  tool = NULL,
+  tool_preference = c("podman", "docker"),
   dry_run = FALSE,
   verbose = FALSE,
   comments = FALSE
@@ -29,10 +29,10 @@ used by most HPC and HTC clusters. Set to \code{"linux/arm64"} for ARM-based
 systems (Apple Silicon, AWS Graviton). Set to \code{NULL} to let the
 container tool build for the host architecture.}
 
-\item{tool}{A character string or \code{NULL}. The container tool to use for
-building. One of \code{"podman"} or \code{"docker"}. If \code{NULL} (the default),
-the function auto-detects which tool is available, preferring \code{podman}
-if both are found.}
+\item{tool_preference}{A non-empty character vector of container tools to
+try, in order. Defaults to \code{c("podman", "docker")} -- Podman first, then
+Docker. Supply a single value (e.g. \code{"docker"}) to require that specific
+tool rather than auto-detecting.}
 
 \item{dry_run}{Logical. If \code{TRUE}, prints the command that would be run
 without executing it. Useful for verifying the command before committing
@@ -52,8 +52,8 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 \description{
 \code{build_image()} builds a container image from a \code{Dockerfile} using either
 \code{podman} or \code{docker}. It auto-detects which tool is available on the system
-unless \code{tool} is specified explicitly. Use \code{dry_run = TRUE} to preview the
-exact command that would be run without executing it.
+unless \code{tool_preference} is set to a single value. Use \code{dry_run = TRUE} to
+preview the exact command that would be run without executing it.
 }
 \details{
 When the target \code{platform} differs from the host architecture (e.g.
@@ -86,7 +86,7 @@ cross-platform builds more reliably via \code{buildx} and Rosetta 2.
 
 If builds fail with QEMU segfaults, consider:
 \itemize{
-\item Using Docker Desktop instead of Podman (\code{tool = "docker"})
+\item Using Docker Desktop instead of Podman (\code{tool_preference = "docker"})
 \item Building on a native x86_64 machine (e.g. via GitHub Actions)
 \item Building directly on the target cluster if it supports container builds
 }

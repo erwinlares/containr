@@ -418,6 +418,12 @@ server), rocker-versioned2 README and `install_shiny_server.sh`
 
 ### Phase 3 -- tool-resolution cleanup + Layer 3 test backfill
 
+**Status: implemented (Session 6), not yet run through
+`devtools::test()`/`check()`.** Grew to include the `tool_preference`
+redesign (open design question 5, originally deferred beyond v0.2.0 -- see
+below) once Erwin asked to tackle it in the same sitting as the Phase 3
+cleanup, since both touch `.resolve_tool()` directly.
+
 `.resolve_tool()`'s auto-detect path already falls through from Podman to
 Docker correctly -- confirmed by reading `container-helpers.R` directly,
 not just the roadmap's summary of it. `.check_tool_responsive()`'s own
@@ -438,6 +444,56 @@ Layer 3 tests.
 
 This is the cheapest, lowest-risk phase in the plan, and doubles as a
 checkpoint that Phases 1-2 didn't disturb tool resolution anywhere.
+
+**`tool_preference` redesign, folded in from the deferred item below.**
+`.resolve_tool(tool = NULL)` (single explicit tool, or `NULL` for
+hardcoded Podman-then-Docker auto-detect) is replaced by
+`.resolve_tool(tool_preference = c("podman", "docker"))` -- a non-empty
+character vector, tried in order. Length 1 behaves like the old explicit
+`tool` argument; length > 1 is the auto-detect path, now walking whatever
+order is supplied instead of a hardcoded `valid_tools`. `tool = NULL` has
+no direct equivalent kept: passing `NULL` to `tool_preference` now fails
+structural validation (must be non-empty character, no `NA`) rather than
+meaning "auto-detect," since auto-detect is now expressed by supplying
+more than one candidate instead of by the sentinel value `NULL`. Confirmed
+as an acceptable breaking change under the same reasoning as `tidystudio`
+-- `containr` is still `0.y.z`.
+
+**Confirmed permissive rather than validated against a fixed tool list**
+(Erwin's call, looking ahead to Phase 5): `tool_preference` accepts any
+string, so Phase 5 adding `"singularity"`/`"apptainer"` support needs no
+matching validation change here. The tradeoff: `match.arg()`-style
+rejection of typos is gone, replaced by the same "not installed" error a
+correctly-spelled-but-absent tool would get. Structural validation (must
+be a non-empty character vector, no missing values) stays, since that's a
+contract violation rather than a judgment call about which tool names are
+legitimate.
+
+**Error messages generalized, not just validation.** A new shared
+`.abort_tool_not_responsive()` helper keeps Docker's and Podman's existing
+specific troubleshooting text, and falls back to generic guidance
+(*"Start the `<tool>` daemon or service and try again"*) for any other
+tool name -- avoids handing out Docker-specific `systemctl` instructions
+for a tool that isn't Docker, which permissive validation would otherwise
+risk doing silently.
+
+**Also renamed:** `tool` -> `tool_preference` on `build_image()`,
+`push_image()`, and `list_images()` themselves (not just
+`.resolve_tool()`), passed straight through. Updated `README.md` and
+`containr-workflow.Rmd` where they showed `tool = "docker"` as a usage
+example -- these were left broken by the rename otherwise, not deferred to
+Phase 7 like the rest of the documentation pass.
+
+**Layer 3 backfill, as implemented:** `build_image()` builds a real, tiny
+`alpine` image (not an R image -- these tests exercise `build_image()`'s
+own mechanics, already-covered R install path stays with
+`generate_dockerfile()`'s tests) and cleans it up via `on.exit()`.
+`push_image()`'s test additionally requires two new environment variables,
+`CONTAINR_TEST_NETID` and `CONTAINR_TEST_PROJECT`, rather than hardcoding a
+destination -- pushing to a guessed-at or documentation-placeholder
+project (`erwin.lares`/`container-registry`) risked the test silently
+landing somewhere it wasn't actually told to go. Documented in
+`on-testing.md` and `CONTRIBUTING.md`.
 
 ---
 
@@ -487,10 +543,12 @@ work by roughly an order of magnitude depending on which side it lands on:
   syntax, and is a substantially larger effort.
 
 Once the model is decided, the entry point for the smaller option is
-adding `"singularity"`/`"apptainer"` as valid `tool` values in
-`.resolve_tool()`; for the larger option it's a `format` argument plus a
-sibling code path to the existing `lines` list construction in
-`generate_dockerfile()`.
+adding `"singularity"`/`"apptainer"` as candidates in
+`tool_preference`'s default -- `.resolve_tool()` itself needs no change,
+since it already accepts any tool name (Phase 3's `tool_preference`
+redesign was deliberately permissive with exactly this in mind); for the
+larger option it's a `format` argument plus a sibling code path to the
+existing `lines` list construction in `generate_dockerfile()`.
 
 ---
 
@@ -532,13 +590,14 @@ followed by `usethis::use_github_release()` ->
 
 ### Deferred beyond v0.2.0
 
-Two items from the original roadmap that weren't part of this round and
-don't block anything above:
+One item from the original roadmap that wasn't part of this round and
+doesn't block anything above:
 
 - **`containerize()` convenience wrapper** (open design question 1) --
   doesn't touch `r_mode` or anything else in this plan; fine to pick up
   independently whenever.
-- **`.resolve_tool()` preference-order argument** (open design question 5)
-  -- distinct from the Phase 3 cleanup; `tool_preference = c("podman",
-  "docker")` as a configurable order rather than a hardcoded one. Small,
-  but not requested this round.
+
+`.resolve_tool()`'s preference-order argument (open design question 5),
+previously listed here, is no longer deferred -- implemented as part of
+Phase 3 above, since Erwin asked to tackle it alongside the Phase 3
+cleanup rather than hold it for later.

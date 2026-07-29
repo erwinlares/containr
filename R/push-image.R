@@ -3,7 +3,8 @@
 #' `push_image()` tags a locally built container image with a full registry
 #' path and pushes it to a container registry. It handles both the
 #' `podman tag` and `podman push` steps in a single call. Auto-detects
-#' which container tool is available unless `tool` is specified explicitly.
+#' which container tool is available unless `tool_preference` is set to a
+#' single value.
 #' Use `dry_run = TRUE` to preview the exact commands without executing them.
 #' The format for the is registry.doit.wisc.edu/<netid>/<image-name>:<version>
 
@@ -22,9 +23,10 @@
 #'   every push.
 #' @param registry A character string. The registry hostname. Defaults to
 #'   `"registry.doit.wisc.edu"` (UW-Madison CHTC).
-#' @param tool A character string or `NULL`. The container tool to use. One
-#'   of `"podman"` or `"docker"`. If `NULL` (the default), the function
-#'   auto-detects which tool is available, preferring `podman`.
+#' @param tool_preference A non-empty character vector of container tools to
+#'   try, in order. Defaults to `c("podman", "docker")` -- Podman first, then
+#'   Docker. Supply a single value (e.g. `"docker"`) to require that specific
+#'   tool rather than auto-detecting.
 #' @param check_login Logical. If `TRUE` (the default), verifies that you
 #'   are logged in to `registry` before attempting the push. If not logged
 #'   in, the function errors with instructions on how to authenticate.
@@ -100,16 +102,16 @@
 #'   comments = TRUE
 #' )
 #' }
-push_image <- function(image_id    = NULL,
-                       netid       = NULL,
-                       project     = NULL,
-                       tag         = "latest",
-                       registry    = "registry.doit.wisc.edu",
-                       tool        = NULL,
-                       check_login = TRUE,
-                       dry_run     = FALSE,
-                       verbose     = FALSE,
-                       comments    = FALSE) {
+push_image <- function(image_id        = NULL,
+                       netid            = NULL,
+                       project          = NULL,
+                       tag              = "latest",
+                       registry         = "registry.doit.wisc.edu",
+                       tool_preference  = c("podman", "docker"),
+                       check_login      = TRUE,
+                       dry_run          = FALSE,
+                       verbose          = FALSE,
+                       comments         = FALSE) {
 
     # -- 1. Validate required arguments ----------------------------------------
     if (is.null(image_id)) {
@@ -154,13 +156,12 @@ push_image <- function(image_id    = NULL,
         cli::cli_inform("Destination: {.val {destination}}")
     }
 
-    # -- 4. Resolve tool -------------------------------------------------------
-    resolved_tool <- .resolve_tool(tool)
+    # -- 4. Resolve tool ---------------------------------------------------------
+    # .resolve_tool() already checks installation and responsiveness, so no
+    # separate .check_tool_responsive() call is needed here.
+    resolved_tool <- .resolve_tool(tool_preference)
 
-    # -- 5. Check tool is responsive -------------------------------------------
-    .check_tool_responsive(resolved_tool)
-
-    # -- 6. Check login --------------------------------------------------------
+    # -- 5. Check login --------------------------------------------------------
     if (check_login) {
         if (comments) {
             cli::cli_inform(c(
@@ -204,14 +205,14 @@ push_image <- function(image_id    = NULL,
         if (verbose) cli::cli_inform("Login verified for {.val {registry}}.")
     }
 
-    # -- 7. Assemble commands --------------------------------------------------
+    # -- 6. Assemble commands --------------------------------------------------
     tag_args  <- c("tag",  image_id, destination)
     push_args <- c("push", destination)
 
     tag_cmd  <- paste(resolved_tool, paste(tag_args,  collapse = " "))
     push_cmd <- paste(resolved_tool, paste(push_args, collapse = " "))
 
-    # -- 8. Execute or preview -------------------------------------------------
+    # -- 7. Execute or preview -------------------------------------------------
     if (comments) {
         cli::cli_inform(c(
             "i" = "Step 1: {.strong tag} assigns the full registry path to your",
@@ -239,7 +240,7 @@ push_image <- function(image_id    = NULL,
         return(invisible(NULL))
     }
 
-    # -- 9. Tag ----------------------------------------------------------------
+    # -- 8. Tag ----------------------------------------------------------------
     if (verbose) cli::cli_inform("Tagging image: {.code {tag_cmd}}")
 
     tag_exit <- system2(resolved_tool, args = tag_args)
@@ -255,7 +256,7 @@ push_image <- function(image_id    = NULL,
 
     if (verbose) cli::cli_inform("Image tagged as {.val {destination}}.")
 
-    # -- 10. Push --------------------------------------------------------------
+    # -- 9. Push --------------------------------------------------------------
     if (verbose) cli::cli_inform("Pushing image: {.code {push_cmd}}")
 
     push_exit <- system2(resolved_tool, args = push_args)
