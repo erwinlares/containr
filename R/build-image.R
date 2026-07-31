@@ -61,8 +61,9 @@
 #' - Building on a native x86_64 machine (e.g. via GitHub Actions)
 #' - Building directly on the target cluster if it supports container builds
 #'
-#' @section Tagging convention for CHTC:
-#' For UW-Madison CHTC, the full tag format is:
+#' @section Tagging convention for the DoIT GitLab Container Registry:
+#' For UW-Madison's DoIT GitLab Container Registry (the registry `push_image()`
+#' currently supports), the full tag format is:
 #' `registry.doit.wisc.edu/<netid>/<image-name>:<version>`
 #'
 #' For example: `registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0`
@@ -78,7 +79,7 @@
 #' # Build for linux/amd64 (default) with auto-detected tool
 #' build_image()
 #'
-#' # Build and tag for CHTC registry
+#' # Build and tag for the DoIT GitLab Container Registry
 #' build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
 #'
 #' # Build for the host architecture (no --platform flag)

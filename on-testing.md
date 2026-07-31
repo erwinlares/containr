@@ -220,7 +220,6 @@ tests require cannot be met on CRAN or GitHub Actions:
 
 - `podman` and `docker` are not installed on CRAN's check servers
 - There is no container daemon running
-- There is no CHTC account or active session on a CHTC submit node
 - There are no credentials for `registry.doit.wisc.edu` — no PAT, no
   cached login
 - Network access to `registry.doit.wisc.edu` is not available from
@@ -233,10 +232,10 @@ environment is absent. From CRAN's perspective, a skipped test is acceptable;
 a failed test is not.
 
 GitHub Actions has the same constraints. The CI workflow runs on
-`ubuntu-latest` runners that have no container tools, no CHTC credentials,
-and no registry access. Layers 1 and 2 run there and provide meaningful
-coverage. Layer 3 is reserved for local pre-release verification, where all
-the necessary conditions can actually be met.
+`ubuntu-latest` runners that have no container tools, no registry
+credentials, and no registry access. Layers 1 and 2 run there and provide
+meaningful coverage. Layer 3 is reserved for local pre-release
+verification, where all the necessary conditions can actually be met.
 
 ---
 

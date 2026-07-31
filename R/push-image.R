@@ -22,7 +22,8 @@
 #'   is recommended for reproducibility -- `"latest"` is overwritten on
 #'   every push.
 #' @param registry A character string. The registry hostname. Defaults to
-#'   `"registry.doit.wisc.edu"` (UW-Madison CHTC).
+#'   `"registry.doit.wisc.edu"`, UW-Madison DoIT's GitLab Container
+#'   Registry -- the only registry `push_image()` currently supports.
 #' @param tool_preference A non-empty character vector of container tools to
 #'   try, in order. Defaults to `c("podman", "docker")` -- Podman first, then
 #'   Docker. Supply a single value (e.g. `"docker"`) to require that specific
@@ -70,7 +71,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Tag and push an image to the CHTC registry
+#' # Tag and push an image to the DoIT GitLab Container Registry
 #' push_image(
 #'   image_id = "974123909a36",
 #'   netid    = "erwin.lares",

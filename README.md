@@ -252,7 +252,7 @@ parts of the `Dockerfile` have not changed.
 # Build for linux/amd64 (default) -- suitable for CHTC and most clusters
 build_image(verbose = TRUE)
 
-# Build and tag for the CHTC registry
+# Build and tag for the DoIT GitLab Container Registry
 build_image(
   tag = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"
 )
@@ -303,7 +303,7 @@ including how to create a Personal Access Token with the right scopes, is here:
 <https://git.doit.wisc.edu/ERWIN.LARES/container-registry>
 
 ```r
-# Push to the UW-Madison CHTC registry
+# Push to UW-Madison's DoIT GitLab Container Registry
 push_image(
   image_id = imgs$image_id[1],
   netid    = "your.netid",

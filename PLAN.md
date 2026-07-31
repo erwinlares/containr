@@ -20,7 +20,11 @@ scheduling, and results retrieval belong in `submitr`.
   `0.1.3.9000` until the `containr-modes-0.2.0` branch below merges,
   targeting `0.2.0`)
 - License: Apache 2.0
-- Registry target: UW-Madison CHTC (`registry.doit.wisc.edu`) by default
+- Registry target: UW-Madison DoIT's GitLab Container Registry
+  (`registry.doit.wisc.edu`) by default -- the only registry `push_image()`
+  currently supports. containr's role ends at the push; CHTC pulls from
+  this registry independently, later, when a submitted job runs -- it has
+  no direct relationship to containr.
 - Container tool: `podman` preferred, `docker` supported
 
 ---
@@ -28,10 +32,10 @@ scheduling, and results retrieval belong in `submitr`.
 ## Relationship to sibling packages
 
 ```
-toolero     -- research workflow toolkit (CRAN)
-containr    -- containerization toolkit (CRAN, dev)
-curriculr   -- CV generation toolkit (CRAN pending)
-submitr     -- HTC job submission toolkit (in development)
+toolero     -- research workflow toolkit (CRAN 0.4.0, dev)
+containr    -- containerization toolkit (CRAN 0.1.3, dev)
+curriculr   -- CV generation toolkit (CRAN 0.3.0, dev)
+submitr     -- HTC job submission toolkit (CRAN 0.1.0, dev)
 ```
 
 The full workflow:
@@ -517,7 +521,8 @@ Two concrete findings from reading `push-image.R` directly:
   or `quay.io/ORG/REPO:tag`. So this isn't a new assembly scheme -- it's
   the login-check fix above, plus deciding how `netid` gets generalized in
   name and docs (a GitHub username typed into an argument called `netid`
-  reads oddly) without breaking existing CHTC callers.
+  reads oddly) without breaking existing callers of the DoIT GitLab
+  registry.
 
 **Open before this phase starts:** exact form of the `netid` generalization
 -- rename with a backward-compatible alias, or keep the name and just
@@ -562,8 +567,9 @@ testing infrastructure, untouched by this phase. This is a clean net-new
 
 Sequenced after Phases 4 and 5 so the workflow targets whatever tool/
 registry surface actually exists by then, rather than being built against
-CHTC-only and reworked twice. Solves the Apple Silicon QEMU problem from
-Session 4 by running on a native `x86_64` GitHub-hosted runner.
+the DoIT GitLab registry only and reworked twice. Solves the Apple Silicon
+QEMU problem from Session 4 by running on a native `x86_64` GitHub-hosted
+runner.
 
 Resolves open design question 4: does `build_image()` grow a
 `github_actions = TRUE` mode that generates and triggers a workflow file,
