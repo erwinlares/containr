@@ -27,9 +27,9 @@
 #' ```r
 #' imgs <- list_images()
 #' push_image(
-#'   image_id = imgs$image_id[1],
-#'   netid    = "erwin.lares",
-#'   project  = "container-registry"
+#'   image_id  = imgs$image_id[1],
+#'   namespace = "erwin.lares",
+#'   project   = "container-registry"
 #' )
 #' ```
 #'

@@ -503,6 +503,9 @@ landing somewhere it wasn't actually told to go. Documented in
 
 ### Phase 4 -- additional registry support (`ghcr.io`, `quay.io`)
 
+**Status: implemented (Session 6), not yet run through
+`devtools::test()`/`check()`.**
+
 Resolves open design question 2 (registry argument vs. separate
 registry-specific functions).
 
@@ -512,23 +515,90 @@ Two concrete findings from reading `push-image.R` directly:
   `system2(resolved_tool, args = c("login", "--get-login", registry), ...)`
   -- `--get-login` is a Podman-only flag; under Docker this always
   misbehaves (exit code 125), which is why `check_login = FALSE` exists as
-  a workaround today. Fix: parse `~/.docker/config.json` for the registry
-  entry when the tool is Docker, or attempt a lightweight authenticated
-  operation and catch the failure.
+  a workaround today.
 - **The destination-path shape already generalizes.**
   `destination <- glue::glue("{registry}/{netid}/{project}:{tag}")` is
   structurally the same three-segment pattern as `ghcr.io/OWNER/IMAGE:tag`
-  or `quay.io/ORG/REPO:tag`. So this isn't a new assembly scheme -- it's
-  the login-check fix above, plus deciding how `netid` gets generalized in
-  name and docs (a GitHub username typed into an argument called `netid`
-  reads oddly) without breaking existing callers of the DoIT GitLab
-  registry.
+  or `quay.io/ORG/REPO:tag` -- confirmed against both registries' actual
+  docs, not assumed. So this isn't a new assembly scheme -- it's the
+  login-check fix, plus the `netid` naming decision.
 
-**Open before this phase starts:** exact form of the `netid` generalization
--- rename with a backward-compatible alias, or keep the name and just
-broaden the documentation? Also needs new Layer 3 coverage for the new
-registries, likely mocked rather than hitting live `ghcr.io`/`quay.io` in
-CI.
+**`netid` -> `namespace`, no alias.** Settled after weighing two options:
+rename with a `lifecycle`-backed deprecation alias, or keep `netid` and
+just broaden the documentation. Went with a clean rename, consistent with
+`tidystudio` -> `verse` and `tool` -> `tool_preference` earlier this
+release -- same reasoning each time: `containr` is still `0.y.z`, and a
+`lifecycle` dependency for one argument on one function would be the first
+time this release added that machinery, for something less central than
+either of those two prior renames. `namespace` specifically (not, say,
+`account` or `owner`) because it's the term `ghcr.io`'s own docs use for
+this exact path segment ("Replace NAMESPACE with the name of the personal
+account or organization..."), not a name containr invented. Also updated
+`build_image()`'s tagging-convention docs and examples, and
+`list_images()`'s cross-referencing example, since both used `<netid>` as
+illustrative text even though neither function has a `netid` argument of
+its own. The `CONTAINR_TEST_NETID` env var Phase 3 introduced for
+`push_image()`'s Layer 3 test was renamed to `CONTAINR_TEST_NAMESPACE` for
+the same reason -- it was brand new that same session, so there was no
+real-world usage to preserve compatibility with.
+
+**Login-check fix, as implemented.** New `.is_logged_in(tool, registry)` in
+`container-helpers.R`: Podman keeps its native `--get-login` flag; Docker
+(and, permissively, any other `tool_preference` value, matching
+`.resolve_tool()`'s own permissiveness) falls back to a new
+`.docker_config_has_auth()` helper that reads `~/.docker/config.json`
+directly and checks for a matching key under `auths` -- the standard way
+tooling checks this, since Docker has no query subcommand for "am I logged
+in to X." Confirmed this works correctly even when a per-registry
+`credHelpers` entry is configured, since `docker login` still writes a
+marker entry under `auths` in that case. Acknowledged, not silently
+glossed over: this can't detect a login set up entirely through a global
+`credsStore` (as opposed to a per-registry `credHelpers` entry), since
+Docker defers entirely to the external store for those without writing
+anything to `auths` -- a narrow, documented gap. `jsonlite` was already a
+declared dependency (used elsewhere in the package), so no new dependency
+was needed for the config-file parsing.
+
+**Login guidance generalized alongside the fix, not just the check.** The
+pre-push `comments` message and the not-logged-in error both branch on
+whether `registry` is the known default: `registry.doit.wisc.edu` keeps
+its existing specific PAT-creation instructions (NetID, PAT scopes, the
+DoIT auth guide URL); any other registry gets generic guidance pointing at
+that registry's own documentation instead of DoIT-specific instructions
+that would be wrong for it. New `.registry_pat_guidance` lookup in
+`push-image.R`, mirroring `.abort_tool_not_responsive()`'s known-tool/
+generic-fallback pattern from Phase 3.
+
+**Test coverage gap closed.** Before this phase, every existing
+`push_image()` test used `check_login = FALSE` to bypass the login check
+entirely -- meaning the `--get-login` bug itself had zero test coverage,
+at any layer, before it was ever fixed. Added direct unit tests for
+`.docker_config_has_auth()` and `.is_logged_in()`, plus `push_image()`-level
+tests exercising `check_login = TRUE` against both the known-registry and
+generic-registry guidance branches.
+
+**Also fixed in passing:** a pre-existing typo in `push_image()`'s
+top-level roxygen description ("The format for the is
+registry.doit.wisc.edu/...") -- likely a leftover from an earlier edit,
+unrelated to this phase's actual scope but caught while touching the same
+lines.
+
+**Not done this phase, flagged rather than silently skipped:**
+`diagrams.qmd` (the internal component-diagram reference doc) is stale in
+several ways beyond the `netid` rename caught and fixed here -- it still
+shows `.resolve_tool(tool)` (pre-`tool_preference`), a
+`.check_tool_responsive()` call Phase 3 removed, and the `--get-login`
+call this phase just replaced, including a "known gaps" table that
+actually predicted this exact bug and the missing test coverage before
+either was fixed. A full rewrite of that document is a substantial
+standalone task -- diagram flows, helper references, and the gaps table
+all need updating throughout -- and doesn't belong folded into this
+rename in passing. Reasonable candidate for Phase 7 or its own pass.
+
+New Layer 3 coverage for `ghcr.io`/`quay.io` themselves (as opposed to the
+generalized login-check logic, which is covered) is still open --
+`PLAN.md`'s original note about mocking rather than hitting live
+registries in CI still applies, and no such tests were added this phase.
 
 ---
 

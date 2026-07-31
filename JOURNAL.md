@@ -917,3 +917,157 @@ test run in this session, unlike the min_r_version work earlier in Session
   Phase 5's entry point description was updated to reflect that
   `tool_preference` no longer needs a matching change when Singularity/
   Apptainer support lands.
+
+## Session 6 (continued) — Phase 4: netid -> namespace, --get-login fix
+
+### Terminology correction, ahead of Phase 4 itself
+
+Before touching any code, corrected a factual error that had crept into
+several places this session (and predated it): `registry.doit.wisc.edu`
+was repeatedly described as "UW-Madison CHTC" or "the CHTC registry" --
+`PLAN.md`'s package-identity line, two `README.md` example comments,
+`push-image.R` and `build-image.R`'s roxygen, and `on-testing.md`. Erwin
+corrected this twice, precisely: first, that there is no CHTC-owned
+registry -- `registry.doit.wisc.edu` is UW-Madison DoIT's GitLab instance's
+container registry, unrelated to CHTC as an owner. Second, that the
+relationship isn't "containr talks to CHTC" at all -- `push_image()`'s job
+ends at the registry; CHTC pulls from that registry independently, later,
+when a submitted job runs, with no direct relationship to containr in
+between. Swept every file in the repo (not just the ones already
+flagged) for "CHTC" and fixed six real mislabels across five files,
+leaving alone every legitimate CHTC reference (submitr's role, execution-
+architecture rationale, "CHTC-oriented workflow" framing) -- confirmed by
+reading each remaining hit in context rather than blanket-replacing the
+string. Also removed a stray "no CHTC account or active session on a CHTC
+submit node" bullet from `on-testing.md` that never applied to containr's
+own Layer 3 tests in the first place (that's a `submitr` concern, not
+something `build_image()`/`push_image()`/`list_images()` need).
+
+### The `netid` -> `namespace` decision
+
+Erwin: continue in the spirit of fixing things now, early, rather than
+carrying a misleading name forward. Asked what a better general name would
+be. Checked rather than guessed: `ghcr.io`'s own docs literally say
+*"Replace NAMESPACE with the name of the personal account or
+organization..."* for this exact path segment -- so `namespace` isn't
+containr inventing vocabulary, it's adopting the term the registries
+themselves already use. No alias kept, same reasoning as `tidystudio` and
+`tool_preference` earlier this release: `containr` is still `0.y.z`, and a
+`lifecycle` dependency for one argument would be new machinery for
+something less central than either of those two renames.
+
+Renamed everywhere: `push_image()`'s signature, validation, roxygen,
+`@examples` (plus a new `ghcr.io` example demonstrating the
+generalization); `build_image()` and `list_images()`'s illustrative
+`<netid>` text, even though neither function has a `netid` argument of its
+own; the test suite (with column alignment preserved -- `netid` + 7 spaces
+and `namespace` + 3 spaces both land on column 12, confirmed before doing
+a bulk `sed` rather than assumed); `README.md`; the vignette;
+`on-testing.md`; `CONTRIBUTING.md`. Also renamed
+`CONTAINR_TEST_NETID` -> `CONTAINR_TEST_NAMESPACE` (the Layer 3 test env
+var Phase 3 introduced this same session) for the same consistency reason
+-- it was new enough that there was no real adoption to preserve
+compatibility with.
+
+Caught one thing along the way: `.registry_pat_guidance` (the new
+registry-guidance lookup table, see below) was initially placed between
+`push_image()`'s roxygen block and the function definition. roxygen2
+attaches a doc block to the *next* object it finds -- that placement would
+have silently attached all of `push_image()`'s documentation to the
+internal list instead of the function. Caught by re-reading the file
+structure rather than by running `document()` (not available this
+session, per Erwin's standing instruction); moved the lookup table above
+the roxygen block, matching where `.tool_install_urls` and
+`.r_mode_registry` already sit relative to the functions that use them.
+
+### The `--get-login` fix
+
+New `.is_logged_in(tool, registry)` in `container-helpers.R`. Podman keeps
+its native `--get-login` flag (works correctly, no bug there). Docker gets
+a new `.docker_config_has_auth()` fallback that reads
+`~/.docker/config.json` directly and checks for the registry under
+`auths` -- the standard approach, since Docker itself has no query
+subcommand for "am I logged in to X." Verified this works correctly even
+with a per-registry `credHelpers` entry configured, since `docker login`
+still writes a marker entry under `auths` in that case (checked against
+how Docker's credential-helper mechanism actually behaves, not assumed).
+Documented, rather than silently left as a gap: a global `credsStore` (as
+opposed to per-registry `credHelpers`) defers entirely to the external
+store without writing to `auths` at all, so that specific setup can't be
+detected by this check -- a narrow, acknowledged limitation, not a
+comprehensive credential-helper implementation.
+
+`jsonlite` was already a declared dependency (used elsewhere in the
+package for the sysreqs API), so no new dependency was needed for the
+config-file parsing.
+
+**Login guidance made registry-aware too, not just the check.** The old
+code hardcoded DoIT-specific PAT-creation instructions (NetID, PAT scopes,
+`git.doit.wisc.edu` URLs) into both the pre-push `comments` message and
+the not-logged-in error, regardless of what `registry` was actually set
+to -- which would have been actively wrong advice for anyone pushing to
+`ghcr.io` or `quay.io` once Phase 4 made that a real, working option. New
+`.registry_pat_guidance` lookup in `push-image.R`: known registries
+(currently just the default) keep specific instructions, anything else
+gets generic guidance pointing at that registry's own docs. Mirrors
+`.abort_tool_not_responsive()`'s known-tool/generic-fallback shape from
+Phase 3 exactly -- same problem shape (a hardcoded assumption baked into
+error messages that permissive/generalized input would silently violate),
+same fix pattern.
+
+### Test coverage gap, closed
+
+Went looking for existing tests of the login-check path before writing new
+ones, expecting to need to update a few. Found none at any layer -- every
+prior `push_image()` test used `check_login = FALSE` specifically to
+bypass this code path, which meant the `--get-login` bug had zero test
+coverage the entire time it existed. Added direct unit tests for
+`.docker_config_has_auth()` (file missing, malformed JSON, registry
+present/absent under `auths`) and `.is_logged_in()` (Podman's native path,
+Docker's fallback, an unrecognized-tool fallback matching
+`.resolve_tool()`'s own permissiveness), plus `push_image()`-level tests
+exercising `check_login = TRUE` against both guidance branches and
+confirming `check_login = FALSE` still skips the check entirely (that last
+test deliberately does *not* mock `.is_logged_in()`, so it would fail with
+a real, environment-dependent `system2()` call if `push_image()` ever
+called it despite the flag).
+
+### Also fixed in passing
+
+A pre-existing typo in `push_image()`'s top-level roxygen ("The format for
+the is registry.doit.wisc.edu/...") -- unrelated to this phase, caught
+while already editing the same lines for the `namespace` rename.
+
+### Flagged, not fixed: `diagrams.qmd`
+
+While sweeping for `netid`, found `diagrams.qmd` (the internal component-
+diagram reference doc) is a pre-Phase-3 snapshot in several other ways
+too: it still shows `.resolve_tool(tool)`, a `.check_tool_responsive()`
+call Phase 3 deleted, and the exact `--get-login` call this phase just
+replaced -- including a "known gaps" table that, read now, reads as having
+accurately predicted both the bug and the missing test coverage before
+either was addressed. Fixed the three literal `netid` occurrences (clearly
+in scope of this session's rename), but did not attempt a full rewrite --
+updating every diagram flow, helper reference, and the gaps table
+throughout is a substantial standalone task, not something to fold into a
+rename in passing. Flagged to Erwin directly rather than either silently
+leaving it stale or unilaterally taking on a much larger rewrite than
+asked for.
+
+### Not run this session
+
+Same standing instruction as the rest of Session 6: no `devtools::test()`/
+`document()`/`check()` run here. Syntax-checked every edited `.R` file
+with `parse()`; swept the whole repo for stray `netid`/`NETID` references
+after each batch of edits rather than trusting a single pass. Full files
+handed back for Erwin's own toolchain.
+
+### Open, carried forward
+
+- `diagrams.qmd`'s broader staleness (above) -- not scoped to a specific
+  phase yet; reasonable candidate for Phase 7 or its own pass.
+- New Layer 3 coverage for `ghcr.io`/`quay.io` themselves, as distinct
+  from the generalized login-check logic (which is covered) -- `PLAN.md`'s
+  original note about mocking rather than hitting live registries in CI
+  still applies, and no such tests were added this phase.
+- Same Phase 5-7 items from earlier Session 6 entries, unchanged.

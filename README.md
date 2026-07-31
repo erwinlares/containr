@@ -146,7 +146,7 @@ imgs <- list_images()
 # 4. Push the image to the registry
 push_image(
   image_id = imgs$image_id[1],
-  netid    = "your.netid",
+  namespace = "your.netid",
   project  = "my-analysis",
   tag      = "1.0.0"
 )
@@ -306,7 +306,7 @@ including how to create a Personal Access Token with the right scopes, is here:
 # Push to UW-Madison's DoIT GitLab Container Registry
 push_image(
   image_id = imgs$image_id[1],
-  netid    = "your.netid",
+  namespace = "your.netid",
   project  = "my-analysis",
   tag      = "1.0.0"
 )
@@ -314,7 +314,7 @@ push_image(
 # Preview the tag and push commands without running them
 push_image(
   image_id = imgs$image_id[1],
-  netid    = "your.netid",
+  namespace = "your.netid",
   project  = "my-analysis",
   tag      = "1.0.0",
   dry_run  = TRUE

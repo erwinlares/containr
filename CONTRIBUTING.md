@@ -66,7 +66,7 @@ wasn't explicitly told about:
 ```r
 Sys.setenv(
     CONTAINR_INTEGRATION_TESTS = "true",
-    CONTAINR_TEST_NETID        = "your.netid",
+    CONTAINR_TEST_NAMESPACE    = "your.netid",
     CONTAINR_TEST_PROJECT      = "your-test-project"
 )
 devtools::test()

@@ -78,8 +78,41 @@
   `build_image()` and `push_image()`, backfilling the two that were
   previously only covered at the argument-validation and command-
   construction layers. `push_image()`'s integration test additionally
-  requires `CONTAINR_TEST_NETID` and `CONTAINR_TEST_PROJECT` to be set, so
-  it never pushes a test image to an unintended destination.
+  requires `CONTAINR_TEST_NAMESPACE` and `CONTAINR_TEST_PROJECT` to be set,
+  so it never pushes a test image to an unintended destination.
+
+## `push_image()`
+
+* **Breaking change:** the `netid` argument is renamed to `namespace`.
+  `netid` only ever made sense for the default `"registry.doit.wisc.edu"`
+  registry -- the same argument, and the same position in the assembled
+  `{registry}/{namespace}/{project}:{tag}` path, is a GitHub username or
+  organization for `ghcr.io`, or a Quay namespace for `quay.io`. `namespace`
+  is the term those registries' own documentation uses for this segment,
+  not a name containr invented. No alias kept; update `netid = ...` calls
+  to `namespace = ...`.
+
+* Fixed a bug where the pre-push login check always failed under Docker
+  regardless of whether the user was actually logged in.
+  `<tool> login --get-login <registry>` is a Podman-only flag; running it
+  under Docker always exits with a usage error (125), which is why
+  `check_login = FALSE` was previously necessary as a Docker workaround.
+  Podman keeps its native `--get-login` check; Docker (and, permissively,
+  any other tool_preference value) now checks `~/.docker/config.json`
+  directly for a cached credential, the same approach most CI tooling uses
+  since Docker itself has no query subcommand for this. This is a
+  best-effort local check either way -- it confirms a credential exists,
+  not that it's still valid; an expired token can still fail at push time.
+
+* Login-check guidance (both the pre-push `comments` message and the
+  not-logged-in error) is now registry-aware: the default
+  `"registry.doit.wisc.edu"` registry keeps its existing specific
+  PAT-creation instructions, while any other registry gets generic
+  guidance pointing at that registry's own documentation, rather than
+  DoIT-specific instructions that would be wrong for it.
+
+* Added a `ghcr.io` example to `@examples`, demonstrating that
+  `push_image()` isn't limited to the default registry.
 
 # containr 0.1.3.9000
 

@@ -15,7 +15,7 @@
 #'   from. Defaults to `"Dockerfile"` in the current working directory.
 #' @param tag A character string or `NULL`. The full image tag to assign to
 #'   the built image, including the registry prefix, e.g.
-#'   `"registry.doit.wisc.edu/netid/myimage"`. If `NULL`, no tag is applied
+#'   `"registry.doit.wisc.edu/namespace/myimage"`. If `NULL`, no tag is applied
 #'   and the image is identified only by its image ID. Defaults to `NULL`.
 #' @param platform A character string or `NULL`. The target platform for the
 #'   container image. Defaults to `"linux/amd64"`, which is the architecture
@@ -64,7 +64,7 @@
 #' @section Tagging convention for the DoIT GitLab Container Registry:
 #' For UW-Madison's DoIT GitLab Container Registry (the registry `push_image()`
 #' currently supports), the full tag format is:
-#' `registry.doit.wisc.edu/<netid>/<image-name>:<version>`
+#' `registry.doit.wisc.edu/<namespace>/<image-name>:<version>`
 #'
 #' For example: `registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0`
 #'
@@ -80,7 +80,7 @@
 #' build_image()
 #'
 #' # Build and tag for the DoIT GitLab Container Registry
-#' build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
+#' build_image(tag = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0")
 #'
 #' # Build for the host architecture (no --platform flag)
 #' build_image(platform = NULL)
@@ -90,13 +90,13 @@
 #'
 #' # Preview the build command without running it
 #' build_image(
-#'   tag     = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+#'   tag     = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
 #'   dry_run = TRUE
 #' )
 #'
 #' # Guided build for first-time users
 #' build_image(
-#'   tag      = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+#'   tag      = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
 #'   verbose  = TRUE,
 #'   comments = TRUE
 #' )

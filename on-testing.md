@@ -9,8 +9,8 @@ and we can read that file and assert on its contents. But `build_image()`,
 
 ```bash
 podman build -f Dockerfile .
-podman tag abc123 registry.doit.wisc.edu/netid/project:1.0.0
-podman push registry.doit.wisc.edu/netid/project:1.0.0
+podman tag abc123 registry.doit.wisc.edu/namespace/project:1.0.0
+podman push registry.doit.wisc.edu/namespace/project:1.0.0
 podman image ls
 ```
 
@@ -50,7 +50,7 @@ laptop, on GitHub Actions, and on CRAN's Windows check server.
 ```r
 test_that("push_image() errors when image_id is NULL", {
     expect_error(
-        push_image(netid = "erwin.lares", project = "container-registry"),
+        push_image(namespace = "erwin.lares", project = "container-registry"),
         regexp = "image_id"
     )
 })
@@ -180,7 +180,7 @@ contexts. The second guard — `skip_if_not(nchar(Sys.which("podman")) > 0)`
 environment variable is set on a machine without a container tool.
 
 `push_image()`'s Layer 3 test adds two more guards on top of these:
-`CONTAINR_TEST_NETID` and `CONTAINR_TEST_PROJECT`. Unlike `build_image()`,
+`CONTAINR_TEST_NAMESPACE` and `CONTAINR_TEST_PROJECT`. Unlike `build_image()`,
 which only needs a local daemon, `push_image()` needs somewhere real to
 push a throwaway test image to -- and hardcoding a destination (even a
 placeholder like the `erwin.lares`/`container-registry` example used

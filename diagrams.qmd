@@ -91,7 +91,7 @@ sequenceDiagram
     Engine-->>LI: repository, tag, image_id, created, size
     LI-->>User: data frame
 
-    User->>PI: push_image(image_id, netid, project, tag)
+    User->>PI: push_image(image_id, namespace, project, tag)
     PI->>Engine: tag, then push
     Engine->>Registry: upload image layers
     Registry-->>Engine: push confirmed
@@ -228,12 +228,12 @@ two-step tag-then-push sequence, each of which can fail independently.
 
 ```{mermaid}
 flowchart TD
-    Start(["push_image() called"]) --> ReqCheck{"image_id, netid, project\nall supplied?"}
+    Start(["push_image() called"]) --> ReqCheck{"image_id, namespace, project\nall supplied?"}
     ReqCheck -- no --> Abort1["cli_abort: missing required argument"]
     ReqCheck -- yes --> TagWarn{"tag == 'latest'?"}
     TagWarn -- yes --> Inform1["cli_inform: latest will be\noverwritten on next push"]
     TagWarn -- no --> Assemble
-    Inform1 --> Assemble["Assemble destination:\nregistry/netid/project:tag"]
+    Inform1 --> Assemble["Assemble destination:\nregistry/namespace/project:tag"]
     Assemble --> Resolve[".resolve_tool(tool)"]
     Resolve --> CheckResp[".check_tool_responsive()"]
     CheckResp --> LoginCheck{"check_login?"}

@@ -374,21 +374,21 @@ test_that("build_image()'s output is visible to list_images()", {
 
 test_that("push_image() errors when image_id is NULL", {
     expect_error(
-        push_image(netid = "erwin.lares", project = "container-registry"),
+        push_image(namespace = "erwin.lares", project = "container-registry"),
         regexp = "image_id"
     )
 })
 
-test_that("push_image() errors when netid is NULL", {
+test_that("push_image() errors when namespace is NULL", {
     expect_error(
         push_image(image_id = "abc123", project = "container-registry"),
-        regexp = "netid"
+        regexp = "namespace"
     )
 })
 
 test_that("push_image() errors when project is NULL", {
     expect_error(
-        push_image(image_id = "abc123", netid = "erwin.lares"),
+        push_image(image_id = "abc123", namespace = "erwin.lares"),
         regexp = "project"
     )
 })
@@ -401,7 +401,7 @@ test_that("push_image() warns when tag is 'latest'", {
     expect_message(
         push_image(
             image_id    = "abc123",
-            netid       = "erwin.lares",
+            namespace   = "erwin.lares",
             project     = "container-registry",
             check_login = FALSE,
             dry_run     = TRUE
@@ -417,7 +417,7 @@ test_that("push_image() returns invisible NULL on dry_run", {
     )
     result <- suppressMessages(push_image(
         image_id    = "abc123",
-        netid       = "erwin.lares",
+        namespace   = "erwin.lares",
         project     = "container-registry",
         check_login = FALSE,
         dry_run     = TRUE
@@ -437,7 +437,7 @@ test_that("push_image() dry_run produces podman tag command", {
     msgs <- capture.output(
         push_image(
             image_id    = "974123909a36",
-            netid       = "erwin.lares",
+            namespace   = "erwin.lares",
             project     = "container-registry",
             tag         = "1.0.0",
             check_login = FALSE,
@@ -456,7 +456,7 @@ test_that("push_image() dry_run produces podman push command", {
     msgs <- capture.output(
         push_image(
             image_id    = "974123909a36",
-            netid       = "erwin.lares",
+            namespace   = "erwin.lares",
             project     = "container-registry",
             tag         = "1.0.0",
             check_login = FALSE,
@@ -475,7 +475,7 @@ test_that("push_image() assembles correct destination tag", {
     msgs <- capture.output(
         push_image(
             image_id    = "974123909a36",
-            netid       = "erwin.lares",
+            namespace   = "erwin.lares",
             project     = "container-registry",
             tag         = "1.0.0",
             check_login = FALSE,
@@ -491,6 +491,89 @@ test_that("push_image() assembles correct destination tag", {
 })
 
 # ---------------------------------------------------------------------------
+# push_image() -- login check (check_login = TRUE)
+# ---------------------------------------------------------------------------
+#
+# No existing test exercised check_login = TRUE at all before this section
+# -- every prior push_image() test used check_login = FALSE to bypass the
+# login check entirely, which meant the --get-login bug fix itself had no
+# coverage. These mock .is_logged_in() directly rather than system2(),
+# since .is_logged_in() is now the seam push_image() actually calls.
+
+test_that("push_image() succeeds when .is_logged_in() returns TRUE", {
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "podman",
+        `.is_logged_in` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_no_error(
+        push_image(
+            image_id  = "abc123",
+            namespace = "erwin.lares",
+            project   = "container-registry",
+            dry_run   = TRUE
+        )
+    )
+})
+
+test_that("push_image() errors with DoIT-specific guidance when not logged in to the default registry", {
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "podman",
+        `.is_logged_in` = function(...) FALSE,
+        .package = "containr"
+    )
+    err <- tryCatch(
+        push_image(
+            image_id  = "abc123",
+            namespace = "erwin.lares",
+            project   = "container-registry"
+        ),
+        error = function(e) conditionMessage(e)
+    )
+    expect_match(err, "Not logged in")
+    expect_match(err, "git.doit.wisc.edu", fixed = TRUE)
+})
+
+test_that("push_image() errors with generic guidance when not logged in to a non-default registry", {
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "docker",
+        `.is_logged_in` = function(...) FALSE,
+        .package = "containr"
+    )
+    err <- tryCatch(
+        push_image(
+            image_id  = "abc123",
+            namespace = "octocat",
+            project   = "my-analysis",
+            registry  = "ghcr.io"
+        ),
+        error = function(e) conditionMessage(e)
+    )
+    expect_match(err, "Not logged in")
+    expect_match(err, "ghcr.io")
+    expect_match(err, "own documentation")
+})
+
+test_that("push_image() skips the login check entirely when check_login = FALSE", {
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "podman",
+        .package = "containr"
+    )
+    # .is_logged_in() is deliberately NOT mocked here -- if push_image()
+    # called it despite check_login = FALSE, this test would fail with a
+    # real (and environment-dependent) system2() call instead of passing.
+    expect_no_error(
+        push_image(
+            image_id    = "abc123",
+            namespace   = "erwin.lares",
+            project     = "container-registry",
+            check_login = FALSE,
+            dry_run     = TRUE
+        )
+    )
+})
+
+# ---------------------------------------------------------------------------
 # push_image() -- Layer 3: integration (skip unless podman, a real login,
 # and an explicit test destination are all available)
 # ---------------------------------------------------------------------------
@@ -502,9 +585,10 @@ test_that("push_image() assembles correct destination tag", {
 # wasn't actually told to use. Guarded by two more environment variables on
 # top of CONTAINR_INTEGRATION_TESTS:
 #
-#   CONTAINR_TEST_NETID    -- your UW-Madison NetID
-#   CONTAINR_TEST_PROJECT  -- a GitLab project you're willing to push a
-#                             throwaway test image to
+#   CONTAINR_TEST_NAMESPACE -- your UW-Madison NetID (or the equivalent
+#                              identifier for another registry)
+#   CONTAINR_TEST_PROJECT   -- a GitLab project you're willing to push a
+#                              throwaway test image to
 #
 # Run `podman login registry.doit.wisc.edu` once beforehand -- this test
 # does not attempt to authenticate for you.
@@ -519,11 +603,11 @@ test_that("push_image() successfully pushes a real image to the registry", {
         "podman not available on this system"
     )
 
-    test_netid   <- Sys.getenv("CONTAINR_TEST_NETID")
-    test_project <- Sys.getenv("CONTAINR_TEST_PROJECT")
+    test_namespace <- Sys.getenv("CONTAINR_TEST_NAMESPACE")
+    test_project   <- Sys.getenv("CONTAINR_TEST_PROJECT")
     skip_if(
-        nchar(test_netid) == 0 || nchar(test_project) == 0,
-        "Set CONTAINR_TEST_NETID and CONTAINR_TEST_PROJECT to run push_image() integration tests"
+        nchar(test_namespace) == 0 || nchar(test_project) == 0,
+        "Set CONTAINR_TEST_NAMESPACE and CONTAINR_TEST_PROJECT to run push_image() integration tests"
     )
 
     tmp <- withr::local_tempdir()
@@ -538,10 +622,10 @@ test_that("push_image() successfully pushes a real image to the registry", {
 
     expect_no_error(
         push_image(
-            image_id = build_tag,
-            netid    = test_netid,
-            project  = test_project,
-            tag      = push_tag
+            image_id  = build_tag,
+            namespace = test_namespace,
+            project   = test_project,
+            tag       = push_tag
         )
     )
 })
@@ -634,6 +718,110 @@ test_that(".is_responsive() returns FALSE when tool does not respond", {
         .package = "base"
     )
     expect_false(.is_responsive("podman"))
+})
+
+# ---------------------------------------------------------------------------
+# .docker_config_has_auth() -- internal helper
+# ---------------------------------------------------------------------------
+
+test_that(".docker_config_has_auth() returns FALSE when the config file does not exist", {
+    local_mocked_bindings(
+        `file.exists` = function(...) FALSE,
+        .package = "base"
+    )
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+})
+
+test_that(".docker_config_has_auth() returns TRUE when the registry has an auths entry", {
+    local_mocked_bindings(
+        `file.exists` = function(...) TRUE,
+        .package = "base"
+    )
+    local_mocked_bindings(
+        `fromJSON` = function(...) list(auths = list("registry.doit.wisc.edu" = list())),
+        .package = "jsonlite"
+    )
+    expect_true(.docker_config_has_auth("registry.doit.wisc.edu"))
+})
+
+test_that(".docker_config_has_auth() returns FALSE when the registry has no auths entry", {
+    local_mocked_bindings(
+        `file.exists` = function(...) TRUE,
+        .package = "base"
+    )
+    local_mocked_bindings(
+        `fromJSON` = function(...) list(auths = list("ghcr.io" = list())),
+        .package = "jsonlite"
+    )
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+})
+
+test_that(".docker_config_has_auth() returns FALSE when auths is missing entirely", {
+    local_mocked_bindings(
+        `file.exists` = function(...) TRUE,
+        .package = "base"
+    )
+    local_mocked_bindings(
+        `fromJSON` = function(...) list(),
+        .package = "jsonlite"
+    )
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+})
+
+test_that(".docker_config_has_auth() returns FALSE when the config file is malformed", {
+    local_mocked_bindings(
+        `file.exists` = function(...) TRUE,
+        .package = "base"
+    )
+    local_mocked_bindings(
+        `fromJSON` = function(...) stop("invalid JSON"),
+        .package = "jsonlite"
+    )
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+})
+
+# ---------------------------------------------------------------------------
+# .is_logged_in() -- internal helper
+# ---------------------------------------------------------------------------
+#
+# This is the fix for the --get-login bug: --get-login is Podman-only and
+# always failed under Docker (exit 125) regardless of actual login state.
+# Podman keeps its native flag; Docker (and, permissively, anything else)
+# falls back to .docker_config_has_auth().
+
+test_that(".is_logged_in() uses podman's native --get-login flag for podman", {
+    local_mocked_bindings(
+        `system2` = function(...) 0L,
+        .package = "base"
+    )
+    expect_true(.is_logged_in("podman", "registry.doit.wisc.edu"))
+})
+
+test_that(".is_logged_in() returns FALSE when podman's --get-login exits non-zero", {
+    local_mocked_bindings(
+        `system2` = function(...) 1L,
+        .package = "base"
+    )
+    expect_false(.is_logged_in("podman", "registry.doit.wisc.edu"))
+})
+
+test_that(".is_logged_in() falls back to the Docker config file for docker", {
+    local_mocked_bindings(
+        `.docker_config_has_auth` = function(...) TRUE,
+        .package = "containr"
+    )
+    expect_true(.is_logged_in("docker", "registry.doit.wisc.edu"))
+})
+
+test_that(".is_logged_in() falls back to the Docker config file for an unrecognized tool", {
+    # Permissive by design, mirroring .resolve_tool()'s own permissiveness --
+    # a tool_preference value containr doesn't have dedicated support for
+    # yet still gets a best-effort check rather than an outright error.
+    local_mocked_bindings(
+        `.docker_config_has_auth` = function(...) FALSE,
+        .package = "containr"
+    )
+    expect_false(.is_logged_in("nerdctl", "ghcr.io"))
 })
 
 # ---------------------------------------------------------------------------
