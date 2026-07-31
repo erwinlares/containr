@@ -1071,3 +1071,132 @@ handed back for Erwin's own toolchain.
   original note about mocking rather than hitting live registries in CI
   still applies, and no such tests were added this phase.
 - Same Phase 5-7 items from earlier Session 6 entries, unchanged.
+
+## Session 6 (continued) — the jsonlite / local_mocked_bindings debugging saga
+
+### Symptom
+
+First real `devtools::check()` run against the Phase 4 changes (Erwin's own
+machine, not this sandbox): 264 passed, but the four new
+`.docker_config_has_auth()` tests all failed identically --
+`Error in loadNamespace(name): there is no package called 'jsonlite'` --
+alongside a cluster of `cannot open compressed file
+.../tools/data/Rdata.rdx` warnings on the same four lines. `jsonlite`
+was already a declared `DESCRIPTION` dependency, already used elsewhere in
+the codebase (`sysreqs-helpers.R`'s `jsonlite::read_json()`), and loaded
+fine with a plain `library(jsonlite)` call in Erwin's interactive session
+throughout every round of this. The actual root cause turned out to be
+about the test *mechanism*, not the dependency itself -- but that took
+several wrong turns to find, worth recording honestly rather than
+smoothing over.
+
+### What didn't work, in the order tried
+
+1. **`install.packages("jsonlite")`** (first suggestion) -- reasonable
+   first guess, but Erwin was already running `renv::install("jsonlite")`
+   before this landed, which put the package in the project's isolated
+   `renv` library. Same `check()` failure afterward.
+2. **Plain `install.packages("jsonlite")` inside an `renv`-activated
+   session** -- `renv` shims `install.packages()` when active, so this
+   likely silently redirected to the same isolated library rather than
+   R's plain default one. Same failure.
+3. **`R --vanilla -e 'install.packages("jsonlite", repos = ...)'`** from a
+   plain terminal, specifically to sidestep `.Rprofile`/`renv` entirely --
+   confirmed via `.libPaths()` and `find.package()` that this genuinely
+   landed `jsonlite` in R's real default library
+   (`/Library/Frameworks/R.framework/Versions/4.6/Resources/library`),
+   completely outside any `renv` scoping. `devtools::check()` **still**
+   failed with the identical error. This was the most surprising result --
+   `jsonlite` confirmed present and loadable in two different libraries by
+   this point, and the check subprocess still couldn't resolve it through
+   `local_mocked_bindings(..., .package = "jsonlite")` specifically.
+4. Ruled out a divergent-R-installation theory along the way -- `R.home()`,
+   `Sys.which("R")`, `Sys.which("Rscript")`, `R --version`, and
+   `sessionInfo()$R.version$version.string` all matched exactly (`R 4.6.1`,
+   same path) whether checked from the terminal or from inside R.
+5. **`devtools::check(env_vars = c(NOT_CRAN = "false"))`**, run by Erwin
+   with the *old* code (still using the `.package = "jsonlite"` mock) --
+   passed clean. This is the one result that doesn't fully resolve into a
+   tidy explanation: `containr`'s test suite has exactly one
+   `skip_on_cran()` use (the unrelated spelling check), so `NOT_CRAN`
+   shouldn't have mattered directly. The more likely explanation --
+   plausible but never fully confirmed -- is that `renv`'s own
+   `R CMD check` detection (which exists specifically so a developer's
+   local sandbox doesn't interfere with package checks) is sensitive to
+   `NOT_CRAN` or something correlated with it, and skipping sandbox
+   activation let that specific run see the base library where `jsonlite`
+   had landed in step 3. Left as an open, not-fully-root-caused item
+   rather than asserted as fact -- the actual fix below didn't end up
+   depending on resolving it.
+
+### What actually fixed it
+
+Rather than keep chasing the environment, removed the fragile mechanism
+itself. `testthat::local_mocked_bindings(..., .package = "jsonlite")`
+resolves the target namespace via `rlang::ns_env()` -> `base::asNamespace()`
+-- a different, apparently more restrictive code path in this specific
+environment than a plain `library(jsonlite)` or `jsonlite::fromJSON()`
+call, both of which worked fine throughout. So: stopped trying to mock
+`jsonlite::fromJSON()` across a package boundary at all.
+
+`.docker_config_has_auth()` gained a `config_path` parameter, defaulting
+to the real `~/.docker/config.json` (so production behavior is byte-for-
+byte unchanged) -- parameterized specifically so tests could point it at
+a real temp file instead. Rewrote all four tests to write real (and, for
+the malformed-JSON case, deliberately invalid) content to real temp files
+via `withr::local_tempdir()` and call the real function with the real
+`jsonlite::fromJSON()` underneath. No `local_mocked_bindings()` involving
+`jsonlite` anywhere anymore. This is a genuine design improvement on its
+own merits -- dependency injection via a path parameter is more testable
+regardless of what was going on in Erwin's environment -- not merely a
+workaround bolted on to dodge a mystery.
+
+Verified this independently before handing it back, for once actually
+running the specific tests rather than only `parse()`-checking them (this
+sandbox's apt-installed R toolchain from earlier in Session 6 made this
+possible): `test_file()` on just the affected test file --
+`PASS: 70, FAIL: 0`; the full suite -- `PASS: 268, FAIL: 0`. First time in
+this saga a fix was confirmed by actually running the code before handing
+it back, rather than reasoning about what should theoretically work.
+
+### Confirmation, and disentangling the two variables
+
+Erwin applied the refactor and ran plain `devtools::check()` --
+**deliberately without** the `NOT_CRAN = "false"` override this time, to
+separate "did the code fix it" from "did the environment variable fix it."
+Clean: 0 errors. This confirms the refactor itself was sufficient,
+independent of whatever `renv`/`NOT_CRAN` interaction produced the earlier
+clean run with the old code -- though it doesn't fully explain that
+earlier result, which stays an open, acknowledged gap rather than a
+resolved one.
+
+One warning remained after that: a codoc mismatch on
+`dot-docker_config_has_auth.Rd` -- expected and mechanical, since the
+`.Rd` file hadn't been regenerated since `config_path` was added to the
+roxygen block. Fixed by `devtools::document()`. Also reordered the
+roxygen tags in that block (`@param config_path` had landed after
+`@return` instead of before it) while already touching the file -- a
+cosmetic nit, not related to the warning itself.
+
+### A separate, unrelated thing this caught
+
+While double-checking that every file handed off during Phase 4 had
+actually been applied (prompted by Erwin asking directly, rather than
+assumed) -- diffed each pushed file against what was actually given,
+rather than trusting a verbal confirmation -- found
+`vignettes/containr-workflow.Rmd` had three `push_image(netid = ...)`
+calls that hadn't picked up the `namespace` rename, while every other
+file (nine of ten) matched byte-for-byte. Not connected to the `jsonlite`
+issue at all, but a useful process reminder: when a person says "I applied
+your changes," diff to confirm rather than take it as given -- copy/paste
+across many files is exactly where a single file gets missed.
+
+### Open, carried forward
+
+- The `NOT_CRAN`/`renv` sandbox interaction from step 5 above is still not
+  fully understood. Not blocking anything now that the actual fix doesn't
+  depend on it, but worth keeping in mind if a similar "works standalone,
+  fails under `check()`" symptom shows up again on this project --
+  `renv`'s sandbox behavior around `R CMD check` detection is the leading
+  suspect, not fully confirmed.
+- Same Phase 5-7 items from earlier Session 6 entries, unchanged.

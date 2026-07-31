@@ -20,7 +20,7 @@ from. Defaults to \code{"Dockerfile"} in the current working directory.}
 
 \item{tag}{A character string or \code{NULL}. The full image tag to assign to
 the built image, including the registry prefix, e.g.
-\code{"registry.doit.wisc.edu/netid/myimage"}. If \code{NULL}, no tag is applied
+\code{"registry.doit.wisc.edu/namespace/myimage"}. If \code{NULL}, no tag is applied
 and the image is identified only by its image ID. Defaults to \code{NULL}.}
 
 \item{platform}{A character string or \code{NULL}. The target platform for the
@@ -92,10 +92,11 @@ If builds fail with QEMU segfaults, consider:
 }
 }
 
-\section{Tagging convention for CHTC}{
+\section{Tagging convention for the DoIT GitLab Container Registry}{
 
-For UW-Madison CHTC, the full tag format is:
-\verb{registry.doit.wisc.edu/<netid>/<image-name>:<version>}
+For UW-Madison's DoIT GitLab Container Registry (the registry \code{push_image()}
+currently supports), the full tag format is:
+\verb{registry.doit.wisc.edu/<namespace>/<image-name>:<version>}
 
 For example: \verb{registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0}
 
@@ -109,8 +110,8 @@ be overwritten each time you push.
 # Build for linux/amd64 (default) with auto-detected tool
 build_image()
 
-# Build and tag for CHTC registry
-build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
+# Build and tag for the DoIT GitLab Container Registry
+build_image(tag = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0")
 
 # Build for the host architecture (no --platform flag)
 build_image(platform = NULL)
@@ -120,13 +121,13 @@ build_image(platform = "linux/arm64")
 
 # Preview the build command without running it
 build_image(
-  tag     = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+  tag     = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
   dry_run = TRUE
 )
 
 # Guided build for first-time users
 build_image(
-  tag      = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+  tag      = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
   verbose  = TRUE,
   comments = TRUE
 )

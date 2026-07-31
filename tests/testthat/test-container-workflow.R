@@ -725,59 +725,37 @@ test_that(".is_responsive() returns FALSE when tool does not respond", {
 # ---------------------------------------------------------------------------
 
 test_that(".docker_config_has_auth() returns FALSE when the config file does not exist", {
-    local_mocked_bindings(
-        `file.exists` = function(...) FALSE,
-        .package = "base"
-    )
-    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+    tmp_dir      <- withr::local_tempdir()
+    missing_path <- file.path(tmp_dir, "config.json")
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu", config_path = missing_path))
 })
 
 test_that(".docker_config_has_auth() returns TRUE when the registry has an auths entry", {
-    local_mocked_bindings(
-        `file.exists` = function(...) TRUE,
-        .package = "base"
-    )
-    local_mocked_bindings(
-        `fromJSON` = function(...) list(auths = list("registry.doit.wisc.edu" = list())),
-        .package = "jsonlite"
-    )
-    expect_true(.docker_config_has_auth("registry.doit.wisc.edu"))
+    tmp_dir  <- withr::local_tempdir()
+    tmp_path <- file.path(tmp_dir, "config.json")
+    writeLines('{"auths": {"registry.doit.wisc.edu": {}}}', tmp_path)
+    expect_true(.docker_config_has_auth("registry.doit.wisc.edu", config_path = tmp_path))
 })
 
 test_that(".docker_config_has_auth() returns FALSE when the registry has no auths entry", {
-    local_mocked_bindings(
-        `file.exists` = function(...) TRUE,
-        .package = "base"
-    )
-    local_mocked_bindings(
-        `fromJSON` = function(...) list(auths = list("ghcr.io" = list())),
-        .package = "jsonlite"
-    )
-    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+    tmp_dir  <- withr::local_tempdir()
+    tmp_path <- file.path(tmp_dir, "config.json")
+    writeLines('{"auths": {"ghcr.io": {}}}', tmp_path)
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu", config_path = tmp_path))
 })
 
 test_that(".docker_config_has_auth() returns FALSE when auths is missing entirely", {
-    local_mocked_bindings(
-        `file.exists` = function(...) TRUE,
-        .package = "base"
-    )
-    local_mocked_bindings(
-        `fromJSON` = function(...) list(),
-        .package = "jsonlite"
-    )
-    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+    tmp_dir  <- withr::local_tempdir()
+    tmp_path <- file.path(tmp_dir, "config.json")
+    writeLines('{}', tmp_path)
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu", config_path = tmp_path))
 })
 
 test_that(".docker_config_has_auth() returns FALSE when the config file is malformed", {
-    local_mocked_bindings(
-        `file.exists` = function(...) TRUE,
-        .package = "base"
-    )
-    local_mocked_bindings(
-        `fromJSON` = function(...) stop("invalid JSON"),
-        .package = "jsonlite"
-    )
-    expect_false(.docker_config_has_auth("registry.doit.wisc.edu"))
+    tmp_dir  <- withr::local_tempdir()
+    tmp_path <- file.path(tmp_dir, "config.json")
+    writeLines('{not valid json', tmp_path)
+    expect_false(.docker_config_has_auth("registry.doit.wisc.edu", config_path = tmp_path))
 })
 
 # ---------------------------------------------------------------------------

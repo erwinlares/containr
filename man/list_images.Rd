@@ -37,9 +37,9 @@ you need to pass to \code{\link[=push_image]{push_image()}}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{imgs <- list_images()
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "erwin.lares",
-  project  = "container-registry"
+  image_id  = imgs$image_id[1],
+  namespace = "erwin.lares",
+  project   = "container-registry"
 )
 }\if{html}{\out{</div>}}
 }

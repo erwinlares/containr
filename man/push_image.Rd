@@ -6,7 +6,7 @@
 \usage{
 push_image(
   image_id = NULL,
-  netid = NULL,
+  namespace = NULL,
   project = NULL,
   tag = "latest",
   registry = "registry.doit.wisc.edu",
@@ -23,8 +23,12 @@ as shown in \verb{podman image ls} or \verb{docker image ls}. This is typically
 a 12-character hash (e.g. \code{"974123909a36"}) or a locally assigned name
 if the image was built with a tag via \code{\link[=build_image]{build_image()}}.}
 
-\item{netid}{A character string. Your UW-Madison NetID, used to construct
-the full registry path, e.g. \code{"erwin.lares"}.}
+\item{namespace}{A character string. The account or organization the
+image is scoped under, used to construct the full registry path. For
+the default \code{"registry.doit.wisc.edu"} registry, this is your
+UW-Madison NetID (e.g. \code{"erwin.lares"}). For other registries, it's
+the equivalent identifier -- your GitHub username or organization for
+\code{ghcr.io}, or your Quay namespace for \code{quay.io}.}
 
 \item{project}{A character string. The GitLab project name that hosts the
 container registry, e.g. \code{"container-registry"}.}
@@ -35,7 +39,8 @@ is recommended for reproducibility -- \code{"latest"} is overwritten on
 every push.}
 
 \item{registry}{A character string. The registry hostname. Defaults to
-\code{"registry.doit.wisc.edu"} (UW-Madison CHTC).}
+\code{"registry.doit.wisc.edu"}, UW-Madison DoIT's GitLab Container
+Registry -- the only registry \code{push_image()} currently supports.}
 
 \item{tool_preference}{A non-empty character vector of container tools to
 try, in order. Defaults to \code{c("podman", "docker")} -- Podman first, then
@@ -67,11 +72,17 @@ path and pushes it to a container registry. It handles both the
 which container tool is available unless \code{tool_preference} is set to a
 single value.
 Use \code{dry_run = TRUE} to preview the exact commands without executing them.
-The format for the is registry.doit.wisc.edu/\if{html}{\out{<netid>}}/\if{html}{\out{<image-name>}}:\if{html}{\out{<version>}}
+The full path format is \code{{registry}/{namespace}/{project}:{tag}} -- for
+the default registry, e.g.
+\verb{registry.doit.wisc.edu/<namespace>/<project-name>:<version>}.
 }
 \section{Prerequisites}{
 
-Before calling \code{push_image()}, ensure the following are in place:
+Before calling \code{push_image()} against the default
+\code{"registry.doit.wisc.edu"} registry, ensure the following are in place.
+(For other registries -- \code{ghcr.io}, \code{quay.io}, or any other hostname
+supplied via \code{registry} -- consult that registry's own documentation for
+the equivalent setup; the steps below are DoIT GitLab-specific.)
 \enumerate{
 \item The image has been built locally with \code{\link[=build_image]{build_image()}}. Run
 \verb{podman image ls} to find the image ID.
@@ -88,11 +99,14 @@ Enter your NetID as the username and your PAT as the password.
 
 \section{Authentication}{
 
-The GitLab container registry requires authentication before pushing.
-Use a Personal Access Token (PAT) rather than your NetID password --
-PATs can be scoped to registry access only and revoked independently.
-Authentication is cached by \code{podman} or \code{docker} after the first login,
-so you only need to run \verb{podman login} once per machine per session.
+The DoIT GitLab Container Registry requires authentication before
+pushing. Use a Personal Access Token (PAT) rather than your NetID
+password -- PATs can be scoped to registry access only and revoked
+independently. Authentication is cached by \code{podman} or \code{docker} after
+the first login, so you only need to run \verb{podman login} once per
+machine per session. For other registries, use whatever credential type
+that registry expects -- e.g. a GitHub PAT with the \code{write:packages}
+scope for \code{ghcr.io}.
 
 Note that GitLab Self-Managed authentication tokens expire after five
 minutes by default. If you see an \verb{unauthorized: authentication required}
@@ -101,36 +115,44 @@ error mid-push on a large image, re-authenticate and push again.
 
 \examples{
 \dontrun{
-# Tag and push an image to the CHTC registry
+# Tag and push an image to the DoIT GitLab Container Registry
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry"
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry"
 )
 
 # Push with an explicit version tag
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry",
-  tag      = "1.0.0"
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry",
+  tag       = "1.0.0"
 )
 
 # Preview the commands without running them
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry",
-  dry_run  = TRUE
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry",
+  dry_run   = TRUE
 )
 
 # Guided push for first-time users
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry",
-  verbose  = TRUE,
-  comments = TRUE
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry",
+  verbose   = TRUE,
+  comments  = TRUE
+)
+
+# Push to GitHub Container Registry instead of the default
+push_image(
+  image_id  = "974123909a36",
+  namespace = "your-github-username",
+  project   = "my-analysis",
+  registry  = "ghcr.io"
 )
 }
 }

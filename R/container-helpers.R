@@ -76,13 +76,15 @@
 #' Check ~/.docker/config.json for a cached auth entry for a registry
 #'
 #' @param registry A character string naming the registry hostname.
+#' @param config_path A character string. Path to the Docker config file.
+#'   Defaults to `~/.docker/config.json`, the real location -- parameterized
+#'   so tests can point this at a temp file with real content instead of
+#'   mocking `jsonlite::fromJSON()` across a package boundary.
 #' @return Logical. `TRUE` if `registry` appears as a key under `auths` in
 #'   the Docker config file, `FALSE` if the file is missing, unreadable,
 #'   malformed, or simply has no entry for `registry`.
 #' @keywords internal
-.docker_config_has_auth <- function(registry) {
-    config_path <- path.expand("~/.docker/config.json")
-
+.docker_config_has_auth <- function(registry, config_path = path.expand("~/.docker/config.json")) {
     if (!file.exists(config_path)) {
         return(FALSE)
     }
