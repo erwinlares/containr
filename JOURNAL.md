@@ -1200,3 +1200,161 @@ across many files is exactly where a single file gets missed.
   `renv`'s sandbox behavior around `R CMD check` detection is the leading
   suspect, not fully confirmed.
 - Same Phase 5-7 items from earlier Session 6 entries, unchanged.
+
+## Session 7 -- Phase 5 scoped, then deferred to 0.3.0
+
+### What prompted this
+
+Sat down to start Phase 5 (originally "Singularity / Apptainer support").
+Before writing any code, walked through the three open questions
+`PLAN.md` had already flagged for this phase -- and in doing so, found
+enough to change the shape of the decision entirely.
+
+### Research, confirmed rather than assumed
+
+Checked CHTC's own current documentation directly rather than working
+from general knowledge of the tool:
+
+- CHTC's docs consistently say "Apptainer," treating "Singularity" as the
+  superseded name -- *"HTCondor supports the use of Apptainer (formerly
+  known as Singularity)."* Flagged this to Erwin as an objection when he
+  chose "Singularity" as containr's term of choice (see below).
+- **The bigger finding:** CHTC operates a genuinely separate HPC cluster
+  (SLURM-based, `spark-login.chtc.wisc.edu`) distinct from the HTC pool
+  `submitr` currently targets (`htc_gen_submit()`, `htc_submit()`, etc. --
+  HTCondor-specific naming, the HTC pool's own scheduler). Confirmed this
+  is a real, separate CHTC offering (own login node, own SLURM-based job
+  submission docs), not a rebrand of the same system.
+- Docker/Podman aren't available on SLURM-based HPC clusters generally --
+  checked across multiple institutions' own docs (Michigan, Utah,
+  Harvard, several DoD HPC centers), not assumed from one source alone --
+  so Apptainer/Singularity is effectively required there, not just an
+  option. It's *also* usable on CHTC's HTC pool via HTCondor's container
+  universe, but Docker already works there today, which is exactly what
+  `containr` already supports.
+- CHTC's own recommended way to build a `.sif` file isn't local at all --
+  it's an interactive HTCondor job (`condor_submit -i` against a
+  `build.sub`), run on CHTC's own infrastructure. This sharpened what was
+  previously a two-way fork (pull/convert vs. native `.def` generation)
+  into three real questions -- see `PLAN.md`'s rewritten deferred section
+  for the full list.
+- OSPool's own `.def`-file guidance recommends
+  `hub.opensciencegrid.org/htc/{debian,rocky,ubuntu}` base images, not
+  `rocker/*` -- though Apptainer's `Bootstrap: docker` directive can still
+  pull Rocker images directly, so this doesn't force a break with
+  `.r_mode_registry` if that path is ever built.
+
+### Erwin's decisions
+
+Presented the research; Erwin decided, point by point:
+
+1. **Terminology: "Singularity," not "Apptainer," throughout containr.**
+   Objected once, clearly, citing CHTC's current usage above -- Erwin's
+   call stood. Noted in `PLAN.md` explicitly so a future session doesn't
+   "helpfully" revert this without knowing it was deliberate, and doesn't
+   waste time re-litigating a decision that's already been made.
+2. **Skip building it for now.** Erwin's own recollection -- *"CHTC
+   prefers Apptainer containers only for their HPC cluster which we
+   haven't tackled yet"* -- turned out to be exactly right once checked,
+   and arguably a stronger reason than he'd framed it: `submitr` has no
+   pipeline to the SLURM cluster at all yet, so Singularity generation
+   right now would be a feature with nothing downstream to consume it.
+3. **Target `0.3.0`, not `0.2.1`, for whenever this does land.** Erwin
+   asked directly for a suggestion here rather than deciding himself.
+   Recommended `0.3.0` on semver grounds -- a genuine new capability, not
+   a backward-compatible fix, under the same reasoning that already put
+   this release at `0.2.0` rather than `0.1.4`. Also recommended
+   restructuring `PLAN.md` to move this out of the sequential `0.2.0`
+   phase list entirely (into `## Deferred beyond v0.2.0`) rather than
+   leave an unbuilt "Phase 5" gap sitting in the middle of it, renumbering
+   Phase 6 (GitHub Actions) -> 5 and Phase 7 (docs/release) -> 6.
+4. **`.def` base images: follow OSG's guidance** (`hub.opensciencegrid.org
+   /htc/*`), decided now even though the feature itself is deferred, so
+   it doesn't need re-deciding later. This closes question 3 of the three
+   scoped; questions 1 (where the build happens) and 2 (pull/convert vs.
+   native `.def`) stay genuinely open.
+
+### Snowball check across Phases 1-4, 6-7
+
+Explicitly asked to check, not asked to assume. Grepped every already-
+shipped file for "apptainer"/"singularity":
+
+- `R/container-helpers.R`, `NEWS.md`: roxygen/changelog prose explaining
+  *why* `tool_preference` stays permissive -- illustrative, not load-
+  bearing.
+- `tests/testthat/test-container-workflow.R`: several hits, all using
+  "singularity"/"apptainer" as arbitrary placeholder strings to test
+  permissive validation -- functionally inert, since `.resolve_tool()`
+  doesn't care what string it's given; any placeholder would work
+  identically.
+- `diagrams.qmd`: two prose mentions of "Phase 5," cosmetic.
+
+**Conclusion: zero functional impact on anything already shipped.**
+Nothing in the R source or test logic needed reverting or renaming.
+Real, actionable fallout was confined to `PLAN.md` itself: Phase 6 (now
+5)'s sequencing rationale no longer waits on a Phase 5 that doesn't exist
+in this release; Phase 7 (now 6)'s `inst/WORDLIST` prep dropped
+`Apptainer`/`Singularity`, since neither term ships in `0.2.0` docs now;
+and a handful of stray "Phase 7" cross-references scattered through
+earlier phases (the branch-lifecycle note, Phase 4's documentation-pass
+reference, the diagrams.qmd staleness note) needed updating to "Phase 6."
+Also caught, while doing this pass, that the diagrams.qmd staleness note
+written during Phase 4 was itself now stale -- `diagrams.qmd` had since
+been fully rewritten and committed (`df0504a`) in the time between that
+note being written and this session -- updated it to say so rather than
+leave it reading as still-outstanding.
+
+`diagrams.qmd`'s own two "Phase 5" mentions were left as-is -- cosmetic,
+low priority, better addressed whenever that document gets its next real
+content pass rather than touched in isolation here.
+
+### PLAN.md restructuring, as implemented
+
+- Old Phase 5 (Singularity) removed from the sequential phase list
+  entirely.
+- Old Phase 6 (GitHub Actions) renumbered to Phase 5; its "sequenced
+  after Phases 4 and 5" language rewritten to "sequenced directly after
+  Phase 4," since there's no Phase 5 in this release to wait on.
+- Old Phase 7 (docs/release) renumbered to Phase 6; `Apptainer`/
+  `Singularity` dropped from its `inst/WORDLIST` prep list.
+- New `### Singularity support (deferred to 0.3.0)` section added under
+  `## Deferred beyond v0.2.0`, carrying forward everything scoped so far
+  -- the terminology decision (with the objection preserved, not
+  scrubbed), the CHTC HPC-cluster research, all three original questions
+  (one now answered, two still open), and the sources consulted.
+
+### Open, carried forward
+
+- Question 1 (local build vs. CHTC-side submit job vs. both) and
+  question 2 (pull/convert vs. native `.def` generation) from the
+  Singularity scoping -- genuinely unresolved, deferred to `0.3.0` along
+  with the rest of that work.
+- Whether generating a CHTC-side submit job (question 1's second option)
+  belongs in `containr` at all, or is really `submitr`'s territory --
+  also unresolved, and probably can't be resolved independent of
+  question 1 itself.
+- `diagrams.qmd`'s stray "Phase 5" mentions -- cosmetic, low priority.
+- Phases 5-6 (renumbered) of the actual `0.2.0` plan -- GitHub Actions
+  workflow, documentation/release pass -- both still not started.
+
+### Correction, same session
+
+Erwin flagged that he'd flipped the two terms in his head -- the actual
+decision is **Apptainer**, not Singularity, matching what was originally
+recommended and for the same reason: it's the term CHTC's own current
+documentation uses. `PLAN.md`'s `## Deferred beyond v0.2.0` section
+(including the terminology-decision paragraph itself) and every other
+"Apptainer support" reference throughout the file were corrected
+back -- swept for every "Singularity"/"singularity" occurrence rather
+than trusting a single find-and-replace, since several needed to *stay*
+Singularity (the historical-name context, `SingularityCE`, the "formerly
+known as Singularity" quote). The version-number suggestion (`0.3.0`,
+not `0.2.1`) was confirmed as-is, no change needed there.
+
+Same lesson as the CHTC-registry terminology fix earlier this project:
+worth double-checking a terminology decision against its own stated
+reasoning before treating it as final, especially when the person making
+the call flags uncertainty themselves (he'd said "if I recall correctly"
+about the HPC-cluster point in the same message where he first named
+Singularity) -- the underlying reasoning was sound throughout, only the
+label attached to it was briefly wrong.

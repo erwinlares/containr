@@ -153,7 +153,7 @@ Sys.unsetenv("CONTAINR_INTEGRATION_TESTS")
 
 **Branch:** `containr-modes-0.2.0`, created off `main` via the RStudio Git
 pane or `gert::git_branch_create("containr-modes-0.2.0")`. `main` stays at
-the released `0.1.3` state until Phase 7 is done and `devtools::check()` is
+the released `0.1.3` state until Phase 6 is done and `devtools::check()` is
 clean.
 
 **Version:** `0.2.0.9000` -- a true minor bump (not `0.1.4.9000`, which
@@ -164,11 +164,12 @@ would read as a patch under semver), matching this section's name.
 two new modes (`shiny_server`, `rstudio_shiny`), a fix for a duplicated
 mode-mapping problem those two modes exposed, and -- once the version was
 already being bumped -- several other roadmap items that had been sitting
-scoped-but-unstarted: registry support, Singularity/Apptainer, Layer 3
-tests, and a GitHub Actions build workflow. Confirmed against a fresh clone
-of the GitHub repo (`erwinlares/containr`, public) on 2026-07-27; every
-file discussed in this plan matches what's on `main` exactly, so this is a
-clean, known baseline to branch from.
+scoped-but-unstarted: registry support, Layer 3 tests, and a GitHub
+Actions build workflow. Apptainer support was scoped alongside these
+too, but ultimately deferred to `0.3.0` -- see below. Confirmed against a
+fresh clone of the GitHub repo (`erwinlares/containr`, public) on
+2026-07-27; every file discussed in this plan matches what's on `main`
+exactly, so this is a clean, known baseline to branch from.
 
 Sequenced by dependency, not by request order -- each phase is meant to be
 committable and testable on its own rather than one long-running diff.
@@ -422,11 +423,13 @@ server), rocker-versioned2 README and `install_shiny_server.sh`
 
 ### Phase 3 -- tool-resolution cleanup + Layer 3 test backfill
 
-**Status: implemented (Session 6), not yet run through
-`devtools::test()`/`check()`.** Grew to include the `tool_preference`
-redesign (open design question 5, originally deferred beyond v0.2.0 -- see
-below) once Erwin asked to tackle it in the same sitting as the Phase 3
-cleanup, since both touch `.resolve_tool()` directly.
+**Status: implemented and verified.** Erwin ran `devtools::test()` and
+`devtools::check()` clean on this branch (0 errors, 0 warnings, 0 notes)
+after the `tool_preference` redesign and its test coverage landed. Grew
+to include the `tool_preference` redesign (open design question 5,
+originally deferred beyond v0.2.0 -- see below) once Erwin asked to
+tackle it in the same sitting as the Phase 3 cleanup, since both touch
+`.resolve_tool()` directly.
 
 `.resolve_tool()`'s auto-detect path already falls through from Podman to
 Docker correctly -- confirmed by reading `container-helpers.R` directly,
@@ -464,12 +467,13 @@ as an acceptable breaking change under the same reasoning as `tidystudio`
 -- `containr` is still `0.y.z`.
 
 **Confirmed permissive rather than validated against a fixed tool list**
-(Erwin's call, looking ahead to Phase 5): `tool_preference` accepts any
-string, so Phase 5 adding `"singularity"`/`"apptainer"` support needs no
-matching validation change here. The tradeoff: `match.arg()`-style
-rejection of typos is gone, replaced by the same "not installed" error a
-correctly-spelled-but-absent tool would get. Structural validation (must
-be a non-empty character vector, no missing values) stays, since that's a
+(Erwin's call, looking ahead to eventual Apptainer support -- deferred
+to `0.3.0`, see below): `tool_preference` accepts any string, so adding
+`"apptainer"` support later needs no matching validation change here.
+The tradeoff: `match.arg()`-style rejection of typos is gone, replaced by
+the same "not installed" error a correctly-spelled-but-absent tool would
+get. Structural validation (must be a non-empty character vector, no
+missing values) stays, since that's a
 contract violation rather than a judgment call about which tool names are
 legitimate.
 
@@ -486,7 +490,7 @@ risk doing silently.
 `.resolve_tool()`), passed straight through. Updated `README.md` and
 `containr-workflow.Rmd` where they showed `tool = "docker"` as a usage
 example -- these were left broken by the rename otherwise, not deferred to
-Phase 7 like the rest of the documentation pass.
+Phase 6 like the rest of the documentation pass.
 
 **Layer 3 backfill, as implemented:** `build_image()` builds a real, tiny
 `alpine` image (not an R image -- these tests exercise `build_image()`'s
@@ -503,8 +507,18 @@ landing somewhere it wasn't actually told to go. Documented in
 
 ### Phase 4 -- additional registry support (`ghcr.io`, `quay.io`)
 
-**Status: implemented (Session 6), not yet run through
-`devtools::test()`/`check()`.**
+**Status: implemented and verified.** Closing commit
+(`fix!: close out Phase 4`) fixed a `local_mocked_bindings(.package =
+"jsonlite")` test-mocking issue that surfaced during Erwin's first
+`devtools::check()` run -- see `JOURNAL.md`'s Session 6 entry for the
+full debugging story, since it took several rounds to isolate. Confirmed
+clean afterward: plain `devtools::check()` (no `NOT_CRAN` override),
+0 errors, 0 warnings, 0 notes. `diagrams.qmd` was also brought fully
+current as part of closing this phase out -- every diagram now reflects
+`tool_preference`, the `namespace` rename, `.is_logged_in()`'s replacement
+of the raw `--get-login` call, and the current 13-helper/17-function
+call graph, plus a fix for diagrams rendering with illegibly dark
+backgrounds in some renders.
 
 Resolves open design question 2 (registry argument vs. separate
 registry-specific functions).
@@ -583,17 +597,18 @@ registry.doit.wisc.edu/...") -- likely a leftover from an earlier edit,
 unrelated to this phase's actual scope but caught while touching the same
 lines.
 
-**Not done this phase, flagged rather than silently skipped:**
-`diagrams.qmd` (the internal component-diagram reference doc) is stale in
+**Flagged during this phase, resolved shortly after:** `diagrams.qmd`
+(the internal component-diagram reference doc) was found to be stale in
 several ways beyond the `netid` rename caught and fixed here -- it still
-shows `.resolve_tool(tool)` (pre-`tool_preference`), a
+showed `.resolve_tool(tool)` (pre-`tool_preference`), a
 `.check_tool_responsive()` call Phase 3 removed, and the `--get-login`
 call this phase just replaced, including a "known gaps" table that
 actually predicted this exact bug and the missing test coverage before
-either was fixed. A full rewrite of that document is a substantial
-standalone task -- diagram flows, helper references, and the gaps table
-all need updating throughout -- and doesn't belong folded into this
-rename in passing. Reasonable candidate for Phase 7 or its own pass.
+either was fixed. Flagged as a substantial standalone task rather than
+folded into this rename in passing -- and then done as its own pass
+shortly after, alongside a fix for diagrams rendering with illegibly
+dark backgrounds in some renders. Both are complete; `diagrams.qmd`
+reflects the source accurately as of Phase 4's completion.
 
 New Layer 3 coverage for `ghcr.io`/`quay.io` themselves (as opposed to the
 generalized login-check logic, which is covered) is still open --
@@ -602,32 +617,13 @@ registries in CI still applies, and no such tests were added this phase.
 
 ---
 
-### Phase 5 -- Singularity / Apptainer support
+### Phase 5 -- GitHub Actions workflow for image builds
 
-**Stop and scope this one properly before writing anything** -- there's a
-real fork hiding in "add Singularity support" that changes the size of the
-work by roughly an order of magnitude depending on which side it lands on:
-
-- **Pull/convert an existing OCI image** (`singularity build my.sif
-  docker://registry/image:tag`, run *after* Phase 4 has something pushed)
-  -- small, a new function layered on top of what already exists.
-- **Native `.def` file generation** -- a second, parallel recipe format
-  alongside `Dockerfile`, resolving open design question 3 (`format`
-  argument on `generate_dockerfile()`). This duplicates a meaningful
-  fraction of what `generate_dockerfile()` already does, in a different
-  syntax, and is a substantially larger effort.
-
-Once the model is decided, the entry point for the smaller option is
-adding `"singularity"`/`"apptainer"` as candidates in
-`tool_preference`'s default -- `.resolve_tool()` itself needs no change,
-since it already accepts any tool name (Phase 3's `tool_preference`
-redesign was deliberately permissive with exactly this in mind); for the
-larger option it's a `format` argument plus a sibling code path to the
-existing `lines` list construction in `generate_dockerfile()`.
-
----
-
-### Phase 6 -- GitHub Actions workflow for image builds
+**Renumbered from Phase 6.** Apptainer support (previously this
+section's Phase 5) is deferred beyond `0.2.0` entirely -- see
+`## Deferred beyond v0.2.0` below for the full reasoning and everything
+scoped so far. This phase now runs directly after Phase 4 rather than
+waiting on a Phase 5 that won't exist in this release.
 
 Confirmed there's no existing workflow that builds or pushes container
 images -- the four in `.github/workflows/` (`R-CMD-check.yaml`,
@@ -635,9 +631,11 @@ images -- the four in `.github/workflows/` (`R-CMD-check.yaml`,
 testing infrastructure, untouched by this phase. This is a clean net-new
 `.github/workflows/` file.
 
-Sequenced after Phases 4 and 5 so the workflow targets whatever tool/
-registry surface actually exists by then, rather than being built against
-the DoIT GitLab registry only and reworked twice. Solves the Apple Silicon
+Sequenced directly after Phase 4 -- not after a Phase 5 that no longer
+exists in this release -- so the workflow targets today's tool/registry
+surface (`tool_preference`, the DoIT GitLab registry plus whatever else
+Phase 4 generalized to) rather than being built speculatively against an
+Apptainer surface that isn't shipping yet. Solves the Apple Silicon
 QEMU problem from Session 4 by running on a native `x86_64` GitHub-hosted
 runner.
 
@@ -651,29 +649,121 @@ build on now.
 
 ---
 
-### Phase 7 -- documentation and release pass
+### Phase 6 -- documentation and release pass
 
 `README.md`, both vignettes (`containr-workflow.Rmd`, `why-containers.Rmd`),
 a consolidated `NEWS.md` entry covering the whole `0.2.0` release, and
-`inst/WORDLIST` additions (`shiny_server`, `ghcr`, `quay`, `Apptainer`,
-`Singularity` will all trip `spelling::spell_check_package()` otherwise).
-Then the standard release cycle: `devtools::document()` ->
-`devtools::test()` -> `devtools::check()` -> `devtools::submit_cran()`,
-followed by `usethis::use_github_release()` ->
+`inst/WORDLIST` additions (`shiny_server`, `ghcr`, `quay` will all trip
+`spelling::spell_check_package()` otherwise -- `Apptainer`/`Singularity`
+dropped from this list along with the rest of that work, now deferred to
+`0.3.0`; see below). Then the standard release cycle:
+`devtools::document()` -> `devtools::test()` -> `devtools::check()` ->
+`devtools::submit_cran()`, followed by `usethis::use_github_release()` ->
 `usethis::use_dev_version(push = TRUE)`.
 
 ---
 
 ### Deferred beyond v0.2.0
 
-One item from the original roadmap that wasn't part of this round and
-doesn't block anything above:
+Two items from the original roadmap that aren't part of this round and
+don't block anything above:
 
 - **`containerize()` convenience wrapper** (open design question 1) --
   doesn't touch `r_mode` or anything else in this plan; fine to pick up
   independently whenever.
+- **Apptainer support** (previously Phase 5) -- see below. Targeting
+  `0.3.0`, not `0.2.1`: this is a genuine new capability, not a
+  backward-compatible fix, so it warrants a real minor bump under the
+  same semver reasoning that put the current release at `0.2.0` rather
+  than `0.1.4` in the first place.
 
 `.resolve_tool()`'s preference-order argument (open design question 5),
 previously listed here, is no longer deferred -- implemented as part of
 Phase 3 above, since Erwin asked to tackle it alongside the Phase 3
 cleanup rather than hold it for later.
+
+---
+
+### Apptainer support (deferred to `0.3.0`)
+
+**Deferred, not abandoned.** Decided against building this now for two
+reasons. First, Erwin wants to read more before committing to a design.
+Second, and more concretely: CHTC operates a genuinely separate HPC
+cluster (SLURM-based, `spark-login.chtc.wisc.edu`) distinct from the HTC
+pool `submitr` currently targets (its own function names --
+`htc_gen_submit()`, `htc_submit()` -- are HTCondor-specific, the HTC
+pool's scheduler). Docker/Podman aren't available on SLURM-based HPC
+clusters generally -- confirmed across multiple institutions' own docs
+(Michigan, Utah, Harvard, several DoD HPC centers), not assumed from one
+source -- so Apptainer is effectively required there, not just an
+option. Apptainer is *also* usable on CHTC's HTC pool via HTCondor's
+container universe, but Docker already works fine there today, which is
+exactly what `containr` already supports. Net effect: building
+Apptainer generation now would produce a feature `submitr` has no
+pipeline to actually consume, since it doesn't submit to the SLURM
+cluster at all yet.
+
+**Terminology decision: `containr` will say "Apptainer," not
+"Singularity," throughout.** Matches CHTC's own current documentation,
+which consistently leads with "Apptainer" and treats Singularity as the
+superseded name (*"HTCondor supports the use of Apptainer (formerly
+known as Singularity)"*) -- Singularity is now Sylabs' commercial
+SingularityCE, Apptainer is the open Linux Foundation-governed fork.
+Briefly considered "Singularity" instead (Erwin's first instinct, on the
+reasoning that it's still the more widely-recognized umbrella term across
+the broader HPC world, and some other institutions' docs do still lead
+with it) but reversed after double-checking against CHTC specifically --
+"Apptainer" is more current for the actual target platform, which is the
+reasoning that should win. Logged here so a future session doesn't
+re-litigate a decision that's already settled either direction.
+
+**Three open questions, not one -- confirmed against CHTC's and OSPool's
+own documentation rather than assumed from the tool's general reputation.
+Numbering kept as originally scoped, since (3) is now answered:**
+
+1. **Where does the build actually happen?** CHTC's own guidance for
+   converting a Docker image to a `.sif` file doesn't run locally -- it's
+   an *interactive HTCondor job*, submitted via `condor_submit -i`
+   against a `build.sub` file, run on CHTC's own infrastructure. A local
+   `apptainer build my.sif docker://...` wrapper (mirroring
+   `build_image()`, small effort) only serves someone who has Apptainer
+   installed on their own machine -- true for some HPC/Linux-workstation
+   users, not the typical CHTC-via-laptop researcher this package
+   otherwise targets. Generating the CHTC-side submit file instead is a
+   different, more integration-heavy shape of feature, and arguably edges
+   into `submitr`'s territory (job submission) rather than staying inside
+   `containr`'s own scope (containerization) -- and would need `submitr`
+   to support the HPC/SLURM cluster at all first, which it doesn't yet.
+   **Still open.**
+2. **Pull/convert vs. native `.def` generation** -- the fork this section
+   originally flagged, now sharper given (1). Pull/convert (whichever
+   shape (1) resolves to) stays small. Native `.def` file generation is a
+   second, parallel recipe format alongside `Dockerfile` -- resolving
+   open design question 3 (a `format` argument on `generate_dockerfile()`)
+   -- and duplicates a meaningful fraction of what `generate_dockerfile()`
+   already does, in a different syntax. Substantially larger regardless
+   of how (1) resolves. **Still open.**
+3. **If native `.def` generation happens, which base images? -- decided.**
+   Follow OSG's guidance: `hub.opensciencegrid.org/htc/{debian,rocky,
+   ubuntu}`, not `rocker/*` (Erwin's call). This doesn't force a break
+   with `.r_mode_registry` if that path is ever built, since Apptainer's
+   `Bootstrap: docker` directive can still pull Rocker images directly
+   the same way `docker pull`/`podman pull` do -- but the deliberate
+   choice here is the OSG-recommended bases specifically, likely
+   better-tuned for CHTC/OSPool, accepting a second base-image mapping
+   alongside `.r_mode_registry` as the cost.
+
+Once (1) and (2) are decided, the entry point for the smaller shape is
+adding `"apptainer"` as a candidate in `tool_preference`'s default --
+`.resolve_tool()` itself needs no change, since it already accepts any
+tool name (Phase 3's `tool_preference` redesign was deliberately
+permissive with exactly this in mind); for native `.def` generation it's
+a `format` argument plus a sibling code path to the existing `lines` list
+construction in `generate_dockerfile()`.
+
+**Sources consulted:** HTCondor's own Apptainer/Singularity support docs
+(htcondor.readthedocs.io), CHTC's Apptainer-in-HTC-jobs,
+Docker-to-Apptainer-conversion, and HPC-cluster-overview guides
+(chtc.cs.wisc.edu), and OSPool's container-building documentation
+(portal.osg-htc.org) -- all fetched directly, not recalled from general
+knowledge of the tool.
