@@ -1,19 +1,41 @@
+# Known credential-setup guidance for specific registries, used in
+# push_image()'s pre-push comments and its not-logged-in error. registry is
+# a free-form hostname argument -- anything not listed here (ghcr.io,
+# quay.io, or any other registry a caller supplies) falls back to generic
+# guidance rather than DoIT-specific PAT instructions that would be wrong
+# for it. Mirrors .abort_tool_not_responsive()'s known-tool/generic-
+# fallback pattern from container-helpers.R.
+.registry_pat_guidance <- list(
+    "registry.doit.wisc.edu" = list(
+        create_url = "https://git.doit.wisc.edu/-/user_settings/personal_access_tokens",
+        scopes     = c("read_registry", "write_registry"),
+        guide_url  = "https://git.doit.wisc.edu/erwin.lares/container-registry"
+    )
+)
+
+
 #' Tag and push a container image to a registry
 #'
 #' `push_image()` tags a locally built container image with a full registry
 #' path and pushes it to a container registry. It handles both the
 #' `podman tag` and `podman push` steps in a single call. Auto-detects
-#' which container tool is available unless `tool` is specified explicitly.
+#' which container tool is available unless `tool_preference` is set to a
+#' single value.
 #' Use `dry_run = TRUE` to preview the exact commands without executing them.
-#' The format for the is registry.doit.wisc.edu/<netid>/<image-name>:<version>
-
+#' The full path format is `{registry}/{namespace}/{project}:{tag}` -- for
+#' the default registry, e.g.
+#' `registry.doit.wisc.edu/<namespace>/<project-name>:<version>`.
 #'
 #' @param image_id A character string. The local image ID or name to push,
 #'   as shown in `podman image ls` or `docker image ls`. This is typically
 #'   a 12-character hash (e.g. `"974123909a36"`) or a locally assigned name
 #'   if the image was built with a tag via [build_image()].
-#' @param netid A character string. Your UW-Madison NetID, used to construct
-#'   the full registry path, e.g. `"erwin.lares"`.
+#' @param namespace A character string. The account or organization the
+#'   image is scoped under, used to construct the full registry path. For
+#'   the default `"registry.doit.wisc.edu"` registry, this is your
+#'   UW-Madison NetID (e.g. `"erwin.lares"`). For other registries, it's
+#'   the equivalent identifier -- your GitHub username or organization for
+#'   `ghcr.io`, or your Quay namespace for `quay.io`.
 #' @param project A character string. The GitLab project name that hosts the
 #'   container registry, e.g. `"container-registry"`.
 #' @param tag A character string. The version tag to assign to the image.
@@ -21,10 +43,12 @@
 #'   is recommended for reproducibility -- `"latest"` is overwritten on
 #'   every push.
 #' @param registry A character string. The registry hostname. Defaults to
-#'   `"registry.doit.wisc.edu"` (UW-Madison CHTC).
-#' @param tool A character string or `NULL`. The container tool to use. One
-#'   of `"podman"` or `"docker"`. If `NULL` (the default), the function
-#'   auto-detects which tool is available, preferring `podman`.
+#'   `"registry.doit.wisc.edu"`, UW-Madison DoIT's GitLab Container
+#'   Registry -- the only registry `push_image()` currently supports.
+#' @param tool_preference A non-empty character vector of container tools to
+#'   try, in order. Defaults to `c("podman", "docker")` -- Podman first, then
+#'   Docker. Supply a single value (e.g. `"docker"`) to require that specific
+#'   tool rather than auto-detecting.
 #' @param check_login Logical. If `TRUE` (the default), verifies that you
 #'   are logged in to `registry` before attempting the push. If not logged
 #'   in, the function errors with instructions on how to authenticate.
@@ -40,7 +64,11 @@
 #' @return Called for its side effects. Returns `invisible(NULL)`.
 #'
 #' @section Prerequisites:
-#' Before calling `push_image()`, ensure the following are in place:
+#' Before calling `push_image()` against the default
+#' `"registry.doit.wisc.edu"` registry, ensure the following are in place.
+#' (For other registries -- `ghcr.io`, `quay.io`, or any other hostname
+#' supplied via `registry` -- consult that registry's own documentation for
+#' the equivalent setup; the steps below are DoIT GitLab-specific.)
 #'
 #' 1. The image has been built locally with [build_image()]. Run
 #'    `podman image ls` to find the image ID.
@@ -54,11 +82,14 @@
 #'    Enter your NetID as the username and your PAT as the password.
 #'
 #' @section Authentication:
-#' The GitLab container registry requires authentication before pushing.
-#' Use a Personal Access Token (PAT) rather than your NetID password --
-#' PATs can be scoped to registry access only and revoked independently.
-#' Authentication is cached by `podman` or `docker` after the first login,
-#' so you only need to run `podman login` once per machine per session.
+#' The DoIT GitLab Container Registry requires authentication before
+#' pushing. Use a Personal Access Token (PAT) rather than your NetID
+#' password -- PATs can be scoped to registry access only and revoked
+#' independently. Authentication is cached by `podman` or `docker` after
+#' the first login, so you only need to run `podman login` once per
+#' machine per session. For other registries, use whatever credential type
+#' that registry expects -- e.g. a GitHub PAT with the `write:packages`
+#' scope for `ghcr.io`.
 #'
 #' Note that GitLab Self-Managed authentication tokens expire after five
 #' minutes by default. If you see an `unauthorized: authentication required`
@@ -68,48 +99,56 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Tag and push an image to the CHTC registry
+#' # Tag and push an image to the DoIT GitLab Container Registry
 #' push_image(
-#'   image_id = "974123909a36",
-#'   netid    = "erwin.lares",
-#'   project  = "container-registry"
+#'   image_id  = "974123909a36",
+#'   namespace = "erwin.lares",
+#'   project   = "container-registry"
 #' )
 #'
 #' # Push with an explicit version tag
 #' push_image(
-#'   image_id = "974123909a36",
-#'   netid    = "erwin.lares",
-#'   project  = "container-registry",
-#'   tag      = "1.0.0"
+#'   image_id  = "974123909a36",
+#'   namespace = "erwin.lares",
+#'   project   = "container-registry",
+#'   tag       = "1.0.0"
 #' )
 #'
 #' # Preview the commands without running them
 #' push_image(
-#'   image_id = "974123909a36",
-#'   netid    = "erwin.lares",
-#'   project  = "container-registry",
-#'   dry_run  = TRUE
+#'   image_id  = "974123909a36",
+#'   namespace = "erwin.lares",
+#'   project   = "container-registry",
+#'   dry_run   = TRUE
 #' )
 #'
 #' # Guided push for first-time users
 #' push_image(
-#'   image_id = "974123909a36",
-#'   netid    = "erwin.lares",
-#'   project  = "container-registry",
-#'   verbose  = TRUE,
-#'   comments = TRUE
+#'   image_id  = "974123909a36",
+#'   namespace = "erwin.lares",
+#'   project   = "container-registry",
+#'   verbose   = TRUE,
+#'   comments  = TRUE
+#' )
+#'
+#' # Push to GitHub Container Registry instead of the default
+#' push_image(
+#'   image_id  = "974123909a36",
+#'   namespace = "your-github-username",
+#'   project   = "my-analysis",
+#'   registry  = "ghcr.io"
 #' )
 #' }
-push_image <- function(image_id    = NULL,
-                       netid       = NULL,
-                       project     = NULL,
-                       tag         = "latest",
-                       registry    = "registry.doit.wisc.edu",
-                       tool        = NULL,
-                       check_login = TRUE,
-                       dry_run     = FALSE,
-                       verbose     = FALSE,
-                       comments    = FALSE) {
+push_image <- function(image_id        = NULL,
+                       namespace        = NULL,
+                       project          = NULL,
+                       tag              = "latest",
+                       registry         = "registry.doit.wisc.edu",
+                       tool_preference  = c("podman", "docker"),
+                       check_login      = TRUE,
+                       dry_run          = FALSE,
+                       verbose          = FALSE,
+                       comments         = FALSE) {
 
     # -- 1. Validate required arguments ----------------------------------------
     if (is.null(image_id)) {
@@ -121,10 +160,13 @@ push_image <- function(image_id    = NULL,
         ))
     }
 
-    if (is.null(netid)) {
+    if (is.null(namespace)) {
         cli::cli_abort(c(
-            "{.arg netid} must be supplied.",
-            "i" = "Provide your UW-Madison NetID, e.g. {.val erwin.lares}."
+            "{.arg namespace} must be supplied.",
+            "i" = "Provide the account or organization your image is scoped under --",
+            " " = "  your NetID for the default DoIT GitLab registry, e.g. {.val erwin.lares},",
+            " " = "  or the equivalent identifier for other registries (a GitHub username",
+            " " = "  or organization for {.val ghcr.io}, a Quay namespace for {.val quay.io})."
         ))
     }
 
@@ -148,70 +190,87 @@ push_image <- function(image_id    = NULL,
     }
 
     # -- 3. Assemble destination tag -------------------------------------------
-    destination <- glue::glue("{registry}/{netid}/{project}:{tag}")
+    destination <- glue::glue("{registry}/{namespace}/{project}:{tag}")
 
     if (verbose) {
         cli::cli_inform("Destination: {.val {destination}}")
     }
 
-    # -- 4. Resolve tool -------------------------------------------------------
-    resolved_tool <- .resolve_tool(tool)
+    # -- 4. Resolve tool ---------------------------------------------------------
+    # .resolve_tool() already checks installation and responsiveness, so no
+    # separate .check_tool_responsive() call is needed here.
+    resolved_tool <- .resolve_tool(tool_preference)
 
-    # -- 5. Check tool is responsive -------------------------------------------
-    .check_tool_responsive(resolved_tool)
-
-    # -- 6. Check login --------------------------------------------------------
+    # -- 5. Check login --------------------------------------------------------
     if (check_login) {
+        known <- .registry_pat_guidance[[registry]]
+
         if (comments) {
-            cli::cli_inform(c(
-                "i" = "Checking that you are logged in to {.val {registry}}.",
-                "i" = "Pushing an image requires authentication. If this check",
-                " " = "  fails, run the following in your terminal:",
-                " " = "  {.code {resolved_tool} login {registry}}",
-                "i" = "When prompted, enter your NetID as the username and your",
-                " " = "  Personal Access Token (PAT) as the password.",
-                "i" = "Create a PAT at:",
-                " " = "  {.url https://git.doit.wisc.edu/-/user_settings/personal_access_tokens}",
-                " " = "  Select the {.val read_registry} and {.val write_registry} scopes."
-            ))
+            if (!is.null(known)) {
+                cli::cli_inform(c(
+                    "i" = "Checking that you are logged in to {.val {registry}}.",
+                    "i" = "Pushing an image requires authentication. If this check",
+                    " " = "  fails, run the following in your terminal:",
+                    " " = "  {.code {resolved_tool} login {registry}}",
+                    "i" = "When prompted, enter your NetID as the username and your",
+                    " " = "  Personal Access Token (PAT) as the password.",
+                    "i" = "Create a PAT at:",
+                    " " = "  {.url {known$create_url}}",
+                    " " = "  Select the {.val {known$scopes}} scopes."
+                ))
+            } else {
+                cli::cli_inform(c(
+                    "i" = "Checking that you are logged in to {.val {registry}}.",
+                    "i" = "Pushing an image requires authentication. If this check",
+                    " " = "  fails, run the following in your terminal:",
+                    " " = "  {.code {resolved_tool} login {registry}}",
+                    "i" = "Consult {.val {registry}}'s own documentation for how to",
+                    " " = "  create a credential for pushing images."
+                ))
+            }
         }
 
         if (verbose) cli::cli_inform("Checking login status for {.val {registry}}...")
 
-        login_check <- system2(
-            resolved_tool,
-            args   = c("login", "--get-login", registry),
-            stdout = TRUE,
-            stderr = TRUE
-        )
-        exit_status <- attr(login_check, "status")
-        login_ok    <- is.null(exit_status) || exit_status == 0L
-
-        if (!login_ok) {
-            cli::cli_abort(c(
-                "Not logged in to {.val {registry}}.",
-                "i" = "Authenticate by running the following in your terminal:",
-                " " = "  {.code {resolved_tool} login {registry}}",
-                "i" = "Enter your NetID as the username and your PAT as the password.",
-                "i" = "Create a PAT at:",
-                " " = "  {.url https://git.doit.wisc.edu/-/user_settings/personal_access_tokens}",
-                " " = "  Select {.val read_registry} and {.val write_registry} scopes.",
-                "i" = "Full authentication guide:",
-                " " = "  {.url https://git.doit.wisc.edu/erwin.lares/container-registry}"
-            ))
+        # .is_logged_in() replaces a raw `<tool> login --get-login <registry>`
+        # call -- --get-login is Podman-only and always fails under Docker
+        # (exit 125) regardless of actual login state. See its docs in
+        # container-helpers.R for how the Docker path works instead.
+        if (!.is_logged_in(resolved_tool, registry)) {
+            if (!is.null(known)) {
+                cli::cli_abort(c(
+                    "Not logged in to {.val {registry}}.",
+                    "i" = "Authenticate by running the following in your terminal:",
+                    " " = "  {.code {resolved_tool} login {registry}}",
+                    "i" = "Enter your NetID as the username and your PAT as the password.",
+                    "i" = "Create a PAT at:",
+                    " " = "  {.url {known$create_url}}",
+                    " " = "  Select {.val {known$scopes}} scopes.",
+                    "i" = "Full authentication guide:",
+                    " " = "  {.url {known$guide_url}}"
+                ))
+            } else {
+                cli::cli_abort(c(
+                    "Not logged in to {.val {registry}}.",
+                    "i" = "Authenticate by running the following in your terminal:",
+                    " " = "  {.code {resolved_tool} login {registry}}",
+                    "i" = "Consult {.val {registry}}'s own documentation for how to",
+                    " " = "  create a credential for pushing images."
+                ))
+            }
         }
 
         if (verbose) cli::cli_inform("Login verified for {.val {registry}}.")
     }
 
-    # -- 7. Assemble commands --------------------------------------------------
+    # -- 6. Assemble commands --------------------------------------------------
     tag_args  <- c("tag",  image_id, destination)
     push_args <- c("push", destination)
 
     tag_cmd  <- paste(resolved_tool, paste(tag_args,  collapse = " "))
     push_cmd <- paste(resolved_tool, paste(push_args, collapse = " "))
 
-    # -- 8. Execute or preview -------------------------------------------------
+    # -- 7. Execute or preview -------------------------------------------------
     if (comments) {
         cli::cli_inform(c(
             "i" = "Step 1: {.strong tag} assigns the full registry path to your",
@@ -239,7 +298,7 @@ push_image <- function(image_id    = NULL,
         return(invisible(NULL))
     }
 
-    # -- 9. Tag ----------------------------------------------------------------
+    # -- 8. Tag ----------------------------------------------------------------
     if (verbose) cli::cli_inform("Tagging image: {.code {tag_cmd}}")
 
     tag_exit <- system2(resolved_tool, args = tag_args)
@@ -255,7 +314,7 @@ push_image <- function(image_id    = NULL,
 
     if (verbose) cli::cli_inform("Image tagged as {.val {destination}}.")
 
-    # -- 10. Push --------------------------------------------------------------
+    # -- 9. Push --------------------------------------------------------------
     if (verbose) cli::cli_inform("Pushing image: {.code {push_cmd}}")
 
     push_exit <- system2(resolved_tool, args = push_args)

@@ -12,8 +12,10 @@
 #' @param r_mode A character string selecting the Rocker base image. Inspired
 #'   by the [Rocker Project](https://rocker-project.org/). One of `"base"` for
 #'   plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for RStudio
-#'   Server, or `"tidystudio"` for tidyverse plus TeX Live and
-#'   publishing-related packages. Defaults to `"base"`.
+#'   Server, `"verse"` for tidyverse plus TeX Live and publishing-related
+#'   packages, `"shiny_server"` for serving Shiny apps, or `"rstudio_shiny"`
+#'   for RStudio Server with Shiny Server layered on top. Defaults to
+#'   `"base"`.
 #' @param auto_syslibs Logical. If `TRUE` (the default), reads `renv.lock`
 #'   from the current working directory, queries the Posit Package Manager
 #'   sysreqs database via `remotes::system_requirements()`, and automatically
@@ -28,24 +30,32 @@
 #'   be written. Defaults to `tempdir()`.
 #' @param data_file A character string or `NULL`. Path to a data file to copy
 #'   into the container. The local directory structure is preserved under
-#'   `/home/` -- e.g. `"data-raw/sample.csv"` becomes
-#'   `/home/data-raw/sample.csv` inside the container. The file must be inside
-#'   the current working directory (the build context). Defaults to `NULL`.
+#'   `/home/` for `"base"`, `"tidyverse"`, `"rstudio"`, and `"verse"` (e.g.
+#'   `"data-raw/sample.csv"` becomes `/home/data-raw/sample.csv`), or under
+#'   `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`,
+#'   matching Shiny Server's own default app directory. The file must be
+#'   inside the current working directory (the build context). Defaults to
+#'   `NULL`.
 #' @param code_file A character string or `NULL`. Path to a script file (e.g.
 #'   `.R`, `.qmd`, `.rmd`) to copy into the container. The local directory
-#'   structure is preserved under `/home/`. The file must be inside the current
-#'   working directory. Defaults to `NULL`.
+#'   structure is preserved under the mode's copy root -- see `data_file`.
+#'   The file must be inside the current working directory. Defaults to
+#'   `NULL`.
 #' @param misc_file A character string or `NULL`. Path to a miscellaneous file
 #'   (e.g. an image or shell script) to copy into the container. The local
-#'   directory structure is preserved under `/home/`. The file must be inside
-#'   the current working directory. Defaults to `NULL`.
+#'   directory structure is preserved under the mode's copy root -- see
+#'   `data_file`. The file must be inside the current working directory.
+#'   Defaults to `NULL`.
 #' @param add_user A character string. Name of a Linux user to create inside
 #'   the container with sudo access. Defaults to `NULL`.
 #' @param home_dir A character string. The working directory set inside the
-#'   container via `WORKDIR`. Defaults to `"/home"`.
-#' @param expose_port A character string. The port to expose when `r_mode` is
-#'   `"rstudio"`. Defaults to `"8787"`. Ignored when `r_mode` is not
-#'   `"rstudio"`.
+#'   container via `WORKDIR`. Does not affect where `data_file`, `code_file`,
+#'   or `misc_file` are copied -- see `data_file`. Defaults to `"/home"`.
+#' @param expose_port A character string. Overrides the port exposed when
+#'   `r_mode` is `"rstudio"`. Defaults to `"8787"`. Ignored for every other
+#'   `r_mode` -- `"shiny_server"` and `"rstudio_shiny"` expose their own
+#'   fixed port(s) (`"3838"`, and `"8787"`/`"3838"` respectively), since a
+#'   single override value can't address more than one port.
 #' @param install_quarto Logical. If `TRUE`, downloads and installs the Quarto
 #'   CLI inside the container. Defaults to `FALSE`.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
@@ -92,6 +102,22 @@
 #'   comments  = TRUE,
 #'   output    = "."
 #' )
+#'
+#' # Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+#' generate_dockerfile(
+#'   r_version = "4.3.0",
+#'   r_mode    = "shiny_server",
+#'   code_file = "app.R",
+#'   output    = "."
+#' )
+#'
+#' # RStudio Server plus Shiny Server in the same image
+#' generate_dockerfile(
+#'   r_version = "4.3.0",
+#'   r_mode    = "rstudio_shiny",
+#'   code_file = "app.R",
+#'   output    = "."
+#' )
 #' }
 generate_dockerfile <- function(r_version       = "current",
                                 r_mode          = "base",
@@ -109,21 +135,17 @@ generate_dockerfile <- function(r_version       = "current",
                                 verbose         = FALSE) {
 
     # -- 1. Validate r_mode early ----------------------------------------------
-    image_map <- c(
-        base       = "rocker/r-ver",
-        tidyverse  = "rocker/tidyverse",
-        rstudio    = "rocker/rstudio",
-        tidystudio = "rocker/verse"
-    )
-
-    if (!r_mode %in% names(image_map)) {
+    if (!r_mode %in% names(.r_mode_registry)) {
         cli::cli_abort(c(
             "{.val {r_mode}} is not a valid {.arg r_mode}.",
-            "i" = "Valid choices are {.val {names(image_map)}}."
+            "i" = "Valid choices are {.val {names(.r_mode_registry)}}."
         ))
     }
 
     # -- 2. Warn if expose_port is customised but r_mode is not rstudio --------
+    # shiny_server and rstudio_shiny expose fixed port(s) from the registry
+    # (a single expose_port value can't address rstudio_shiny's two ports),
+    # so the override remains rstudio-only.
     if (expose_port != "8787" && r_mode != "rstudio") {
         cli::cli_warn(c(
             "{.arg expose_port} is only used when {.arg r_mode} is {.val rstudio}.",
@@ -182,6 +204,32 @@ generate_dockerfile <- function(r_version       = "current",
         ))
     }
 
+    # -- 6b. Enforce r_mode's minimum R version, if any ------------------------
+    # /rocker_scripts/ (and install_shiny_server.sh inside it) only exists in
+    # images built from the rocker-versioned2 repository, which covers
+    # R >= 4.0.0. Older tags on the same Docker Hub repos (R <= 3.6.3) are
+    # carried over from the predecessor rocker-versioned repo and predate
+    # rocker_scripts entirely -- confirmed against rocker-versioned2's own
+    # README, not assumed.
+    #
+    # resolved_version can be "latest", "devel", a bare "4", or carry a
+    # CUDA/Ubuntu suffix (e.g. "4.4.0-cuda12.2-ubuntu22.04") -- none of which
+    # package_version() accepts directly. .extract_r_version_prefix() pulls
+    # the leading X[.Y[.Z]] numeric portion and pads it to three components;
+    # NA for "latest"/"devel", both of which always resolve to the current
+    # rocker-versioned2 lineage and so are exempt from the comparison.
+    min_r_version  <- .r_mode_registry[[r_mode]]$min_r_version
+    version_prefix <- .extract_r_version_prefix(resolved_version)
+
+    if (!is.null(min_r_version) && !is.na(version_prefix) &&
+        package_version(version_prefix) < package_version(min_r_version)) {
+        cli::cli_abort(c(
+            "{.val {r_mode}} requires R {.val {min_r_version}} or later.",
+            "i" = "{.val {resolved_version}} predates the rocker-versioned2 image",
+            " " = "  lineage that {.file /rocker_scripts/} ships in."
+        ))
+    }
+
     # -- 7. Resolve system libraries -------------------------------------------
     # curl is always installed as a baseline -- renv needs it for downloads
     # inside the container regardless of what packages are in renv.lock.
@@ -211,7 +259,25 @@ generate_dockerfile <- function(r_version       = "current",
     }
 
     # -- 8. Build Dockerfile instruction strings -------------------------------
-    image_prefix <- image_map[[r_mode]]
+    image_prefix <- .r_mode_registry[[r_mode]]$image
+
+    # copy_root: comes straight from the registry. "/home" for the four
+    # Phase 1 modes (unrelated to home_dir -- COPY destinations for those
+    # modes have always been the literal /home/, independent of WORKDIR,
+    # and stay that way here). "/srv/shiny-server" for shiny_server and
+    # rstudio_shiny, matching Shiny Server's own default app directory.
+    copy_root <- .r_mode_registry[[r_mode]]$copy_root
+
+    # ports: rstudio keeps the user-overridable expose_port for backward
+    # compatibility. Every other mode with ports uses the registry's fixed
+    # value(s) -- see the expose_port docs for why those aren't overridable.
+    mode_ports <- if (r_mode == "rstudio") {
+        expose_port
+    } else {
+        .r_mode_registry[[r_mode]]$ports
+    }
+
+    extra_install_script <- .r_mode_registry[[r_mode]]$extra_install
 
     syslibs_instruction <- if (length(all_syslibs) > 0) {
         lib_lines <- paste(
@@ -280,6 +346,23 @@ generate_dockerfile <- function(r_version       = "current",
                 NULL
             }
         ),
+        extra_install = list(
+            instruction = if (!is.null(extra_install_script)) {
+                glue::glue("RUN /rocker_scripts/{extra_install_script}")
+            } else {
+                NULL
+            },
+            verbose_msg = if (!is.null(extra_install_script)) {
+                glue::glue("Running {extra_install_script}")
+            } else {
+                NULL
+            },
+            comment     = if (!is.null(extra_install_script)) {
+                "Layer additional software onto the base image via Rocker's own install script"
+            } else {
+                NULL
+            }
+        ),
         workdir = list(
             instruction = glue::glue("WORKDIR {home_dir}"),
             verbose_msg = glue::glue("Set working directory to {home_dir}"),
@@ -293,13 +376,13 @@ generate_dockerfile <- function(r_version       = "current",
         data = list(
             instruction = if (!is.null(data_file)) {
                 purrr::map_chr(data_file,
-                               ~ glue::glue("COPY {.x} /home/{.x}"))
+                               ~ glue::glue("COPY {.x} {copy_root}/{.x}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy data files into the container",
             comment     = if (!is.null(data_file)) {
-                "Copy data files -- directory structure preserved under /home/"
+                glue::glue("Copy data files -- directory structure preserved under {copy_root}/")
             } else {
                 NULL
             }
@@ -307,13 +390,13 @@ generate_dockerfile <- function(r_version       = "current",
         code = list(
             instruction = if (!is.null(code_file)) {
                 purrr::map_chr(code_file,
-                               ~ glue::glue("COPY {.x} /home/{.x}"))
+                               ~ glue::glue("COPY {.x} {copy_root}/{.x}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy script files into the container",
             comment     = if (!is.null(code_file)) {
-                "Copy script files -- directory structure preserved under /home/"
+                glue::glue("Copy script files -- directory structure preserved under {copy_root}/")
             } else {
                 NULL
             }
@@ -321,13 +404,13 @@ generate_dockerfile <- function(r_version       = "current",
         misc = list(
             instruction = if (!is.null(misc_file)) {
                 purrr::map_chr(misc_file,
-                               ~ glue::glue("COPY {.x} /home/{.x}"))
+                               ~ glue::glue("COPY {.x} {copy_root}/{.x}"))
             } else {
                 NULL
             },
             verbose_msg = "Copy miscellaneous files into the container",
             comment     = if (!is.null(misc_file)) {
-                "Copy additional files -- directory structure preserved under /home/"
+                glue::glue("Copy additional files -- directory structure preserved under {copy_root}/")
             } else {
                 NULL
             }
@@ -341,14 +424,14 @@ generate_dockerfile <- function(r_version       = "current",
             comment     = "Restore the R package environment as specified in renv.lock"
         ),
         expose = list(
-            instruction = if (r_mode == "rstudio") {
-                glue::glue("EXPOSE {expose_port}")
+            instruction = if (!is.null(mode_ports)) {
+                glue::glue("EXPOSE {paste(mode_ports, collapse = ' ')}")
             } else {
                 NULL
             },
-            verbose_msg = "Expose port for RStudio Server",
-            comment     = if (r_mode == "rstudio") {
-                "Expose port commonly used by RStudio Server"
+            verbose_msg = if (!is.null(mode_ports)) "Expose port(s) for the container" else NULL,
+            comment     = if (!is.null(mode_ports)) {
+                "Expose the port(s) used by RStudio Server and/or Shiny Server"
             } else {
                 NULL
             }
@@ -358,6 +441,30 @@ generate_dockerfile <- function(r_version       = "current",
                 c(
                     "# Run the container with: docker run --rm -ti -u root -e PASSWORD=yourpassword -p 8787:8787 yourimage",
                     "# Point your browser to localhost:8787 and log in with rstudio/yourpassword"
+                )
+            } else {
+                NULL
+            },
+            verbose_msg = NULL,
+            comment     = NULL
+        ),
+        shiny_server_hint = list(
+            instruction = if (r_mode == "shiny_server" && comments) {
+                c(
+                    "# Run the container with: docker run --rm -ti -p 3838:3838 yourimage",
+                    "# Point your browser to localhost:3838"
+                )
+            } else {
+                NULL
+            },
+            verbose_msg = NULL,
+            comment     = NULL
+        ),
+        rstudio_shiny_hint = list(
+            instruction = if (r_mode == "rstudio_shiny" && comments) {
+                c(
+                    "# Run the container with: docker run --rm -ti -u root -e PASSWORD=yourpassword -p 8787:8787 -p 3838:3838 yourimage",
+                    "# Point your browser to localhost:8787 (RStudio) or localhost:3838 (Shiny apps)"
                 )
             } else {
                 NULL

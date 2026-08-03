@@ -119,7 +119,7 @@ test_that("Invalid r_mode errors before any file or network operations", {
 })
 
 test_that("All valid r_mode values are accepted", {
-    for (mode in c("base", "tidyverse", "rstudio", "tidystudio")) {
+    for (mode in names(containr:::.r_mode_registry)) {
         tmp <- withr::local_tempdir()
         writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
         withr::local_dir(tmp)

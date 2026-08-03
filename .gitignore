@@ -10,3 +10,5 @@ Dockerfile
 .positai
 /doc/
 /Meta/
+diagrams.html
+diagrams_files/

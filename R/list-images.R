@@ -5,9 +5,10 @@
 #' `docker image ls`. This is useful for finding the image ID to pass to
 #' [push_image()] after building an image with [build_image()].
 #'
-#' @param tool A character string or `NULL`. The container tool to use. One
-#'   of `"podman"` or `"docker"`. If `NULL` (the default), the function
-#'   auto-detects which tool is available, preferring `podman`.
+#' @param tool_preference A non-empty character vector of container tools to
+#'   try, in order. Defaults to `c("podman", "docker")` -- Podman first, then
+#'   Docker. Supply a single value (e.g. `"docker"`) to require that specific
+#'   tool rather than auto-detecting.
 #' @param verbose Logical. If `TRUE`, prints a progress message before
 #'   querying the local image store. Defaults to `FALSE`.
 #'
@@ -26,9 +27,9 @@
 #' ```r
 #' imgs <- list_images()
 #' push_image(
-#'   image_id = imgs$image_id[1],
-#'   netid    = "erwin.lares",
-#'   project  = "container-registry"
+#'   image_id  = imgs$image_id[1],
+#'   namespace = "erwin.lares",
+#'   project   = "container-registry"
 #' )
 #' ```
 #'
@@ -43,14 +44,13 @@
 #' imgs <- list_images()
 #' imgs$image_id[1]
 #' }
-list_images <- function(tool    = NULL,
-                        verbose = FALSE) {
+list_images <- function(tool_preference = c("podman", "docker"),
+                        verbose          = FALSE) {
 
-    # -- 1. Resolve tool -------------------------------------------------------
-    resolved_tool <- .resolve_tool(tool)
-
-    # -- 2. Check tool is responsive -------------------------------------------
-    .check_tool_responsive(resolved_tool)
+    # -- 1. Resolve tool ---------------------------------------------------------
+    # .resolve_tool() already checks installation and responsiveness, so no
+    # separate .check_tool_responsive() call is needed here.
+    resolved_tool <- .resolve_tool(tool_preference)
 
     if (verbose) {
         cli::cli_inform(
@@ -59,7 +59,7 @@ list_images <- function(tool    = NULL,
     }
 
 
-    # -- 3. Query local image store --------------------------------------------
+    # -- 2. Query local image store --------------------------------------------
     # Build the format string by joining fields with a literal tab character.
     # Constructing it this way avoids shell interpretation of the curly braces
     # and tab escape sequences that occur when the string is passed directly.
@@ -76,7 +76,7 @@ list_images <- function(tool    = NULL,
         stderr = FALSE
     )
 
-    # -- 4. Handle empty result ------------------------------------------------
+    # -- 3. Handle empty result ------------------------------------------------
     if (length(raw) == 0L || (length(raw) == 1L && nchar(trimws(raw)) == 0L)) {
         if (verbose) cli::cli_inform("No local images found.")
         empty <- data.frame(
@@ -90,13 +90,13 @@ list_images <- function(tool    = NULL,
         return(empty)
     }
 
-    # -- 5. Parse into data frame ----------------------------------------------
+    # -- 4. Parse into data frame ----------------------------------------------
     parsed <- do.call(rbind, strsplit(raw, "\t", fixed = TRUE))
     parsed <- as.data.frame(parsed, stringsAsFactors = FALSE)
     colnames(parsed) <- c("repository", "tag", "image_id", "created", "size")
     rownames(parsed) <- NULL
 
-    # -- 6. Print and return ---------------------------------------------------
+    # -- 5. Print and return ---------------------------------------------------
     print(parsed)
     invisible(parsed)
 }

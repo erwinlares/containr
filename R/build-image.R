@@ -2,8 +2,8 @@
 #'
 #' `build_image()` builds a container image from a `Dockerfile` using either
 #' `podman` or `docker`. It auto-detects which tool is available on the system
-#' unless `tool` is specified explicitly. Use `dry_run = TRUE` to preview the
-#' exact command that would be run without executing it.
+#' unless `tool_preference` is set to a single value. Use `dry_run = TRUE` to
+#' preview the exact command that would be run without executing it.
 #'
 #' When the target `platform` differs from the host architecture (e.g.
 #' building `linux/amd64` on an Apple Silicon Mac), `build_image()`
@@ -15,17 +15,17 @@
 #'   from. Defaults to `"Dockerfile"` in the current working directory.
 #' @param tag A character string or `NULL`. The full image tag to assign to
 #'   the built image, including the registry prefix, e.g.
-#'   `"registry.doit.wisc.edu/netid/myimage"`. If `NULL`, no tag is applied
+#'   `"registry.doit.wisc.edu/namespace/myimage"`. If `NULL`, no tag is applied
 #'   and the image is identified only by its image ID. Defaults to `NULL`.
 #' @param platform A character string or `NULL`. The target platform for the
 #'   container image. Defaults to `"linux/amd64"`, which is the architecture
 #'   used by most HPC and HTC clusters. Set to `"linux/arm64"` for ARM-based
 #'   systems (Apple Silicon, AWS Graviton). Set to `NULL` to let the
 #'   container tool build for the host architecture.
-#' @param tool A character string or `NULL`. The container tool to use for
-#'   building. One of `"podman"` or `"docker"`. If `NULL` (the default),
-#'   the function auto-detects which tool is available, preferring `podman`
-#'   if both are found.
+#' @param tool_preference A non-empty character vector of container tools to
+#'   try, in order. Defaults to `c("podman", "docker")` -- Podman first, then
+#'   Docker. Supply a single value (e.g. `"docker"`) to require that specific
+#'   tool rather than auto-detecting.
 #' @param dry_run Logical. If `TRUE`, prints the command that would be run
 #'   without executing it. Useful for verifying the command before committing
 #'   to a potentially slow build. Defaults to `FALSE`.
@@ -57,13 +57,14 @@
 #' cross-platform builds more reliably via `buildx` and Rosetta 2.
 #'
 #' If builds fail with QEMU segfaults, consider:
-#' - Using Docker Desktop instead of Podman (`tool = "docker"`)
+#' - Using Docker Desktop instead of Podman (`tool_preference = "docker"`)
 #' - Building on a native x86_64 machine (e.g. via GitHub Actions)
 #' - Building directly on the target cluster if it supports container builds
 #'
-#' @section Tagging convention for CHTC:
-#' For UW-Madison CHTC, the full tag format is:
-#' `registry.doit.wisc.edu/<netid>/<image-name>:<version>`
+#' @section Tagging convention for the DoIT GitLab Container Registry:
+#' For UW-Madison's DoIT GitLab Container Registry (the registry `push_image()`
+#' currently supports), the full tag format is:
+#' `registry.doit.wisc.edu/<namespace>/<image-name>:<version>`
 #'
 #' For example: `registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0`
 #'
@@ -78,8 +79,8 @@
 #' # Build for linux/amd64 (default) with auto-detected tool
 #' build_image()
 #'
-#' # Build and tag for CHTC registry
-#' build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
+#' # Build and tag for the DoIT GitLab Container Registry
+#' build_image(tag = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0")
 #'
 #' # Build for the host architecture (no --platform flag)
 #' build_image(platform = NULL)
@@ -89,24 +90,24 @@
 #'
 #' # Preview the build command without running it
 #' build_image(
-#'   tag     = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+#'   tag     = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
 #'   dry_run = TRUE
 #' )
 #'
 #' # Guided build for first-time users
 #' build_image(
-#'   tag      = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+#'   tag      = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
 #'   verbose  = TRUE,
 #'   comments = TRUE
 #' )
 #' }
-build_image <- function(dockerfile = "Dockerfile",
-                        tag        = NULL,
-                        platform   = "linux/amd64",
-                        tool       = NULL,
-                        dry_run    = FALSE,
-                        verbose    = FALSE,
-                        comments   = FALSE) {
+build_image <- function(dockerfile      = "Dockerfile",
+                        tag              = NULL,
+                        platform         = "linux/amd64",
+                        tool_preference  = c("podman", "docker"),
+                        dry_run          = FALSE,
+                        verbose          = FALSE,
+                        comments         = FALSE) {
 
     # -- 1. Validate dockerfile ------------------------------------------------
     if (!file.exists(dockerfile)) {
@@ -127,13 +128,12 @@ build_image <- function(dockerfile = "Dockerfile",
         ))
     }
 
-    # -- 3. Resolve tool -------------------------------------------------------
-    resolved_tool <- .resolve_tool(tool)
+    # -- 3. Resolve tool ---------------------------------------------------------
+    # .resolve_tool() already checks installation and responsiveness, so no
+    # separate .check_tool_responsive() call is needed here.
+    resolved_tool <- .resolve_tool(tool_preference)
 
-    # -- 4. Check tool is responsive -------------------------------------------
-    .check_tool_responsive(resolved_tool)
-
-    # -- 5. Detect host architecture and warn if cross-compiling ---------------
+    # -- 4. Detect host architecture and warn if cross-compiling ---------------
     host_arch <- Sys.info()[["machine"]]
     is_cross <- FALSE
 
@@ -152,14 +152,14 @@ build_image <- function(dockerfile = "Dockerfile",
             cli::cli_warn(c(
                 "Building {.val {platform}} on a {.val {host_arch}} host.",
                 "i" = "This requires emulation and may be slow or unstable.",
-                "i" = "If the build fails with a segfault, try {.code tool = \"docker\"}",
+                "i" = "If the build fails with a segfault, try {.code tool_preference = \"docker\"}",
                 " " = "  (Docker Desktop handles cross-platform builds more reliably)",
                 " " = "  or build on a native x86_64 machine."
             ))
         }
     }
 
-    # -- 6. Build command ------------------------------------------------------
+    # -- 5. Build command ------------------------------------------------------
     # Determine whether to use buildx for docker cross-platform builds.
     # podman handles --platform natively. docker requires buildx + --load
     # when the target platform differs from the host.
@@ -186,7 +186,7 @@ build_image <- function(dockerfile = "Dockerfile",
 
     args <- c(args, "-f", dockerfile, ".")
 
-    # -- 7. Execute or preview -------------------------------------------------
+    # -- 6. Execute or preview -------------------------------------------------
     if (comments) {
         cli::cli_inform(c(
             "i" = "The {.strong build} command creates a container image from your Dockerfile.",

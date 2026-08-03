@@ -29,8 +29,10 @@ running in the current session.}
 \item{r_mode}{A character string selecting the Rocker base image. Inspired
 by the \href{https://rocker-project.org/}{Rocker Project}. One of \code{"base"} for
 plain R, \code{"tidyverse"} for R with the tidyverse, \code{"rstudio"} for RStudio
-Server, or \code{"tidystudio"} for tidyverse plus TeX Live and
-publishing-related packages. Defaults to \code{"base"}.}
+Server, \code{"verse"} for tidyverse plus TeX Live and publishing-related
+packages, \code{"shiny_server"} for serving Shiny apps, or \code{"rstudio_shiny"}
+for RStudio Server with Shiny Server layered on top. Defaults to
+\code{"base"}.}
 
 \item{auto_syslibs}{Logical. If \code{TRUE} (the default), reads \code{renv.lock}
 from the current working directory, queries the Posit Package Manager
@@ -49,29 +51,37 @@ be written. Defaults to \code{tempdir()}.}
 
 \item{data_file}{A character string or \code{NULL}. Path to a data file to copy
 into the container. The local directory structure is preserved under
-\verb{/home/} -- e.g. \code{"data-raw/sample.csv"} becomes
-\verb{/home/data-raw/sample.csv} inside the container. The file must be inside
-the current working directory (the build context). Defaults to \code{NULL}.}
+\verb{/home/} for \code{"base"}, \code{"tidyverse"}, \code{"rstudio"}, and \code{"verse"} (e.g.
+\code{"data-raw/sample.csv"} becomes \verb{/home/data-raw/sample.csv}), or under
+\verb{/srv/shiny-server/} for \code{"shiny_server"} and \code{"rstudio_shiny"},
+matching Shiny Server's own default app directory. The file must be
+inside the current working directory (the build context). Defaults to
+\code{NULL}.}
 
 \item{code_file}{A character string or \code{NULL}. Path to a script file (e.g.
 \code{.R}, \code{.qmd}, \code{.rmd}) to copy into the container. The local directory
-structure is preserved under \verb{/home/}. The file must be inside the current
-working directory. Defaults to \code{NULL}.}
+structure is preserved under the mode's copy root -- see \code{data_file}.
+The file must be inside the current working directory. Defaults to
+\code{NULL}.}
 
 \item{misc_file}{A character string or \code{NULL}. Path to a miscellaneous file
 (e.g. an image or shell script) to copy into the container. The local
-directory structure is preserved under \verb{/home/}. The file must be inside
-the current working directory. Defaults to \code{NULL}.}
+directory structure is preserved under the mode's copy root -- see
+\code{data_file}. The file must be inside the current working directory.
+Defaults to \code{NULL}.}
 
 \item{add_user}{A character string. Name of a Linux user to create inside
 the container with sudo access. Defaults to \code{NULL}.}
 
 \item{home_dir}{A character string. The working directory set inside the
-container via \code{WORKDIR}. Defaults to \code{"/home"}.}
+container via \code{WORKDIR}. Does not affect where \code{data_file}, \code{code_file},
+or \code{misc_file} are copied -- see \code{data_file}. Defaults to \code{"/home"}.}
 
-\item{expose_port}{A character string. The port to expose when \code{r_mode} is
-\code{"rstudio"}. Defaults to \code{"8787"}. Ignored when \code{r_mode} is not
-\code{"rstudio"}.}
+\item{expose_port}{A character string. Overrides the port exposed when
+\code{r_mode} is \code{"rstudio"}. Defaults to \code{"8787"}. Ignored for every other
+\code{r_mode} -- \code{"shiny_server"} and \code{"rstudio_shiny"} expose their own
+fixed port(s) (\code{"3838"}, and \code{"8787"}/\code{"3838"} respectively), since a
+single override value can't address more than one port.}
 
 \item{install_quarto}{Logical. If \code{TRUE}, downloads and installs the Quarto
 CLI inside the container. Defaults to \code{FALSE}.}
@@ -127,6 +137,22 @@ generate_dockerfile(
   data_file = "data-raw/penguins.csv",
   code_file = "analysis.R",
   comments  = TRUE,
+  output    = "."
+)
+
+# Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+generate_dockerfile(
+  r_version = "4.3.0",
+  r_mode    = "shiny_server",
+  code_file = "app.R",
+  output    = "."
+)
+
+# RStudio Server plus Shiny Server in the same image
+generate_dockerfile(
+  r_version = "4.3.0",
+  r_mode    = "rstudio_shiny",
+  code_file = "app.R",
   output    = "."
 )
 }

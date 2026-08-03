@@ -9,8 +9,8 @@ and we can read that file and assert on its contents. But `build_image()`,
 
 ```bash
 podman build -f Dockerfile .
-podman tag abc123 registry.doit.wisc.edu/netid/project:1.0.0
-podman push registry.doit.wisc.edu/netid/project:1.0.0
+podman tag abc123 registry.doit.wisc.edu/namespace/project:1.0.0
+podman push registry.doit.wisc.edu/namespace/project:1.0.0
 podman image ls
 ```
 
@@ -50,7 +50,7 @@ laptop, on GitHub Actions, and on CRAN's Windows check server.
 ```r
 test_that("push_image() errors when image_id is NULL", {
     expect_error(
-        push_image(netid = "erwin.lares", project = "container-registry"),
+        push_image(namespace = "erwin.lares", project = "container-registry"),
         regexp = "image_id"
     )
 })
@@ -179,6 +179,17 @@ contexts. The second guard — `skip_if_not(nchar(Sys.which("podman")) > 0)`
 — is a safety check that skips if `podman` is not installed, in case the
 environment variable is set on a machine without a container tool.
 
+`push_image()`'s Layer 3 test adds two more guards on top of these:
+`CONTAINR_TEST_NAMESPACE` and `CONTAINR_TEST_PROJECT`. Unlike `build_image()`,
+which only needs a local daemon, `push_image()` needs somewhere real to
+push a throwaway test image to -- and hardcoding a destination (even a
+placeholder like the `erwin.lares`/`container-registry` example used
+elsewhere in the docs) would risk the test silently pushing to a project it
+was never actually told to use. Requiring both variables be set explicitly
+means the test only runs against a destination the developer chose on
+purpose, and skips with a clear message otherwise.
+environment variable is set on a machine without a container tool.
+
 Note that `skip_on_cran()` was considered but rejected for this purpose.
 `devtools::check()` sets `NOT_CRAN=true`, which means `skip_on_cran()` does
 not skip during `devtools::check()` — only on actual CRAN servers and bare
@@ -209,7 +220,6 @@ tests require cannot be met on CRAN or GitHub Actions:
 
 - `podman` and `docker` are not installed on CRAN's check servers
 - There is no container daemon running
-- There is no CHTC account or active session on a CHTC submit node
 - There are no credentials for `registry.doit.wisc.edu` — no PAT, no
   cached login
 - Network access to `registry.doit.wisc.edu` is not available from
@@ -222,10 +232,10 @@ environment is absent. From CRAN's perspective, a skipped test is acceptable;
 a failed test is not.
 
 GitHub Actions has the same constraints. The CI workflow runs on
-`ubuntu-latest` runners that have no container tools, no CHTC credentials,
-and no registry access. Layers 1 and 2 run there and provide meaningful
-coverage. Layer 3 is reserved for local pre-release verification, where all
-the necessary conditions can actually be met.
+`ubuntu-latest` runners that have no container tools, no registry
+credentials, and no registry access. Layers 1 and 2 run there and provide
+meaningful coverage. Layer 3 is reserved for local pre-release
+verification, where all the necessary conditions can actually be met.
 
 ---
 

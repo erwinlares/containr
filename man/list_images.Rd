@@ -4,12 +4,13 @@
 \alias{list_images}
 \title{List locally available container images}
 \usage{
-list_images(tool = NULL, verbose = FALSE)
+list_images(tool_preference = c("podman", "docker"), verbose = FALSE)
 }
 \arguments{
-\item{tool}{A character string or \code{NULL}. The container tool to use. One
-of \code{"podman"} or \code{"docker"}. If \code{NULL} (the default), the function
-auto-detects which tool is available, preferring \code{podman}.}
+\item{tool_preference}{A non-empty character vector of container tools to
+try, in order. Defaults to \code{c("podman", "docker")} -- Podman first, then
+Docker. Supply a single value (e.g. \code{"docker"}) to require that specific
+tool rather than auto-detecting.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints a progress message before
 querying the local image store. Defaults to \code{FALSE}.}
@@ -36,9 +37,9 @@ you need to pass to \code{\link[=push_image]{push_image()}}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{imgs <- list_images()
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "erwin.lares",
-  project  = "container-registry"
+  image_id  = imgs$image_id[1],
+  namespace = "erwin.lares",
+  project   = "container-registry"
 )
 }\if{html}{\out{</div>}}
 }

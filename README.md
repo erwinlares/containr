@@ -2,6 +2,7 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml)
+[![container-integration-tests](https://github.com/erwinlares/containr/actions/workflows/container-integration-tests.yaml/badge.svg)](https://github.com/erwinlares/containr/actions/workflows/container-integration-tests.yaml)
 [![CRAN status](https://www.r-pkg.org/badges/version/containr)](https://CRAN.R-project.org/package=containr)
 [![CRAN downloads](https://cranlogs.r-pkg.org/badges/containr)](https://cran.r-project.org/package=containr)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19462130.svg)](https://doi.org/10.5281/zenodo.19462130)
@@ -97,7 +98,10 @@ package environment. Before using it, confirm that:
 - you have access to a container registry if you plan to push the image.
 
 At UW-Madison, `registry.doit.wisc.edu` is the default registry used by the
-CHTC-oriented workflow.
+CHTC-oriented workflow. `containr` isn't limited to it -- `push_image()`
+works against any OCI-compliant registry (GitHub Container Registry,
+Quay, or another institution's GitLab instance) by supplying a different
+`registry` argument.
 
 ---
 
@@ -146,7 +150,7 @@ imgs <- list_images()
 # 4. Push the image to the registry
 push_image(
   image_id = imgs$image_id[1],
-  netid    = "your.netid",
+  namespace = "your.netid",
   project  = "my-analysis",
   tag      = "1.0.0"
 )
@@ -174,13 +178,16 @@ container recipe visible.
 
 When you include files via `data_file`, `code_file`, or `misc_file`, the
 generated `COPY` instructions preserve your local directory structure inside
-the container under `/home/`. A file at `data-raw/sample.csv` locally ends up
-at `/home/data-raw/sample.csv` in the container -- not flattened into
-`/home/data/`. This means your R scripts can use the same relative paths
-inside the container that they use on your machine. All files must be inside
-the current working directory (the build context) -- files outside it will
-produce an error, since Dockerfile `COPY` cannot reach beyond the build
-context.
+the container. For `"base"`, `"tidyverse"`, `"rstudio"`, and `"verse"`, that
+means under `/home/` -- a file at `data-raw/sample.csv` locally ends up at
+`/home/data-raw/sample.csv` in the container, not flattened into
+`/home/data/`. For `"shiny_server"` and `"rstudio_shiny"`, files land under
+`/srv/shiny-server/` instead, matching Shiny Server's own default app
+directory. Either way, your R scripts can use the same relative paths
+inside the container that they use on your machine. All files must be
+inside the current working directory (the build context) -- files outside
+it will produce an error, since Dockerfile `COPY` cannot reach beyond the
+build context.
 
 ```r
 # Generate a Dockerfile from the current project
@@ -198,6 +205,22 @@ generate_dockerfile(
 generate_dockerfile(
   r_version = "4.4.0",
   r_mode    = "rstudio",
+  output    = "."
+)
+
+# Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+generate_dockerfile(
+  r_version = "4.4.0",
+  r_mode    = "shiny_server",
+  code_file = "app.R",
+  output    = "."
+)
+
+# RStudio Server and Shiny Server together in the same image
+generate_dockerfile(
+  r_version = "4.4.0",
+  r_mode    = "rstudio_shiny",
+  code_file = "app.R",
   output    = "."
 )
 
@@ -222,6 +245,13 @@ The `comments = TRUE` argument annotates each instruction in the generated
 learning containerization, reviewing the file with collaborators, or teaching
 why each layer exists.
 
+`r_mode` accepts six values: `"base"`, `"tidyverse"`, `"rstudio"`, `"verse"`
+(tidyverse plus TeX Live, for R Markdown/Quarto documents that need LaTeX),
+`"shiny_server"`, and `"rstudio_shiny"`. The last two require R >= 4.0.0,
+enforced with an informative error if you request an older version -- the
+Shiny Server install script they depend on isn't available for earlier
+Rocker images.
+
 ---
 
 ### `build_image()`
@@ -241,7 +271,14 @@ directly. Set `platform = NULL` to build for the host architecture instead.
 If the target platform differs from the host, a warning is emitted about
 potential QEMU emulation issues. Docker Desktop handles cross-platform builds
 more reliably than Podman's QEMU layer. If builds fail with segfaults under
-Podman, try `tool = "docker"` or build on a native x86_64 machine.
+Podman, try `tool_preference = "docker"` or build on a native x86_64 machine.
+
+That last option -- a native `x86_64` machine -- doesn't have to be your own.
+`containr` ships a GitHub Actions template (`inst/templates/build-and-push.yaml`)
+that builds and pushes your image on a GitHub-hosted runner, which is
+natively `x86_64`. This sidesteps QEMU entirely rather than working around
+it, since there's no architecture mismatch to emulate when the runner and
+the target platform already match. See "Building in CI" below.
 
 The first build can take time because the container engine must download the
 base image and install the R package environment from scratch. Later builds are
@@ -252,7 +289,7 @@ parts of the `Dockerfile` have not changed.
 # Build for linux/amd64 (default) -- suitable for CHTC and most clusters
 build_image(verbose = TRUE)
 
-# Build and tag for the CHTC registry
+# Build and tag for the DoIT GitLab Container Registry
 build_image(
   tag = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"
 )
@@ -297,33 +334,88 @@ pass to `push_image()`.
 `push_image()` tags a local image with a registry path and pushes it to a
 container registry. Before pushing, authenticate with the registry once in a
 terminal. `containr` checks whether you are logged in before attempting the
-push and errors with instructions if not. The UW-Madison authentication guide,
-including how to create a Personal Access Token with the right scopes, is here:
+push and errors with instructions if not.
+
+For the default `registry.doit.wisc.edu` registry, the UW-Madison
+authentication guide, including how to create a Personal Access Token with
+the right scopes, is here:
 
 <https://git.doit.wisc.edu/ERWIN.LARES/container-registry>
 
+For other registries -- `ghcr.io`, `quay.io`, or another institution's
+GitLab instance -- consult that registry's own documentation for the
+equivalent setup, and supply it via the `registry` argument.
+
 ```r
-# Push to the UW-Madison CHTC registry
+# Push to UW-Madison's DoIT GitLab Container Registry
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "your.netid",
-  project  = "my-analysis",
-  tag      = "1.0.0"
+  image_id  = imgs$image_id[1],
+  namespace = "your.netid",
+  project   = "my-analysis",
+  tag       = "1.0.0"
+)
+
+# Push to GitHub Container Registry instead of the default
+push_image(
+  image_id  = imgs$image_id[1],
+  namespace = "your-github-username",
+  project   = "my-analysis",
+  registry  = "ghcr.io",
+  tag       = "1.0.0"
 )
 
 # Preview the tag and push commands without running them
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "your.netid",
-  project  = "my-analysis",
-  tag      = "1.0.0",
-  dry_run  = TRUE
+  image_id  = imgs$image_id[1],
+  namespace = "your.netid",
+  project   = "my-analysis",
+  tag       = "1.0.0",
+  dry_run   = TRUE
 )
 ```
 
 Use explicit version tags such as `"1.0.0"` rather than `"latest"`. The
 `"latest"` tag is overwritten on every push, which makes it harder to
 reconstruct which image was used for a specific result.
+
+---
+
+## Building in CI
+
+Everything above runs locally, but you don't have to build and push from
+your own machine. `containr` ships a ready-to-use GitHub Actions workflow
+at `inst/templates/build-and-push.yaml` that calls the same
+`build_image()`/`push_image()` functions from CI instead -- not a
+hand-written shell equivalent, the same R functions you'd call yourself,
+so the image CI produces is the same image you'd get running this
+locally.
+
+This is especially useful if you develop on Apple Silicon and target an
+`x86_64` cluster (the default for most HPC/HTC systems, including CHTC).
+GitHub's hosted runners are natively `x86_64`, so building there involves
+no cross-platform emulation at all -- a direct fix for the QEMU issue
+described above, not a workaround for it.
+
+To use it:
+
+1. Copy `inst/templates/build-and-push.yaml` into your own project's
+   `.github/workflows/` directory. You can find the installed path with:
+
+   ```r
+   system.file("templates", "build-and-push.yaml", package = "containr")
+   ```
+
+2. Add two repository secrets in your project's GitHub settings
+   (**Settings > Secrets and variables > Actions**): `REGISTRY_USERNAME`
+   and `REGISTRY_PASSWORD`, matching whichever registry you push to.
+3. Edit the four values marked `# CUSTOMIZE` in the file -- your registry,
+   namespace, project name, and (if it's not at the repository root) your
+   `Dockerfile`'s path.
+
+The workflow assumes a `Dockerfile` is already generated and committed to
+your repository -- it does not call `generate_dockerfile()` for you. If
+your dependencies change, regenerate the `Dockerfile` locally and commit
+the result, the same way you would for any other generated file.
 
 ---
 

@@ -1,0 +1,115 @@
+# =============================================================================
+# containr: build and push a container image on native x86_64 hardware
+# =============================================================================
+#
+# Copy this file into YOUR OWN project's .github/workflows/ directory (not
+# containr's) and customize the four values under `env:` below. Everything
+# else should work as-is.
+#
+# What this does: builds the Dockerfile already committed to this repo and
+# pushes the resulting image to your container registry, using containr's
+# own build_image()/push_image() functions from R -- the same functions
+# you'd call locally, so the CI-produced image matches what you'd get
+# running this yourself, not a hand-written shell equivalent that could
+# quietly drift out of sync as containr changes.
+#
+# Runs on a GitHub-hosted runner that is natively x86_64 -- so if you're
+# developing on Apple Silicon (arm64) and targeting an x86_64 cluster (the
+# default for HPC/HTC systems), there is no cross-platform emulation
+# involved here at all. This is the direct fix for the QEMU segfault issue
+# building linux/amd64 images locally on arm64 hardware can run into --
+# not a workaround for it, an avoidance of it, since host and target
+# architecture are the same machine.
+#
+# -----------------------------------------------------------------------
+# One-time setup in THIS repository (not containr's) before this will work:
+#
+#   1. A Dockerfile (generated via containr::generate_dockerfile()) and
+#      renv.lock must already be committed here. This workflow does NOT
+#      regenerate the Dockerfile from renv.lock -- if your dependencies
+#      change, re-run generate_dockerfile() locally and commit the result
+#      before pushing, the same way you would for any other generated file.
+#
+#   2. Add two repository secrets: Settings > Secrets and variables >
+#      Actions > New repository secret.
+#        REGISTRY_USERNAME -- your registry username (your NetID for the
+#                              default registry.doit.wisc.edu; your GitHub
+#                              username/org for ghcr.io; your Quay
+#                              namespace for quay.io)
+#        REGISTRY_PASSWORD -- a Personal Access Token for that registry,
+#                              scoped to registry read/write. Never your
+#                              account password -- see push_image()'s own
+#                              documentation (@section Authentication) for
+#                              how to create one for the default registry.
+#
+#   3. Edit the four CUSTOMIZE values under `env:` immediately below.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile" # CUSTOMIZE if your Dockerfile lives somewhere else
+
+name: build-and-push.yaml
+
+env:
+  REGISTRY: registry.doit.wisc.edu # CUSTOMIZE if using ghcr.io, quay.io, or another registry
+  NAMESPACE: your.netid # CUSTOMIZE -- see push_image()'s @param namespace docs
+  PROJECT: your-project-name # CUSTOMIZE -- the project/repo name on the registry
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest # native x86_64 -- no QEMU emulation needed
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install containr
+        run: install.packages("containr", repos = "https://cloud.r-project.org")
+        shell: Rscript {0}
+
+      - name: Log in to the registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | podman login "${{ env.REGISTRY }}" \
+            --username "${{ secrets.REGISTRY_USERNAME }}" --password-stdin
+
+      - name: Build and push
+        env:
+          # REGISTRY, NAMESPACE, and PROJECT are already inherited from the
+          # workflow-level env: block above -- GitHub Actions cascades env
+          # vars from workflow to job to step automatically, so they don't
+          # need to be re-declared here.
+          #
+          # IMAGE_TAG is the commit SHA -- ties every pushed image to an
+          # exact, traceable commit, rather than overwriting "latest" on
+          # every push (push_image() warns about exactly this).
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          library(containr)
+
+          build_image(
+            dockerfile = "Dockerfile",
+            platform   = "linux/amd64"
+          )
+
+          imgs <- list_images()
+
+          push_image(
+            image_id  = imgs$image_id[1],
+            namespace = Sys.getenv("NAMESPACE"),
+            project   = Sys.getenv("PROJECT"),
+            registry  = Sys.getenv("REGISTRY"),
+            tag       = Sys.getenv("IMAGE_TAG")
+          )
+        shell: Rscript {0}

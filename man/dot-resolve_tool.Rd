@@ -4,18 +4,32 @@
 \alias{.resolve_tool}
 \title{Resolve which container tool to use}
 \usage{
-.resolve_tool(tool = NULL)
+.resolve_tool(tool_preference = c("podman", "docker"))
 }
 \arguments{
-\item{tool}{A character string (\code{"podman"} or \code{"docker"}) or \code{NULL}.}
+\item{tool_preference}{A non-empty character vector of tool names, tried
+in order. A single value is treated as an explicit choice rather than
+an order with a fallback. Defaults to \code{c("podman", "docker")}.}
 }
 \value{
-A character string, either \code{"podman"} or \code{"docker"}.
+A character string naming the resolved tool.
 }
 \description{
-When \code{tool} is specified explicitly, validates that it is installed and
-responsive. When \code{tool = NULL}, tries each candidate in preference order
-(Podman first, then Docker), selecting the first one that is both
-installed and responsive. Errors informatively if no tool is available.
+Tries each candidate in \code{tool_preference}, in order, selecting the first
+one that is both installed and responsive. A length-1 \code{tool_preference}
+is treated as an explicit, non-negotiable choice -- that single tool is
+validated (checked for installation and responsiveness) rather than
+treated as a preference order with nothing left to fall back to if it
+fails. Errors informatively if no candidate is available.
+}
+\details{
+\code{tool_preference} is not validated against a fixed list of known tool
+names -- anything on the system's PATH that responds to \verb{<tool> info}
+with exit code 0 is accepted. This keeps \code{.resolve_tool()}
+forward-compatible with tools this package doesn't yet have dedicated
+support for (e.g. Singularity/Apptainer, planned for a later phase)
+without a matching validation change here. What is validated is the
+\emph{shape} of \code{tool_preference} itself -- it must be a non-empty character
+vector with no missing values.
 }
 \keyword{internal}

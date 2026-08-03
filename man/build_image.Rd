@@ -8,7 +8,7 @@ build_image(
   dockerfile = "Dockerfile",
   tag = NULL,
   platform = "linux/amd64",
-  tool = NULL,
+  tool_preference = c("podman", "docker"),
   dry_run = FALSE,
   verbose = FALSE,
   comments = FALSE
@@ -20,7 +20,7 @@ from. Defaults to \code{"Dockerfile"} in the current working directory.}
 
 \item{tag}{A character string or \code{NULL}. The full image tag to assign to
 the built image, including the registry prefix, e.g.
-\code{"registry.doit.wisc.edu/netid/myimage"}. If \code{NULL}, no tag is applied
+\code{"registry.doit.wisc.edu/namespace/myimage"}. If \code{NULL}, no tag is applied
 and the image is identified only by its image ID. Defaults to \code{NULL}.}
 
 \item{platform}{A character string or \code{NULL}. The target platform for the
@@ -29,10 +29,10 @@ used by most HPC and HTC clusters. Set to \code{"linux/arm64"} for ARM-based
 systems (Apple Silicon, AWS Graviton). Set to \code{NULL} to let the
 container tool build for the host architecture.}
 
-\item{tool}{A character string or \code{NULL}. The container tool to use for
-building. One of \code{"podman"} or \code{"docker"}. If \code{NULL} (the default),
-the function auto-detects which tool is available, preferring \code{podman}
-if both are found.}
+\item{tool_preference}{A non-empty character vector of container tools to
+try, in order. Defaults to \code{c("podman", "docker")} -- Podman first, then
+Docker. Supply a single value (e.g. \code{"docker"}) to require that specific
+tool rather than auto-detecting.}
 
 \item{dry_run}{Logical. If \code{TRUE}, prints the command that would be run
 without executing it. Useful for verifying the command before committing
@@ -52,8 +52,8 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 \description{
 \code{build_image()} builds a container image from a \code{Dockerfile} using either
 \code{podman} or \code{docker}. It auto-detects which tool is available on the system
-unless \code{tool} is specified explicitly. Use \code{dry_run = TRUE} to preview the
-exact command that would be run without executing it.
+unless \code{tool_preference} is set to a single value. Use \code{dry_run = TRUE} to
+preview the exact command that would be run without executing it.
 }
 \details{
 When the target \code{platform} differs from the host architecture (e.g.
@@ -86,16 +86,17 @@ cross-platform builds more reliably via \code{buildx} and Rosetta 2.
 
 If builds fail with QEMU segfaults, consider:
 \itemize{
-\item Using Docker Desktop instead of Podman (\code{tool = "docker"})
+\item Using Docker Desktop instead of Podman (\code{tool_preference = "docker"})
 \item Building on a native x86_64 machine (e.g. via GitHub Actions)
 \item Building directly on the target cluster if it supports container builds
 }
 }
 
-\section{Tagging convention for CHTC}{
+\section{Tagging convention for the DoIT GitLab Container Registry}{
 
-For UW-Madison CHTC, the full tag format is:
-\verb{registry.doit.wisc.edu/<netid>/<image-name>:<version>}
+For UW-Madison's DoIT GitLab Container Registry (the registry \code{push_image()}
+currently supports), the full tag format is:
+\verb{registry.doit.wisc.edu/<namespace>/<image-name>:<version>}
 
 For example: \verb{registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0}
 
@@ -109,8 +110,8 @@ be overwritten each time you push.
 # Build for linux/amd64 (default) with auto-detected tool
 build_image()
 
-# Build and tag for CHTC registry
-build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
+# Build and tag for the DoIT GitLab Container Registry
+build_image(tag = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0")
 
 # Build for the host architecture (no --platform flag)
 build_image(platform = NULL)
@@ -120,13 +121,13 @@ build_image(platform = "linux/arm64")
 
 # Preview the build command without running it
 build_image(
-  tag     = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+  tag     = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
   dry_run = TRUE
 )
 
 # Guided build for first-time users
 build_image(
-  tag      = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+  tag      = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
   verbose  = TRUE,
   comments = TRUE
 )
