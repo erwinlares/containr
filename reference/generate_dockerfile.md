@@ -40,8 +40,10 @@ generate_dockerfile(
   A character string selecting the Rocker base image. Inspired by the
   [Rocker Project](https://rocker-project.org/). One of `"base"` for
   plain R, `"tidyverse"` for R with the tidyverse, `"rstudio"` for
-  RStudio Server, or `"tidystudio"` for tidyverse plus TeX Live and
-  publishing-related packages. Defaults to `"base"`.
+  RStudio Server, `"verse"` for tidyverse plus TeX Live and
+  publishing-related packages, `"shiny_server"` for serving Shiny apps,
+  or `"rstudio_shiny"` for RStudio Server with Shiny Server layered on
+  top. Defaults to `"base"`.
 
 - auto_syslibs:
 
@@ -69,24 +71,29 @@ generate_dockerfile(
 - data_file:
 
   A character string or `NULL`. Path to a data file to copy into the
-  container. The local directory structure is preserved under `/home/` –
-  e.g. `"data-raw/sample.csv"` becomes `/home/data-raw/sample.csv`
-  inside the container. The file must be inside the current working
-  directory (the build context). Defaults to `NULL`.
+  container. The local directory structure is preserved under `/home/`
+  for `"base"`, `"tidyverse"`, `"rstudio"`, and `"verse"` (e.g.
+  `"data-raw/sample.csv"` becomes `/home/data-raw/sample.csv`), or under
+  `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`,
+  matching Shiny Server's own default app directory. The file must be
+  inside the current working directory (the build context). Defaults to
+  `NULL`.
 
 - code_file:
 
   A character string or `NULL`. Path to a script file (e.g. `.R`,
   `.qmd`, `.rmd`) to copy into the container. The local directory
-  structure is preserved under `/home/`. The file must be inside the
-  current working directory. Defaults to `NULL`.
+  structure is preserved under the mode's copy root – see `data_file`.
+  The file must be inside the current working directory. Defaults to
+  `NULL`.
 
 - misc_file:
 
   A character string or `NULL`. Path to a miscellaneous file (e.g. an
   image or shell script) to copy into the container. The local directory
-  structure is preserved under `/home/`. The file must be inside the
-  current working directory. Defaults to `NULL`.
+  structure is preserved under the mode's copy root – see `data_file`.
+  The file must be inside the current working directory. Defaults to
+  `NULL`.
 
 - add_user:
 
@@ -96,12 +103,16 @@ generate_dockerfile(
 - home_dir:
 
   A character string. The working directory set inside the container via
-  `WORKDIR`. Defaults to `"/home"`.
+  `WORKDIR`. Does not affect where `data_file`, `code_file`, or
+  `misc_file` are copied – see `data_file`. Defaults to `"/home"`.
 
 - expose_port:
 
-  A character string. The port to expose when `r_mode` is `"rstudio"`.
-  Defaults to `"8787"`. Ignored when `r_mode` is not `"rstudio"`.
+  A character string. Overrides the port exposed when `r_mode` is
+  `"rstudio"`. Defaults to `"8787"`. Ignored for every other `r_mode` –
+  `"shiny_server"` and `"rstudio_shiny"` expose their own fixed port(s)
+  (`"3838"`, and `"8787"`/`"3838"` respectively), since a single
+  override value can't address more than one port.
 
 - install_quarto:
 
@@ -161,6 +172,22 @@ generate_dockerfile(
   data_file = "data-raw/penguins.csv",
   code_file = "analysis.R",
   comments  = TRUE,
+  output    = "."
+)
+
+# Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+generate_dockerfile(
+  r_version = "4.3.0",
+  r_mode    = "shiny_server",
+  code_file = "app.R",
+  output    = "."
+)
+
+# RStudio Server plus Shiny Server in the same image
+generate_dockerfile(
+  r_version = "4.3.0",
+  r_mode    = "rstudio_shiny",
+  code_file = "app.R",
   output    = "."
 )
 } # }

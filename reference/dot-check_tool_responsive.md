@@ -14,7 +14,8 @@ running.
 
 - tool:
 
-  A character string, either `"podman"` or `"docker"`.
+  A character string naming the tool to check, e.g. `"podman"` or
+  `"docker"`.
 
 ## Value
 

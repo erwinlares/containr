@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">containr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -112,7 +112,7 @@
 <li>Podman or Docker is installed and running;</li>
 <li>you have access to a container registry if you plan to push the image.</li>
 </ul>
-<p>At UW-Madison, <code>registry.doit.wisc.edu</code> is the default registry used by the CHTC-oriented workflow.</p>
+<p>At UW-Madison, <code>registry.doit.wisc.edu</code> is the default registry used by the CHTC-oriented workflow. <code>containr</code> isn’t limited to it – <code><a href="reference/push_image.html">push_image()</a></code> works against any OCI-compliant registry (GitHub Container Registry, Quay, or another institution’s GitLab instance) by supplying a different <code>registry</code> argument.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -152,7 +152,7 @@
 <span><span class="co"># 4. Push the image to the registry</span></span>
 <span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
 <span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
 <span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -168,7 +168,7 @@
 </h3>
 <p><code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> reads your <code>renv.lock</code>, identifies the R packages used by the project, queries their system library requirements, and writes a <code>Dockerfile</code>.</p>
 <p>The generated <code>Dockerfile</code> is a plain text file. You can inspect it, edit it, delete it, and regenerate it as many times as needed while refining your setup. This makes <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> a low-risk entry point into containerization: the first step is not building an image; it is making the container recipe visible.</p>
-<p>When you include files via <code>data_file</code>, <code>code_file</code>, or <code>misc_file</code>, the generated <code>COPY</code> instructions preserve your local directory structure inside the container under <code>/home/</code>. A file at <code>data-raw/sample.csv</code> locally ends up at <code>/home/data-raw/sample.csv</code> in the container – not flattened into <code>/home/data/</code>. This means your R scripts can use the same relative paths inside the container that they use on your machine. All files must be inside the current working directory (the build context) – files outside it will produce an error, since Dockerfile <code>COPY</code> cannot reach beyond the build context.</p>
+<p>When you include files via <code>data_file</code>, <code>code_file</code>, or <code>misc_file</code>, the generated <code>COPY</code> instructions preserve your local directory structure inside the container. For <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>, and <code>"verse"</code>, that means under <code>/home/</code> – a file at <code>data-raw/sample.csv</code> locally ends up at <code>/home/data-raw/sample.csv</code> in the container, not flattened into <code>/home/data/</code>. For <code>"shiny_server"</code> and <code>"rstudio_shiny"</code>, files land under <code>/srv/shiny-server/</code> instead, matching Shiny Server’s own default app directory. Either way, your R scripts can use the same relative paths inside the container that they use on your machine. All files must be inside the current working directory (the build context) – files outside it will produce an error, since Dockerfile <code>COPY</code> cannot reach beyond the build context.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Generate a Dockerfile from the current project</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, output <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span>
@@ -188,6 +188,22 @@
 <span>  output    <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Serve a Shiny app -- files land under /srv/shiny-server/ automatically</span></span>
+<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  r_mode    <span class="op">=</span> <span class="st">"shiny_server"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"app.R"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># RStudio Server and Shiny Server together in the same image</span></span>
+<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  r_mode    <span class="op">=</span> <span class="st">"rstudio_shiny"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"app.R"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># Add extra system libraries not caught by auto-detection</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version       <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
@@ -203,6 +219,7 @@
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The <code>comments = TRUE</code> argument annotates each instruction in the generated <code>Dockerfile</code> with an explanation of what it does. This is useful when you are learning containerization, reviewing the file with collaborators, or teaching why each layer exists.</p>
+<p><code>r_mode</code> accepts six values: <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>, <code>"verse"</code> (tidyverse plus TeX Live, for R Markdown/Quarto documents that need LaTeX), <code>"shiny_server"</code>, and <code>"rstudio_shiny"</code>. The last two require R &gt;= 4.0.0, enforced with an informative error if you request an older version – the Shiny Server install script they depend on isn’t available for earlier Rocker images.</p>
 <hr>
 </div>
 <div class="section level3">
@@ -211,13 +228,14 @@
 </h3>
 <p><code><a href="reference/build_image.html">build_image()</a></code> passes your <code>Dockerfile</code> to Podman or Docker and builds the image locally. The build context is the current working directory, so all file paths in the <code>COPY</code> instructions are resolved relative to where you call <code><a href="reference/build_image.html">build_image()</a></code> – typically the project root.</p>
 <p>The <code>platform</code> argument defaults to <code>"linux/amd64"</code>, which is the architecture used by most HPC and HTC clusters. On Apple Silicon Macs, this means the build targets a different architecture than the host. When Docker is the resolved tool, <code><a href="reference/build_image.html">build_image()</a></code> automatically switches to <code>docker buildx build</code> with <code>--load</code> for cross-platform builds. For Podman, <code>--platform</code> is passed directly. Set <code>platform = NULL</code> to build for the host architecture instead.</p>
-<p>If the target platform differs from the host, a warning is emitted about potential QEMU emulation issues. Docker Desktop handles cross-platform builds more reliably than Podman’s QEMU layer. If builds fail with segfaults under Podman, try <code>tool = "docker"</code> or build on a native x86_64 machine.</p>
+<p>If the target platform differs from the host, a warning is emitted about potential QEMU emulation issues. Docker Desktop handles cross-platform builds more reliably than Podman’s QEMU layer. If builds fail with segfaults under Podman, try <code>tool_preference = "docker"</code> or build on a native x86_64 machine.</p>
+<p>That last option – a native <code>x86_64</code> machine – doesn’t have to be your own. <code>containr</code> ships a GitHub Actions template (<code>inst/templates/build-and-push.yaml</code>) that builds and pushes your image on a GitHub-hosted runner, which is natively <code>x86_64</code>. This sidesteps QEMU entirely rather than working around it, since there’s no architecture mismatch to emulate when the runner and the target platform already match. See “Building in CI” below.</p>
 <p>The first build can take time because the container engine must download the base image and install the R package environment from scratch. Later builds are usually faster because Podman and Docker reuse cached layers when the earlier parts of the <code>Dockerfile</code> have not changed.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build for linux/amd64 (default) -- suitable for CHTC and most clusters</span></span>
 <span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Build and tag for the CHTC registry</span></span>
+<span><span class="co"># Build and tag for the DoIT GitLab Container Registry</span></span>
 <span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span></span>
 <span>  tag <span class="op">=</span> <span class="st">"registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"</span></span>
 <span><span class="op">)</span></span>
@@ -250,28 +268,57 @@
 <h3 id="push_image">
 <code>push_image()</code><a class="anchor" aria-label="anchor" href="#push_image"></a>
 </h3>
-<p><code><a href="reference/push_image.html">push_image()</a></code> tags a local image with a registry path and pushes it to a container registry. Before pushing, authenticate with the registry once in a terminal. <code>containr</code> checks whether you are logged in before attempting the push and errors with instructions if not. The UW-Madison authentication guide, including how to create a Personal Access Token with the right scopes, is here:</p>
+<p><code><a href="reference/push_image.html">push_image()</a></code> tags a local image with a registry path and pushes it to a container registry. Before pushing, authenticate with the registry once in a terminal. <code>containr</code> checks whether you are logged in before attempting the push and errors with instructions if not.</p>
+<p>For the default <code>registry.doit.wisc.edu</code> registry, the UW-Madison authentication guide, including how to create a Personal Access Token with the right scopes, is here:</p>
 <p><a href="https://git.doit.wisc.edu/ERWIN.LARES/container-registry" class="external-link uri">https://git.doit.wisc.edu/ERWIN.LARES/container-registry</a></p>
+<p>For other registries – <code>ghcr.io</code>, <code>quay.io</code>, or another institution’s GitLab instance – consult that registry’s own documentation for the equivalent setup, and supply it via the <code>registry</code> argument.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Push to the UW-Madison CHTC registry</span></span>
+<code class="sourceCode R"><span><span class="co"># Push to UW-Madison's DoIT GitLab Container Registry</span></span>
 <span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
-<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
-<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span></span>
+<span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Push to GitHub Container Registry instead of the default</span></span>
+<span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
+<span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your-github-username"</span>,</span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  registry  <span class="op">=</span> <span class="st">"ghcr.io"</span>,</span>
+<span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Preview the tag and push commands without running them</span></span>
 <span><span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span></span>
-<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
-<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span>,</span>
-<span>  dry_run  <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span>,</span>
+<span>  dry_run   <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Use explicit version tags such as <code>"1.0.0"</code> rather than <code>"latest"</code>. The <code>"latest"</code> tag is overwritten on every push, which makes it harder to reconstruct which image was used for a specific result.</p>
 <hr>
 </div>
+</div>
+<div class="section level2">
+<h2 id="building-in-ci">Building in CI<a class="anchor" aria-label="anchor" href="#building-in-ci"></a>
+</h2>
+<p>Everything above runs locally, but you don’t have to build and push from your own machine. <code>containr</code> ships a ready-to-use GitHub Actions workflow at <code>inst/templates/build-and-push.yaml</code> that calls the same <code><a href="reference/build_image.html">build_image()</a></code>/<code><a href="reference/push_image.html">push_image()</a></code> functions from CI instead – not a hand-written shell equivalent, the same R functions you’d call yourself, so the image CI produces is the same image you’d get running this locally.</p>
+<p>This is especially useful if you develop on Apple Silicon and target an <code>x86_64</code> cluster (the default for most HPC/HTC systems, including CHTC). GitHub’s hosted runners are natively <code>x86_64</code>, so building there involves no cross-platform emulation at all – a direct fix for the QEMU issue described above, not a workaround for it.</p>
+<p>To use it:</p>
+<ol style="list-style-type: decimal">
+<li>
+<p>Copy <code>inst/templates/build-and-push.yaml</code> into your own project’s <code>.github/workflows/</code> directory. You can find the installed path with:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"templates"</span>, <span class="st">"build-and-push.yaml"</span>, package <span class="op">=</span> <span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
+</li>
+<li><p>Add two repository secrets in your project’s GitHub settings (<strong>Settings &gt; Secrets and variables &gt; Actions</strong>): <code>REGISTRY_USERNAME</code> and <code>REGISTRY_PASSWORD</code>, matching whichever registry you push to.</p></li>
+<li><p>Edit the four values marked <code># CUSTOMIZE</code> in the file – your registry, namespace, project name, and (if it’s not at the repository root) your <code>Dockerfile</code>’s path.</p></li>
+</ol>
+<p>The workflow assumes a <code>Dockerfile</code> is already generated and committed to your repository – it does not call <code><a href="reference/generate_dockerfile.html">generate_dockerfile()</a></code> for you. If your dependencies change, regenerate the <code>Dockerfile</code> locally and commit the result, the same way you would for any other generated file.</p>
+<hr>
 </div>
 <div class="section level2">
 <h2 id="what-comes-next">What comes next<a class="anchor" aria-label="anchor" href="#what-comes-next"></a>
@@ -316,7 +363,7 @@
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -367,6 +414,7 @@
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/erwinlares/containr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://github.com/erwinlares/containr/actions/workflows/container-integration-tests.yaml" class="external-link"><img src="https://github.com/erwinlares/containr/actions/workflows/container-integration-tests.yaml/badge.svg" alt="container-integration-tests"></a></li>
 <li><a href="https://CRAN.R-project.org/package=containr" class="external-link"><img src="https://www.r-pkg.org/badges/version/containr" alt="CRAN status"></a></li>
 <li><a href="https://cran.r-project.org/package=containr" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/containr" alt="CRAN downloads"></a></li>
 <li><a href="https://doi.org/10.5281/zenodo.19462130" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.19462130.svg" alt="DOI"></a></li>
@@ -385,7 +433,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

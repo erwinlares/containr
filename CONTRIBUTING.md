@@ -62,7 +62,24 @@ confirm that:
 - Podman or Docker is installed and running;
 - a valid `renv.lock` exists in the test project directory;
 - you are authenticated with the container registry if testing
-  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md).
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  (run `podman login registry.doit.wisc.edu` once beforehand).
+
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
+Layer 3 test additionally requires two environment variables naming a
+real destination to push a throwaway test image to – this is deliberate,
+so the test never guesses at or pushes to a project it wasn’t explicitly
+told about:
+
+``` r
+
+Sys.setenv(
+    CONTAINR_INTEGRATION_TESTS = "true",
+    CONTAINR_TEST_NAMESPACE    = "your.netid",
+    CONTAINR_TEST_PROJECT      = "your-test-project"
+)
+devtools::test()
+```
 
 ------------------------------------------------------------------------
 

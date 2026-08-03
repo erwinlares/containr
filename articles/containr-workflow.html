@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">containr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.3.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>A first containerization workflow with containr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-05-20</h4>
+updated 2026-08-03</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/containr/blob/main/vignettes/containr-workflow.Rmd" class="external-link"><code>vignettes/containr-workflow.Rmd</code></a></small>
       <div class="d-none name"><code>containr-workflow.Rmd</code></div>
@@ -298,10 +298,10 @@ are logged in before attempting the push and errors with clear
 instructions if not.</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
-<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
-<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span></span>
+<span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The push output looks something like this:</p>
 <pre><code>ℹ Tagging image 974123909a36 as
@@ -313,11 +313,11 @@ instructions if not.</p>
 <p>To preview the tag and push commands without running them:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
-<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
-<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span>,</span>
-<span>  dry_run  <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span>,</span>
+<span>  dry_run   <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; podman tag 974123909a36 registry.doit.wisc.edu/your.netid/my-analysis:1.0.0</span></span>
 <span><span class="co">#&gt; podman push registry.doit.wisc.edu/your.netid/my-analysis:1.0.0</span></span></code></pre></div>
@@ -353,10 +353,10 @@ a pushed container image takes four function calls:</p>
 <span></span>
 <span><span class="co"># 4. Push to the registry</span></span>
 <span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
-<span>  image_id <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
-<span>  netid    <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
-<span>  project  <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
-<span>  tag      <span class="op">=</span> <span class="st">"1.0.0"</span></span>
+<span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
+<span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span>
+<span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The image URI returned by <code><a href="../reference/push_image.html">push_image()</a></code> is the reference
 you pass to any downstream workflow that needs to run the containerized
@@ -410,7 +410,7 @@ Actions.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

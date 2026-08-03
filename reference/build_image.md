@@ -2,8 +2,9 @@
 
 `build_image()` builds a container image from a `Dockerfile` using
 either `podman` or `docker`. It auto-detects which tool is available on
-the system unless `tool` is specified explicitly. Use `dry_run = TRUE`
-to preview the exact command that would be run without executing it.
+the system unless `tool_preference` is set to a single value. Use
+`dry_run = TRUE` to preview the exact command that would be run without
+executing it.
 
 ## Usage
 
@@ -12,7 +13,7 @@ build_image(
   dockerfile = "Dockerfile",
   tag = NULL,
   platform = "linux/amd64",
-  tool = NULL,
+  tool_preference = c("podman", "docker"),
   dry_run = FALSE,
   verbose = FALSE,
   comments = FALSE
@@ -30,8 +31,9 @@ build_image(
 
   A character string or `NULL`. The full image tag to assign to the
   built image, including the registry prefix, e.g.
-  `"registry.doit.wisc.edu/netid/myimage"`. If `NULL`, no tag is applied
-  and the image is identified only by its image ID. Defaults to `NULL`.
+  `"registry.doit.wisc.edu/namespace/myimage"`. If `NULL`, no tag is
+  applied and the image is identified only by its image ID. Defaults to
+  `NULL`.
 
 - platform:
 
@@ -41,12 +43,12 @@ build_image(
   systems (Apple Silicon, AWS Graviton). Set to `NULL` to let the
   container tool build for the host architecture.
 
-- tool:
+- tool_preference:
 
-  A character string or `NULL`. The container tool to use for building.
-  One of `"podman"` or `"docker"`. If `NULL` (the default), the function
-  auto-detects which tool is available, preferring `podman` if both are
-  found.
+  A non-empty character vector of container tools to try, in order.
+  Defaults to `c("podman", "docker")` – Podman first, then Docker.
+  Supply a single value (e.g. `"docker"`) to require that specific tool
+  rather than auto-detecting.
 
 - dry_run:
 
@@ -103,17 +105,19 @@ cross-platform builds more reliably via `buildx` and Rosetta 2.
 
 If builds fail with QEMU segfaults, consider:
 
-- Using Docker Desktop instead of Podman (`tool = "docker"`)
+- Using Docker Desktop instead of Podman (`tool_preference = "docker"`)
 
 - Building on a native x86_64 machine (e.g. via GitHub Actions)
 
 - Building directly on the target cluster if it supports container
   builds
 
-## Tagging convention for CHTC
+## Tagging convention for the DoIT GitLab Container Registry
 
-For UW-Madison CHTC, the full tag format is:
-`registry.doit.wisc.edu/<netid>/<image-name>:<version>`
+For UW-Madison's DoIT GitLab Container Registry (the registry
+[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+currently supports), the full tag format is:
+`registry.doit.wisc.edu/<namespace>/<image-name>:<version>`
 
 For example: `registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0`
 
@@ -128,8 +132,8 @@ if (FALSE) { # \dontrun{
 # Build for linux/amd64 (default) with auto-detected tool
 build_image()
 
-# Build and tag for CHTC registry
-build_image(tag = "registry.doit.wisc.edu/netid/my-analysis:1.0.0")
+# Build and tag for the DoIT GitLab Container Registry
+build_image(tag = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0")
 
 # Build for the host architecture (no --platform flag)
 build_image(platform = NULL)
@@ -139,13 +143,13 @@ build_image(platform = "linux/arm64")
 
 # Preview the build command without running it
 build_image(
-  tag     = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+  tag     = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
   dry_run = TRUE
 )
 
 # Guided build for first-time users
 build_image(
-  tag      = "registry.doit.wisc.edu/netid/my-analysis:1.0.0",
+  tag      = "registry.doit.wisc.edu/namespace/my-analysis:1.0.0",
   verbose  = TRUE,
   comments = TRUE
 )

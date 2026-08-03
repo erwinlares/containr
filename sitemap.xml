@@ -13,9 +13,13 @@
 <url><loc>https://erwinlares.github.io/containr/on-testing.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/build_image.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/containr-package.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/reference/dot-abort_tool_not_responsive.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/reference/dot-docker_config_has_auth.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/reference/dot-extract_r_version_prefix.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-get_r_ver_tags.html</loc></url>
+<url><loc>https://erwinlares.github.io/containr/reference/dot-is_logged_in.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-is_responsive.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-r_ver_exists.html</loc></url>
 <url><loc>https://erwinlares.github.io/containr/reference/dot-read_renv_packages.html</loc></url>

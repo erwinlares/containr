@@ -1,6 +1,146 @@
 # Changelog
 
-## containr (development version)
+## containr 0.2.0
+
+### Breaking changes
+
+- `r_mode = "tidystudio"` has been removed. Renamed to `"verse"`,
+  matching the Rocker project’s own name for the underlying image
+  (`rocker/verse`) – `"studio"` was misleading, since RStudio Server is
+  already present via `"tidyverse"` two modes earlier, and nothing in
+  the old name hinted at the TeX Live installation that’s the actual
+  differentiator. No deprecation alias; regenerate any Dockerfile built
+  with `r_mode = "tidystudio"` using `r_mode = "verse"` instead.
+
+- The `tool` argument (a single tool name or `NULL` for auto-detect) on
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md),
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+  and
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+  is replaced by `tool_preference`, a non-empty character vector tried
+  in order. Defaults to `c("podman", "docker")`, matching today’s
+  default behavior. A length-1 vector
+  (e.g. `tool_preference = "docker"`) behaves like the old
+  `tool = "docker"`; a longer vector lets you set a custom auto-detect
+  order, e.g. `tool_preference = c("docker", "podman")`. `tool = NULL`
+  had no direct equivalent kept – passing `NULL` to `tool_preference`
+  now errors, since the empty/auto-detect case is expressed by supplying
+  more than one candidate instead.
+
+- [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)‘s
+  `netid` argument is renamed to `namespace`. `netid` only ever made
+  sense for the default `"registry.doit.wisc.edu"` registry – the same
+  argument, and the same position in the assembled
+  `{registry}/{namespace}/{project}:{tag}` path, is a GitHub username or
+  organization for `ghcr.io`, or a Quay namespace for `quay.io`.
+  `namespace` is the term those registries’ own documentation uses for
+  this segment, not a name `containr` invented. No alias kept; update
+  `netid = ...` calls to `namespace = ...`.
+
+### New features
+
+- Two new `r_mode` values on
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md):
+  `"shiny_server"` (`rocker/shiny`) for serving Shiny apps, and
+  `"rstudio_shiny"` (`rocker/rstudio` with Shiny Server layered on top
+  via Rocker’s own `install_shiny_server.sh`) for RStudio Server and
+  Shiny Server in the same image. Both require R \>= 4.0.0 and error
+  informatively otherwise – `/rocker_scripts/` (which the Shiny Server
+  install depends on) only exists in images built from the
+  `rocker-versioned2` project, which covers R \>= 4.0.0; older tags on
+  the same Docker Hub repositories predate that entirely. `EXPOSE` now
+  supports more than one port on a single line for `rstudio_shiny`,
+  which exposes both `8787` and `3838`. `data_file`, `code_file`, and
+  `misc_file` are copied to `/srv/shiny-server/` for these two modes,
+  matching Shiny Server’s own default app directory – the four existing
+  modes are unaffected, `COPY` destinations for those stay `/home/`
+  exactly as before. `expose_port` remains an override for `"rstudio"`
+  only; the two new modes expose fixed port(s) and ignore it, with a
+  warning if supplied.
+
+- [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  now works against any OCI-compliant registry, not just the default
+  `registry.doit.wisc.edu` – tested against `ghcr.io` and `quay.io`.
+  Login-check guidance (both the pre-push `comments` message and the
+  not-logged-in error) is registry-aware: the default registry keeps its
+  existing specific PAT-creation instructions, while any other registry
+  gets generic guidance pointing at that registry’s own documentation
+  instead of DoIT-specific instructions that would be wrong for it.
+
+- `containr` now ships a ready-to-use GitHub Actions template at
+  `inst/templates/build-and-push.yaml`, for building and pushing your
+  own project’s image from CI rather than locally. Calls
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)/[`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  directly (the same functions you’d run yourself, not a hand-written
+  shell equivalent) on a GitHub-hosted runner, which is natively
+  `x86_64` – a direct fix, not a workaround, for QEMU emulation issues
+  building `linux/amd64` images locally on Apple Silicon. See
+  `README.md`’s “Building in CI” section.
+
+### Bug fixes
+
+- Fixed a bug where
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
+  pre-push login check always failed under Docker regardless of whether
+  the user was actually logged in. `<tool> login --get-login <registry>`
+  is a Podman-only flag; running it under Docker always exits with a
+  usage error (125), which is why `check_login = FALSE` was previously
+  necessary as a Docker workaround. Podman keeps its native
+  `--get-login` check; Docker (and, permissively, any other
+  `tool_preference` value) now checks `~/.docker/config.json` directly
+  for a cached credential, the same approach most CI tooling uses since
+  Docker itself has no query subcommand for this. This is a best-effort
+  local check either way – it confirms a credential exists, not that
+  it’s still valid; an expired token can still fail at push time.
+
+### Internal changes
+
+- The three previously-independent, hand-maintained mappings of `r_mode`
+  to image name
+  ([`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)),
+  Docker Hub repo
+  ([`.get_r_ver_tags()`](https://erwinlares.github.io/containr/reference/dot-get_r_ver_tags.md)),
+  and valid-values list
+  ([`.r_ver_exists()`](https://erwinlares.github.io/containr/reference/dot-r_ver_exists.md))
+  are now a single shared registry (`.r_mode_registry`). No user-facing
+  effect beyond the `tidystudio` removal and the two new modes above.
+
+- `tool_preference` is not validated against a fixed list of tool names
+  – any string on the system’s PATH that responds to `<tool> info` is
+  accepted. This is intentional: `tool_preference` should not need a
+  companion validation update every time a new container tool gains
+  support (Apptainer support is planned for a future release).
+  Structural validation still applies – `tool_preference` must be a
+  non-empty character vector with no missing values. Error messages for
+  an unrecognized tool that’s installed but not responding fall back to
+  generic guidance rather than Docker- or Podman-specific instructions
+  that would be wrong for a different tool; `docker` and `podman` keep
+  their existing specific guidance.
+
+- Removed a redundant internal check:
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md),
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+  and
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+  each called
+  [`.check_tool_responsive()`](https://erwinlares.github.io/containr/reference/dot-check_tool_responsive.md)
+  immediately after
+  [`.resolve_tool()`](https://erwinlares.github.io/containr/reference/dot-resolve_tool.md),
+  which already guarantees the resolved tool is responsive. No
+  user-facing behavior change.
+
+- Added integration tests (`CONTAINR_INTEGRATION_TESTS=true`) for
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  and
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md),
+  backfilling the two that were previously only covered at the
+  argument-validation and command- construction layers.
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
+  integration test additionally requires `CONTAINR_TEST_NAMESPACE` and
+  `CONTAINR_TEST_PROJECT` to be set, so it never pushes a test image to
+  an unintended destination. These now run automatically in CI on every
+  push/PR touching the relevant files, via a new
+  `container-integration-tests.yaml` GitHub Actions workflow.
 
 ## containr 0.1.3.9000
 

@@ -3,20 +3,22 @@
 `push_image()` tags a locally built container image with a full registry
 path and pushes it to a container registry. It handles both the
 `podman tag` and `podman push` steps in a single call. Auto-detects
-which container tool is available unless `tool` is specified explicitly.
-Use `dry_run = TRUE` to preview the exact commands without executing
-them. The format for the is registry.doit.wisc.edu//:
+which container tool is available unless `tool_preference` is set to a
+single value. Use `dry_run = TRUE` to preview the exact commands without
+executing them. The full path format is
+`{registry}/{namespace}/{project}:{tag}` – for the default registry,
+e.g. `registry.doit.wisc.edu/<namespace>/<project-name>:<version>`.
 
 ## Usage
 
 ``` r
 push_image(
   image_id = NULL,
-  netid = NULL,
+  namespace = NULL,
   project = NULL,
   tag = "latest",
   registry = "registry.doit.wisc.edu",
-  tool = NULL,
+  tool_preference = c("podman", "docker"),
   check_login = TRUE,
   dry_run = FALSE,
   verbose = FALSE,
@@ -34,10 +36,14 @@ push_image(
   if the image was built with a tag via
   [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md).
 
-- netid:
+- namespace:
 
-  A character string. Your UW-Madison NetID, used to construct the full
-  registry path, e.g. `"erwin.lares"`.
+  A character string. The account or organization the image is scoped
+  under, used to construct the full registry path. For the default
+  `"registry.doit.wisc.edu"` registry, this is your UW-Madison NetID
+  (e.g. `"erwin.lares"`). For other registries, it's the equivalent
+  identifier – your GitHub username or organization for `ghcr.io`, or
+  your Quay namespace for `quay.io`.
 
 - project:
 
@@ -54,13 +60,15 @@ push_image(
 - registry:
 
   A character string. The registry hostname. Defaults to
-  `"registry.doit.wisc.edu"` (UW-Madison CHTC).
+  `"registry.doit.wisc.edu"`, UW-Madison DoIT's GitLab Container
+  Registry – the only registry `push_image()` currently supports.
 
-- tool:
+- tool_preference:
 
-  A character string or `NULL`. The container tool to use. One of
-  `"podman"` or `"docker"`. If `NULL` (the default), the function
-  auto-detects which tool is available, preferring `podman`.
+  A non-empty character vector of container tools to try, in order.
+  Defaults to `c("podman", "docker")` – Podman first, then Docker.
+  Supply a single value (e.g. `"docker"`) to require that specific tool
+  rather than auto-detecting.
 
 - check_login:
 
@@ -91,7 +99,11 @@ Called for its side effects. Returns `invisible(NULL)`.
 
 ## Prerequisites
 
-Before calling `push_image()`, ensure the following are in place:
+Before calling `push_image()` against the default
+`"registry.doit.wisc.edu"` registry, ensure the following are in place.
+(For other registries – `ghcr.io`, `quay.io`, or any other hostname
+supplied via `registry` – consult that registry's own documentation for
+the equivalent setup; the steps below are DoIT GitLab-specific.)
 
 1.  The image has been built locally with
     [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md).
@@ -110,11 +122,14 @@ Before calling `push_image()`, ensure the following are in place:
 
 ## Authentication
 
-The GitLab container registry requires authentication before pushing.
-Use a Personal Access Token (PAT) rather than your NetID password – PATs
-can be scoped to registry access only and revoked independently.
-Authentication is cached by `podman` or `docker` after the first login,
-so you only need to run `podman login` once per machine per session.
+The DoIT GitLab Container Registry requires authentication before
+pushing. Use a Personal Access Token (PAT) rather than your NetID
+password – PATs can be scoped to registry access only and revoked
+independently. Authentication is cached by `podman` or `docker` after
+the first login, so you only need to run `podman login` once per machine
+per session. For other registries, use whatever credential type that
+registry expects – e.g. a GitHub PAT with the `write:packages` scope for
+`ghcr.io`.
 
 Note that GitLab Self-Managed authentication tokens expire after five
 minutes by default. If you see an
@@ -125,36 +140,44 @@ re-authenticate and push again.
 
 ``` r
 if (FALSE) { # \dontrun{
-# Tag and push an image to the CHTC registry
+# Tag and push an image to the DoIT GitLab Container Registry
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry"
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry"
 )
 
 # Push with an explicit version tag
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry",
-  tag      = "1.0.0"
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry",
+  tag       = "1.0.0"
 )
 
 # Preview the commands without running them
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry",
-  dry_run  = TRUE
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry",
+  dry_run   = TRUE
 )
 
 # Guided push for first-time users
 push_image(
-  image_id = "974123909a36",
-  netid    = "erwin.lares",
-  project  = "container-registry",
-  verbose  = TRUE,
-  comments = TRUE
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "container-registry",
+  verbose   = TRUE,
+  comments  = TRUE
+)
+
+# Push to GitHub Container Registry instead of the default
+push_image(
+  image_id  = "974123909a36",
+  namespace = "your-github-username",
+  project   = "my-analysis",
+  registry  = "ghcr.io"
 )
 } # }
 ```

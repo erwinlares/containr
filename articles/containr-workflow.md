@@ -271,10 +271,10 @@ the push and errors with clear instructions if not.
 ``` r
 
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "your.netid",
-  project  = "my-analysis",
-  tag      = "1.0.0"
+  image_id  = imgs$image_id[1],
+  namespace = "your.netid",
+  project   = "my-analysis",
+  tag       = "1.0.0"
 )
 ```
 
@@ -292,11 +292,11 @@ To preview the tag and push commands without running them:
 ``` r
 
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "your.netid",
-  project  = "my-analysis",
-  tag      = "1.0.0",
-  dry_run  = TRUE
+  image_id  = imgs$image_id[1],
+  namespace = "your.netid",
+  project   = "my-analysis",
+  tag       = "1.0.0",
+  dry_run   = TRUE
 )
 #> podman tag 974123909a36 registry.doit.wisc.edu/your.netid/my-analysis:1.0.0
 #> podman push registry.doit.wisc.edu/your.netid/my-analysis:1.0.0
@@ -335,10 +335,10 @@ imgs <- list_images()
 
 # 4. Push to the registry
 push_image(
-  image_id = imgs$image_id[1],
-  netid    = "your.netid",
-  project  = "my-analysis",
-  tag      = "1.0.0"
+  image_id  = imgs$image_id[1],
+  namespace = "your.netid",
+  project   = "my-analysis",
+  tag       = "1.0.0"
 )
 ```
 

@@ -15,7 +15,8 @@ during auto-detection to silently try each tool in preference order.
 
 - tool:
 
-  A character string, either `"podman"` or `"docker"`.
+  A character string naming the tool to check, e.g. `"podman"` or
+  `"docker"`.
 
 ## Value
 

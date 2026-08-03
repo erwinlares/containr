@@ -20,8 +20,9 @@ Supports semantic versioning, CUDA variants, and Ubuntu suffixes.
 
 - r_mode:
 
-  Character string. One of `"base"`, `"rstudio"`, or `"tidyverse"`.
-  Determines which Rocker image to query.
+  Character string. One of `"base"`, `"tidyverse"`, `"rstudio"`,
+  `"verse"`, `"shiny_server"`, or `"rstudio_shiny"`. Determines which
+  Rocker image to query.
 
 - verbose:
 

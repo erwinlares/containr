@@ -10,16 +10,17 @@ after building an image with
 ## Usage
 
 ``` r
-list_images(tool = NULL, verbose = FALSE)
+list_images(tool_preference = c("podman", "docker"), verbose = FALSE)
 ```
 
 ## Arguments
 
-- tool:
+- tool_preference:
 
-  A character string or `NULL`. The container tool to use. One of
-  `"podman"` or `"docker"`. If `NULL` (the default), the function
-  auto-detects which tool is available, preferring `podman`.
+  A non-empty character vector of container tools to try, in order.
+  Defaults to `c("podman", "docker")` – Podman first, then Docker.
+  Supply a single value (e.g. `"docker"`) to require that specific tool
+  rather than auto-detecting.
 
 - verbose:
 
@@ -46,9 +47,9 @@ columns – the `image_id` column contains the hash you need to pass to
 
     imgs <- list_images()
     push_image(
-      image_id = imgs$image_id[1],
-      netid    = "erwin.lares",
-      project  = "container-registry"
+      image_id  = imgs$image_id[1],
+      namespace = "erwin.lares",
+      project   = "container-registry"
     )
 
 ## Examples
