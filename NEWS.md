@@ -1,4 +1,4 @@
-# containr (development version)
+# containr 0.2.0
 
 ## Breaking changes
 
