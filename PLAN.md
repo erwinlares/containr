@@ -728,24 +728,71 @@ dropped from this list along with the rest of that work, now deferred to
 `devtools::submit_cran()`, followed by `usethis::use_github_release()` ->
 `usethis::use_dev_version(push = TRUE)`.
 
-**Candidate addition, carried over from Phase 5:** "Path B" -- a
-GitHub Actions template for `containr` *users'* own projects, directly
-solving the Session 4 QEMU incident by building on a native `x86_64`
-GitHub-hosted runner instead of cross-compiling locally. Deliberately not
-decided yet -- three nested sub-questions (plain shell vs. R-based;
-docs-only vs. shipped template file vs. a new exported function) need
-their own scoping before writing anything, the same way Phase 5's own
-Path A/B split did. If this happens in `0.2.0` at all, this phase is
-where it belongs, since it's fundamentally documentation-shaped work
-regardless of which sub-option it lands on -- but it's also fine to push
-to its own pass entirely if `0.2.0`'s release timeline doesn't have room
-for it.
+**"Path B" -- decided and implemented (Session 8).** A GitHub Actions
+template for `containr` *users'* own projects, directly solving the
+Session 4 QEMU incident by building on a native `x86_64` GitHub-hosted
+runner instead of cross-compiling locally. Both of the sub-questions
+this was left with at the end of Phase 5 are now resolved:
+
+1. **R-based, not plain shell commands.** Erwin's own framing was the
+   deciding argument: `containr`'s whole design premise is that a
+   researcher never has to leave R to containerize their work -- a
+   shell-based template would be the one place in the entire user-facing
+   surface that broke that promise, at exactly the moment (debugging CI)
+   a researcher is least equipped to troubleshoot YAML and shell instead
+   of R. Calling `build_image()`/`push_image()` directly from the
+   template also means it inherits any future fix to those functions
+   automatically, rather than a hand-written shell equivalent quietly
+   drifting out of sync as `containr` changes -- a real correctness risk
+   given this project's reproducibility goal.
+2. **Shipped template file, not docs-only or a new function --
+   `use_github_actions_workflow()`-style function explicitly flagged for
+   `0.3.0`, not left as a vague "maybe someday."** A template users copy
+   manually gets real, correct value in front of them without the added
+   scope and testing burden a new exported function would add this close
+   to release. Recorded here explicitly, alongside the already-deferred
+   Apptainer work, so it doesn't quietly vanish from the roadmap the way
+   "deferred" items can when they only exist in someone's head.
+
+**Assumes the user's `Dockerfile` is already built and committed** --
+this template does not call `generate_dockerfile()` to regenerate it
+from `renv.lock`. If dependencies change, the user re-runs
+`generate_dockerfile()` locally and commits the result, the same way
+they would for any other generated file. This was a deliberate scoping
+choice (Erwin's call) to keep the template's job narrow -- build and
+push what's already there, not also own regeneration.
+
+**As implemented:** `inst/templates/build-and-push.yaml`, following R
+package convention for shipping non-R auxiliary files (alongside
+`inst/extdata/install_and_restore_packages.sh`, `inst/CITATION`). Runs
+on `ubuntu-latest` (native `x86_64`, same reasoning as Phase 5's own
+workflow -- no QEMU emulation possible when host and target architecture
+match), installs Podman and `containr` from CRAN, logs in via a
+`podman login` step reading two repository secrets
+(`REGISTRY_USERNAME`/`REGISTRY_PASSWORD`, generic enough to work for
+`registry.doit.wisc.edu`, `ghcr.io`, or `quay.io` -- login mechanics
+don't differ by registry), then calls `build_image()` followed by
+`list_images()`/`push_image()` -- the exact idiom already documented in
+`list_images()`'s own `@section Finding your image ID:`, not a new
+pattern invented for this template. Tags the pushed image with
+`github.sha` rather than `"latest"`, matching `push_image()`'s own
+warning about that default. Four `env:` values (`REGISTRY`, `NAMESPACE`,
+`PROJECT`, plus the `Dockerfile` path in the trigger's `paths:` filter)
+are the only things a user needs to customize, called out explicitly in
+both the file's own header comment and inline `# CUSTOMIZE` markers.
+
+**Not yet done:** documenting this template in the vignette (the
+"docs-only" delivery option that was considered and set aside in favor
+of a shipped file is still the right *complement* to a shipped file, not
+an alternative to it -- a template with nowhere pointing to it is hard
+to discover). Folds into this phase's existing vignette work rather than
+being a separate task.
 
 ---
 
 ### Deferred beyond v0.2.0
 
-Two items from the original roadmap that aren't part of this round and
+Three items from the original roadmap that aren't part of this round and
 don't block anything above:
 
 - **`containerize()` convenience wrapper** (open design question 1) --
@@ -756,6 +803,13 @@ don't block anything above:
   backward-compatible fix, so it warrants a real minor bump under the
   same semver reasoning that put the current release at `0.2.0` rather
   than `0.1.4` in the first place.
+- **A `use_github_actions_workflow()`-style function** (Erwin's call,
+  Session 8), wrapping `inst/templates/build-and-push.yaml`'s manual
+  copy step the way `usethis::use_github_action()` does for its own
+  templates. `0.2.0` ships the shipped-template version of "Path B"
+  (see Phase 6); this is the natural next increment on top of it, not a
+  replacement -- targeting `0.3.0` alongside Apptainer support, same
+  semver reasoning.
 
 `.resolve_tool()`'s preference-order argument (open design question 5),
 previously listed here, is no longer deferred -- implemented as part of

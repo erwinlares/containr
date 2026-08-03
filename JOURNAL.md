@@ -1486,3 +1486,96 @@ after implementation:
 Phase 5 is now genuinely closed -- implemented, and confirmed working on
 real infrastructure, not just assumed to work because the sandbox-side
 reasoning held up.
+
+## Session 8 -- Phase 6 begins: Path B implemented
+
+### Two remaining sub-questions, resolved
+
+Picked up where Phase 5 left Path B (the user-facing GitHub Actions
+template) deliberately unscoped. Both open questions settled quickly,
+each with a clear deciding argument rather than a coin flip:
+
+**R-based, not shell.** Erwin's own framing was sharper than the
+"one authoritative code path, avoids drift" argument originally offered:
+`containr`'s entire design premise is staying inside R for the whole
+containerization workflow -- a shell-based template would be the one
+place in the user-facing surface that broke that promise, and at exactly
+the point (debugging CI) where a researcher is worst-positioned to
+troubleshoot YAML/shell instead of R. Also noted independently: on a
+*native* x86_64 runner, `build_image()`'s cross-platform/buildx detection
+never fires (no architecture mismatch to detect), so that specific piece
+of value doesn't carry over here -- what does carry over is that a
+template calling `build_image()`/`push_image()` directly inherits any
+future fix to those functions automatically, where a hand-written shell
+duplicate would silently drift.
+
+**Shipped template, function flagged for 0.3.0.** Gets real, correct
+value in front of users without the added scope (new tests, roxygen,
+argument design questions) a new exported function would add this close
+to release. Erwin explicitly asked for the function to be flagged for
+next version, not left as a vague future maybe -- recorded as its own
+line item in `## Deferred beyond v0.2.0`, same visibility as Apptainer
+support, rather than only mentioned in Phase 6's prose where it could
+get lost.
+
+Amusing footnote: Erwin wrote out his own reasoning for both before
+reading my recommendation in the same turn -- we'd independently landed
+on the same two answers.
+
+### Scoping: assume Dockerfile already exists
+
+Before writing anything, asked whether the template should also
+regenerate the Dockerfile from `renv.lock` via `generate_dockerfile()`,
+or assume one is already committed. Erwin: assume it's already built.
+Keeps the template's job narrow (build and push what's there), and
+matches how the rest of `containr`'s own CI treats generated files --
+`R-CMD-check.yaml` tests the repo's current committed state, not a
+freshly regenerated one.
+
+### Implementation
+
+`inst/templates/build-and-push.yaml` -- following the R package
+convention already established for shipping non-R auxiliary files
+(`inst/extdata/install_and_restore_packages.sh`, `inst/CITATION`), not
+a new pattern. Runs on `ubuntu-latest` (native x86_64, identical
+reasoning to Phase 5's own workflow). Installs Podman and `containr`
+from CRAN, logs in via a `podman login` step reading two generic
+repository secrets (works identically for `registry.doit.wisc.edu`,
+`ghcr.io`, or `quay.io` -- login mechanics don't differ by registry),
+then calls `build_image()` followed by `list_images()`/`push_image()`.
+
+Caught and fixed one thing while writing it: workflow-level `env:`
+blocks are already automatically inherited by every step in GitHub
+Actions -- a first draft redundantly re-declared `REGISTRY`/`NAMESPACE`/
+`PROJECT` at the step level via `${{ env.X }}` self-references, which is
+a harmless no-op but noisy for something meant to be read and understood
+by a user copying it. Simplified to only introduce the one genuinely new
+step-level value (`IMAGE_TAG`, the commit SHA -- chosen specifically so
+every pushed image traces to an exact commit rather than overwriting
+`"latest"` the way `push_image()`'s own warning cautions against).
+
+Used `imgs <- list_images(); imgs$image_id[1]` to go from build to push
+-- the exact idiom already documented in `list_images()`'s own
+`@section Finding your image ID:`, not a new pattern invented for this
+template. Verified this is reliable specifically in a CI context (a
+fresh runner has no leftover images from previous builds to create
+ambiguity, unlike the long-lived local-dev-machine case the existing
+docs describe it for) before trusting it, rather than assuming Podman's
+default sort order behaves as expected.
+
+Verified the YAML parses correctly via `yaml::yaml.load_file()` before
+handing it off, consistent with how Phase 5's workflow was validated.
+
+### Not yet done
+
+Documenting the template in the vignette -- the file is self-documenting
+via its own header comment, but a shipped file with nothing pointing to
+it is hard to discover. Folds into Phase 6's already-planned vignette
+work rather than being tracked as a separate task.
+
+### Open, carried forward
+
+- Vignette documentation for the template.
+- Everything else in Phase 6: `README.md`, both vignettes' remaining
+  content, a consolidated `NEWS.md` entry for the whole `0.2.0` release,
+  `WORDLIST` additions, then the actual release cycle.

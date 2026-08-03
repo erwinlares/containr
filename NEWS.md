@@ -1,118 +1,121 @@
 # containr (development version)
 
-## `generate_dockerfile()`
+## Breaking changes
 
-* **Breaking change:** `r_mode = "tidystudio"` has been removed. Renamed to
-  `"verse"`, matching the Rocker project's own name for the underlying
-  image (`rocker/verse`) -- `"studio"` was misleading, since RStudio Server
-  is already present via `"tidyverse"` two modes earlier, and nothing in
-  the old name hinted at the TeX Live installation that's the actual
-  differentiator. No deprecation alias; regenerate any Dockerfile built
-  with `r_mode = "tidystudio"` using `r_mode = "verse"` instead.
+* `r_mode = "tidystudio"` has been removed. Renamed to `"verse"`, matching
+  the Rocker project's own name for the underlying image (`rocker/verse`)
+  -- `"studio"` was misleading, since RStudio Server is already present
+  via `"tidyverse"` two modes earlier, and nothing in the old name hinted
+  at the TeX Live installation that's the actual differentiator. No
+  deprecation alias; regenerate any Dockerfile built with
+  `r_mode = "tidystudio"` using `r_mode = "verse"` instead.
 
-* Two new `r_mode` values: `"shiny_server"` (`rocker/shiny`) for serving
-  Shiny apps, and `"rstudio_shiny"` (`rocker/rstudio` with Shiny Server
-  layered on top via Rocker's own `install_shiny_server.sh`) for RStudio
-  Server and Shiny Server in the same image.
+* The `tool` argument (a single tool name or `NULL` for auto-detect) on
+  `build_image()`, `push_image()`, and `list_images()` is replaced by
+  `tool_preference`, a non-empty character vector tried in order.
+  Defaults to `c("podman", "docker")`, matching today's default behavior.
+  A length-1 vector (e.g. `tool_preference = "docker"`) behaves like the
+  old `tool = "docker"`; a longer vector lets you set a custom
+  auto-detect order, e.g. `tool_preference = c("docker", "podman")`.
+  `tool = NULL` had no direct equivalent kept -- passing `NULL` to
+  `tool_preference` now errors, since the empty/auto-detect case is
+  expressed by supplying more than one candidate instead.
 
-* `EXPOSE` now supports more than one port on a single line --
-  `rstudio_shiny` exposes both `8787` and `3838`.
+* `push_image()`'s `netid` argument is renamed to `namespace`. `netid`
+  only ever made sense for the default `"registry.doit.wisc.edu"`
+  registry -- the same argument, and the same position in the assembled
+  `{registry}/{namespace}/{project}:{tag}` path, is a GitHub username or
+  organization for `ghcr.io`, or a Quay namespace for `quay.io`.
+  `namespace` is the term those registries' own documentation uses for
+  this segment, not a name `containr` invented. No alias kept; update
+  `netid = ...` calls to `namespace = ...`.
 
-* `data_file`, `code_file`, and `misc_file` are copied to
-  `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`, matching
-  Shiny Server's own default app directory (`site_dir /srv/shiny-server;`).
-  The four existing modes (`"base"`, `"tidyverse"`, `"rstudio"`, `"verse"`)
-  are unaffected -- `COPY` destinations for those stay `/home/`, independent
-  of `home_dir`, exactly as before.
+## New features
 
-* `expose_port` remains an override for `"rstudio"` only. `"shiny_server"`
-  and `"rstudio_shiny"` expose fixed port(s) and ignore `expose_port`, with
-  a warning if it's supplied.
+* Two new `r_mode` values on `generate_dockerfile()`: `"shiny_server"`
+  (`rocker/shiny`) for serving Shiny apps, and `"rstudio_shiny"`
+  (`rocker/rstudio` with Shiny Server layered on top via Rocker's own
+  `install_shiny_server.sh`) for RStudio Server and Shiny Server in the
+  same image. Both require R >= 4.0.0 and error informatively otherwise
+  -- `/rocker_scripts/` (which the Shiny Server install depends on) only
+  exists in images built from the `rocker-versioned2` project, which
+  covers R >= 4.0.0; older tags on the same Docker Hub repositories
+  predate that entirely. `EXPOSE` now supports more than one port on a
+  single line for `rstudio_shiny`, which exposes both `8787` and `3838`.
+  `data_file`, `code_file`, and `misc_file` are copied to
+  `/srv/shiny-server/` for these two modes, matching Shiny Server's own
+  default app directory -- the four existing modes are unaffected,
+  `COPY` destinations for those stay `/home/` exactly as before.
+  `expose_port` remains an override for `"rstudio"` only; the two new
+  modes expose fixed port(s) and ignore it, with a warning if supplied.
 
-* `"shiny_server"` and `"rstudio_shiny"` now require R >= 4.0.0 and error
-  informatively otherwise. `/rocker_scripts/` (and the
-  `install_shiny_server.sh` script `"rstudio_shiny"` runs) only exists in
-  images built from the `rocker-versioned2` project, which covers
-  R >= 4.0.0; older tags on the same Docker Hub repositories predate that
-  entirely.
+* `push_image()` now works against any OCI-compliant registry, not just
+  the default `registry.doit.wisc.edu` -- tested against `ghcr.io` and
+  `quay.io`. Login-check guidance (both the pre-push `comments` message
+  and the not-logged-in error) is registry-aware: the default registry
+  keeps its existing specific PAT-creation instructions, while any other
+  registry gets generic guidance pointing at that registry's own
+  documentation instead of DoIT-specific instructions that would be
+  wrong for it.
 
-* Internally, the three previously-independent, hand-maintained mappings of
-  `r_mode` to image name (`generate_dockerfile()`), Docker Hub repo
-  (`.get_r_ver_tags()`), and valid-values list (`.r_ver_exists()`) are now a
-  single shared registry (`.r_mode_registry`). No user-facing effect beyond
-  the `tidystudio` removal and the two new modes above.
+* `containr` now ships a ready-to-use GitHub Actions template at
+  `inst/templates/build-and-push.yaml`, for building and pushing your
+  own project's image from CI rather than locally. Calls
+  `build_image()`/`push_image()` directly (the same functions you'd run
+  yourself, not a hand-written shell equivalent) on a GitHub-hosted
+  runner, which is natively `x86_64` -- a direct fix, not a workaround,
+  for QEMU emulation issues building `linux/amd64` images locally on
+  Apple Silicon. See `README.md`'s "Building in CI" section.
 
-## `build_image()`, `push_image()`, `list_images()`
+## Bug fixes
 
-* **Breaking change:** the `tool` argument (a single tool name or `NULL` for
-  auto-detect) is replaced by `tool_preference`, a non-empty character
-  vector tried in order. Defaults to `c("podman", "docker")`, matching
-  today's default behavior. A length-1 vector (e.g.
-  `tool_preference = "docker"`) behaves like the old `tool = "docker"`; a
-  longer vector lets you set a custom auto-detect order, e.g.
-  `tool_preference = c("docker", "podman")`. `tool = NULL` had no direct
-  equivalent kept -- passing `NULL` to `tool_preference` now errors, since
-  the empty/auto-detect case is expressed by supplying more than one
-  candidate instead.
+* Fixed a bug where `push_image()`'s pre-push login check always failed
+  under Docker regardless of whether the user was actually logged in.
+  `<tool> login --get-login <registry>` is a Podman-only flag; running it
+  under Docker always exits with a usage error (125), which is why
+  `check_login = FALSE` was previously necessary as a Docker workaround.
+  Podman keeps its native `--get-login` check; Docker (and, permissively,
+  any other `tool_preference` value) now checks `~/.docker/config.json`
+  directly for a cached credential, the same approach most CI tooling
+  uses since Docker itself has no query subcommand for this. This is a
+  best-effort local check either way -- it confirms a credential exists,
+  not that it's still valid; an expired token can still fail at push
+  time.
 
-* `tool_preference` is not validated against a fixed list of tool names --
-  any string on the system's PATH that responds to `<tool> info` is
+## Internal changes
+
+* The three previously-independent, hand-maintained mappings of `r_mode`
+  to image name (`generate_dockerfile()`), Docker Hub repo
+  (`.get_r_ver_tags()`), and valid-values list (`.r_ver_exists()`) are
+  now a single shared registry (`.r_mode_registry`). No user-facing
+  effect beyond the `tidystudio` removal and the two new modes above.
+
+* `tool_preference` is not validated against a fixed list of tool names
+  -- any string on the system's PATH that responds to `<tool> info` is
   accepted. This is intentional: `tool_preference` should not need a
   companion validation update every time a new container tool gains
-  support (e.g. Singularity/Apptainer, planned for a later release).
+  support (Apptainer support is planned for a future release).
   Structural validation still applies -- `tool_preference` must be a
-  non-empty character vector with no missing values.
+  non-empty character vector with no missing values. Error messages for
+  an unrecognized tool that's installed but not responding fall back to
+  generic guidance rather than Docker- or Podman-specific instructions
+  that would be wrong for a different tool; `docker` and `podman` keep
+  their existing specific guidance.
 
-* Error messages for an unrecognized tool that's installed but not
-  responding now fall back to generic guidance (`"Start the <tool> daemon
-  or service and try again"`) rather than Docker- or Podman-specific
-  instructions that would be wrong for a different tool. `docker` and
-  `podman` keep their existing specific guidance.
-
-* Removed a redundant internal check: `build_image()`, `push_image()`, and
-  `list_images()` each called `.check_tool_responsive()` immediately after
-  `.resolve_tool()`, which already guarantees the resolved tool is
+* Removed a redundant internal check: `build_image()`, `push_image()`,
+  and `list_images()` each called `.check_tool_responsive()` immediately
+  after `.resolve_tool()`, which already guarantees the resolved tool is
   responsive. No user-facing behavior change.
 
 * Added integration tests (`CONTAINR_INTEGRATION_TESTS=true`) for
   `build_image()` and `push_image()`, backfilling the two that were
   previously only covered at the argument-validation and command-
   construction layers. `push_image()`'s integration test additionally
-  requires `CONTAINR_TEST_NAMESPACE` and `CONTAINR_TEST_PROJECT` to be set,
-  so it never pushes a test image to an unintended destination.
-
-## `push_image()`
-
-* **Breaking change:** the `netid` argument is renamed to `namespace`.
-  `netid` only ever made sense for the default `"registry.doit.wisc.edu"`
-  registry -- the same argument, and the same position in the assembled
-  `{registry}/{namespace}/{project}:{tag}` path, is a GitHub username or
-  organization for `ghcr.io`, or a Quay namespace for `quay.io`. `namespace`
-  is the term those registries' own documentation uses for this segment,
-  not a name containr invented. No alias kept; update `netid = ...` calls
-  to `namespace = ...`.
-
-* Fixed a bug where the pre-push login check always failed under Docker
-  regardless of whether the user was actually logged in.
-  `<tool> login --get-login <registry>` is a Podman-only flag; running it
-  under Docker always exits with a usage error (125), which is why
-  `check_login = FALSE` was previously necessary as a Docker workaround.
-  Podman keeps its native `--get-login` check; Docker (and, permissively,
-  any other tool_preference value) now checks `~/.docker/config.json`
-  directly for a cached credential, the same approach most CI tooling uses
-  since Docker itself has no query subcommand for this. This is a
-  best-effort local check either way -- it confirms a credential exists,
-  not that it's still valid; an expired token can still fail at push time.
-
-* Login-check guidance (both the pre-push `comments` message and the
-  not-logged-in error) is now registry-aware: the default
-  `"registry.doit.wisc.edu"` registry keeps its existing specific
-  PAT-creation instructions, while any other registry gets generic
-  guidance pointing at that registry's own documentation, rather than
-  DoIT-specific instructions that would be wrong for it.
-
-* Added a `ghcr.io` example to `@examples`, demonstrating that
-  `push_image()` isn't limited to the default registry.
+  requires `CONTAINR_TEST_NAMESPACE` and `CONTAINR_TEST_PROJECT` to be
+  set, so it never pushes a test image to an unintended destination.
+  These now run automatically in CI on every push/PR touching the
+  relevant files, via a new `container-integration-tests.yaml` GitHub
+  Actions workflow.
 
 # containr 0.1.3.9000
 
