@@ -619,9 +619,22 @@ registries in CI still applies, and no such tests were added this phase.
 
 ### Phase 5 -- GitHub Actions workflow for image builds
 
-**Status: implemented (Session 7), not yet run through an actual GitHub
-Actions execution -- new workflows can only really be verified by
-triggering them on GitHub itself, not locally.**
+**Status: implemented and verified (Session 7).** Triggered manually via
+a pull request (`pull_request` was already a configured trigger, and
+GitHub's Actions UI won't offer `workflow_dispatch` for a workflow that
+doesn't yet exist on the default branch -- opening a PR from
+`containr-modes-0.2.0` sidesteps that without needing to merge anything).
+Checked the actual logs, not just the green checkmark: Podman resolved
+cleanly (`arch: amd64`, `rootless: true`, no errors), `build_image()`'s
+and `list_images()`'s Layer 3 tests ran real `podman build`/`image ls`
+commands (visible `COMMIT containr-test-build-image:...` /
+`Successfully tagged` lines, not skips), and `push_image()`'s Layer 3
+test correctly skipped exactly as designed (`Reason: Set
+CONTAINR_TEST_NAMESPACE and CONTAINR_TEST_PROJECT...`) rather than either
+running unintentionally or failing. `failed: 0  errors: 0` across the
+whole suite. The one thing flagged as genuinely unverified after
+implementation -- whether Podman would actually work cleanly on GitHub's
+runner -- is now confirmed, not assumed.
 
 **Renumbered from Phase 6.** Apptainer support (previously this
 section's Phase 5) is deferred beyond `0.2.0` entirely -- see

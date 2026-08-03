@@ -1443,3 +1443,46 @@ infrastructure, which is Erwin's next step.
   noted there with its own three sub-questions preserved rather than
   decided now.
 - Phase 6 (docs/release pass) itself -- not started.
+
+### Verified on real GitHub infrastructure, not just implemented
+
+The manual-trigger gap from earlier this session resolved cleanly: since
+`container-integration-tests.yaml` only existed on `containr-modes-0.2.0`
+and GitHub's Actions UI only offers `workflow_dispatch` for workflows
+already on the default branch, Erwin opened a pull request from
+`containr-modes-0.2.0` into `main` -- not to merge, just to get the
+already-configured `pull_request` trigger to fire once. It did.
+
+Checked the actual run logs (uploaded as a zip export), not just the
+green checkmark, against the two things flagged as genuinely unverified
+after implementation:
+
+- **Podman on GitHub's runner** -- confirmed working cleanly: `podman
+  info` returned `arch: amd64`, `rootless: true`, no errors. Turned out
+  GitHub's runner image ships Podman pre-installed already (`podman is
+  already the newest version`), so the `apt-get install` step was a
+  no-op confirmation rather than a fresh install -- still worth having
+  in the workflow for portability, but the underlying tool was never
+  actually missing.
+- **The tests genuinely ran, rather than silently skipping** (the
+  specific failure mode a green checkmark alone wouldn't catch, since a
+  fully-skipped job still reports success): confirmed via real
+  `podman build` output in the log -- `STEP 1/2: FROM alpine:latest`,
+  a real pull, a real `COMMIT containr-test-build-image:... Successfully
+  tagged`, and a second real build+tag for the `list_images()`
+  cross-check test, which then parsed genuinely real `podman image ls`
+  output into a real data frame. Not mocked, not skipped.
+- **The one deliberate exclusion held**: `push_image()`'s Layer 3 test
+  showed up under `Skipped`, with exactly the expected reason (`Set
+  CONTAINR_TEST_NAMESPACE and CONTAINR_TEST_PROJECT...`) -- confirming
+  the workflow correctly left that credential-requiring path untouched
+  rather than either running it unintentionally or failing on missing
+  setup.
+- `failed: 0  errors: 0` -- the custom exit-code check (the fix for the
+  `devtools::test()`-doesn't-exit-nonzero bug caught earlier this
+  session) printed correctly and never had cause to fire `quit(status =
+  1)`.
+
+Phase 5 is now genuinely closed -- implemented, and confirmed working on
+real infrastructure, not just assumed to work because the sandbox-side
+reasoning held up.
