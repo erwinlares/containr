@@ -1358,3 +1358,88 @@ the call flags uncertainty themselves (he'd said "if I recall correctly"
 about the HPC-cluster point in the same message where he first named
 Singularity) -- the underlying reasoning was sound throughout, only the
 label attached to it was briefly wrong.
+
+## Session 7 (continued) -- Phase 5 implemented
+
+### The scoping conversation
+
+Before writing any YAML, walked through what "GitHub Actions workflow for
+image builds" actually meant -- `PLAN.md`'s own open design question 4
+hadn't fully resolved this, just guessed at an answer. Laid out two
+genuinely different things this could be: Path A (a CI workflow testing
+`containr`'s own build/push logic, living in this repo) and Path B (a
+template users copy into their own project's `.github/workflows/` to
+solve the actual Session 4 QEMU incident). Explained both in concrete
+terms -- what files get created, what runs, who it helps -- before Erwin
+asked for a recommendation.
+
+Recommended Path A first, Path B deferred, on the reasoning that a
+template built on top of never-automated-in-CI logic is building
+confidence on an unverified foundation, and that catching a regression
+now (in active development, cheap) is a better trade than catching it
+after `0.2.0` ships (expensive, a researcher's problem). Also noted Path
+B is really three nested decisions deep (shell vs. R-based; docs-only vs.
+shipped template vs. new exported function) and deserves its own scoping
+pass rather than being decided in passing -- same shape of argument that
+worked for splitting Apptainer's build-model question into three
+questions rather than one, earlier this project. Erwin agreed with Path
+A first.
+
+### Implementation
+
+New `.github/workflows/container-integration-tests.yaml`. Installs
+Podman on `ubuntu-latest` (natively `x86_64`, so `build_image()`'s tests
+never hit the QEMU problem this whole phase traces back to -- no
+cross-compilation happening at all), sets
+`CONTAINR_INTEGRATION_TESTS=true`, runs `devtools::test()`. Path-filtered
+trigger (only the files that actually matter: `build-image.R`,
+`push-image.R`, `list-images.R`, `container-helpers.R`,
+`test-container-workflow.R`, the workflow file itself) plus
+`workflow_dispatch` for manual runs, rather than firing on every push
+regardless of relevance. Matched the existing four workflows' conventions
+(`actions/checkout@v4`, `r-lib/actions/setup-r@v2`) rather than
+introducing a fifth style.
+
+`push_image()`'s Layer 3 test deliberately excluded -- it needs
+`CONTAINR_TEST_NAMESPACE`/`CONTAINR_TEST_PROJECT` (Phase 3's guard,
+requiring a real login and a real destination), left unset on purpose.
+Automating that means a live credential sitting in this repo's GitHub
+secrets and a real push to a real destination on every CI run --
+decided that's a separate call from the build-only coverage this phase
+adds, not something to bundle in by default.
+
+### A real bug, caught before it shipped
+
+Before writing the test-running step, checked whether `devtools::test()`
+actually causes CI to fail when a test fails -- rather than assume it
+does. Built a throwaway package with a deliberately failing test and ran
+`devtools::test()` against it directly: printed the failure, then
+returned normally, exit code 0. If the workflow had used
+`run: devtools::test()` as its only step, as first drafted, the whole
+point of Path A -- catching real regressions -- would have been silently
+defeated; the job would report green regardless of what the tests
+actually did.
+
+Fixed by checking `as.data.frame(results)$failed`/`$error` explicitly and
+calling `quit(status = 1)` if either is nonzero. Verified both directions
+before considering it done: the same failing-test package now exits 1;
+re-ran with the test fixed to actually pass, confirmed it still exits 0
+(so the fix doesn't introduce a false-failure in the other direction
+either).
+
+### What's genuinely unverified
+
+Whether `apt-get install podman` on GitHub's actual `ubuntu-latest`
+runner produces a working rootless Podman without further configuration.
+Reasonable, commonly-documented pattern, but this can't be confirmed from
+this sandbox -- only by actually triggering the workflow on GitHub's own
+infrastructure, which is Erwin's next step.
+
+### Open, carried forward
+
+- Whether the workflow actually runs successfully on GitHub -- untested
+  outside this sandbox by construction.
+- Path B (the user-facing template) -- deferred, candidate for Phase 6,
+  noted there with its own three sub-questions preserved rather than
+  decided now.
+- Phase 6 (docs/release pass) itself -- not started.

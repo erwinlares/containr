@@ -619,6 +619,10 @@ registries in CI still applies, and no such tests were added this phase.
 
 ### Phase 5 -- GitHub Actions workflow for image builds
 
+**Status: implemented (Session 7), not yet run through an actual GitHub
+Actions execution -- new workflows can only really be verified by
+triggering them on GitHub itself, not locally.**
+
 **Renumbered from Phase 6.** Apptainer support (previously this
 section's Phase 5) is deferred beyond `0.2.0` entirely -- see
 `## Deferred beyond v0.2.0` below for the full reasoning and everything
@@ -628,24 +632,74 @@ waiting on a Phase 5 that won't exist in this release.
 Confirmed there's no existing workflow that builds or pushes container
 images -- the four in `.github/workflows/` (`R-CMD-check.yaml`,
 `pkgdown.yaml`, `test-coverage.yaml`, `rhub.yaml`) are all R-package
-testing infrastructure, untouched by this phase. This is a clean net-new
-`.github/workflows/` file.
+testing infrastructure, untouched by this phase.
 
-Sequenced directly after Phase 4 -- not after a Phase 5 that no longer
-exists in this release -- so the workflow targets today's tool/registry
-surface (`tool_preference`, the DoIT GitLab registry plus whatever else
-Phase 4 generalized to) rather than being built speculatively against an
-Apptainer surface that isn't shipping yet. Solves the Apple Silicon
-QEMU problem from Session 4 by running on a native `x86_64` GitHub-hosted
-runner.
+**Resolved open design question 4, which turned out to have two genuinely
+different answers hiding inside it, not one.** Discussed explicitly with
+Erwin before writing anything:
 
-Resolves open design question 4: does `build_image()` grow a
-`github_actions = TRUE` mode that generates and triggers a workflow file,
-or does the workflow live entirely as YAML calling the existing
-`build_image()`/`push_image()` with the right arguments? Current guess is
-the latter -- little or no R-code change, mostly new YAML -- but that's a
-guess to confirm once this phase actually starts, not an assumption to
-build on now.
+- **Path A -- a CI workflow that runs `containr`'s own Layer 3
+  integration tests** (the ones Phase 3 added, gated behind
+  `CONTAINR_INTEGRATION_TESTS=true`, which had never run anywhere except
+  manually on a developer's own machine). Lives in `containr`'s own
+  `.github/workflows/`. Closes a real, existing coverage gap.
+- **Path B -- a template workflow for `containr` users' own projects**,
+  directly solving the actual Session 4 QEMU incident (build natively on
+  a GitHub-hosted `x86_64` runner instead of cross-compiling from Apple
+  Silicon). Three nested sub-decisions of its own (plain shell commands
+  vs. calling `build_image()`/`push_image()` via R; docs-only vs. a
+  shipped `inst/templates/` file vs. a new exported
+  `use_github_actions_workflow()`-style function) -- underspecified
+  enough, and different enough in shape from Path A, that it deserves its
+  own scoping pass rather than being decided in passing here.
+
+**Decided: Path A now, Path B deferred to Phase 6 (the docs pass) or its
+own pass** -- reasoning being that Path B is fundamentally a
+documentation-shaped feature (teaching users a workflow) regardless of
+which of its three sub-options it lands on, and a template built on top
+of never-automated-in-CI build/push logic is building confidence on an
+unverified foundation. Closing Path A's gap first, while still in active
+development where a caught regression costs minutes rather than becoming
+a researcher's support issue after `0.2.0` ships, is the better ordering.
+
+**Path A, as implemented:** new `.github/workflows/
+container-integration-tests.yaml`. Installs Podman on `ubuntu-latest`
+(natively `x86_64`, so `build_image()`'s tests never hit the Session 4
+QEMU problem -- there's no architecture mismatch to cross-compile for),
+sets `CONTAINR_INTEGRATION_TESTS=true`, and runs `devtools::test()`.
+Triggered on push/PR to `main`/`master`, path-filtered to only the files
+that actually matter for this (`build-image.R`, `push-image.R`,
+`list-images.R`, `container-helpers.R`,
+`test-container-workflow.R`, the workflow file itself), plus
+`workflow_dispatch` for manual runs. `build_image()`'s and `list_images()`'s
+Layer 3 tests both run this way, since both only need Podman locally, no
+external credentials.
+
+**`push_image()`'s Layer 3 test deliberately does not run here.** It
+additionally requires `CONTAINR_TEST_NAMESPACE` and `CONTAINR_TEST_PROJECT`
+(from Phase 3), which this workflow intentionally leaves unset -- that
+test needs a live registry login and pushes a real, if throwaway, image
+to a real destination on every run. That's a separate operational
+decision (a real credential sitting in this repo's GitHub secrets, a live
+external side effect on every push) from the build-only coverage this
+phase adds, and wasn't bundled in by default.
+
+**A real bug caught before it shipped, not assumed away:** `devtools::test()`
+does **not** exit non-zero on test failure by itself -- verified this
+directly in a throwaway package with a deliberately failing test before
+writing the workflow's actual test-running step, since a CI job that
+silently reports green regardless of test outcome would have defeated
+the entire point of Path A. Fixed by explicitly checking
+`as.data.frame(results)$failed`/`$error` and calling `quit(status = 1)`
+if either is nonzero -- verified both directions (a failing test now
+exits 1, a passing suite still exits 0) before considering this done.
+
+**Not independently verified:** whether `apt-get install podman` on
+GitHub's `ubuntu-latest` runner actually produces a working rootless
+Podman without additional configuration. This is a reasonable, common
+pattern, but wasn't (and can't be, from this environment) confirmed by
+actually triggering the workflow on GitHub's own infrastructure --
+that's the real verification step still outstanding, on Erwin's side.
 
 ---
 
@@ -660,6 +714,19 @@ dropped from this list along with the rest of that work, now deferred to
 `devtools::document()` -> `devtools::test()` -> `devtools::check()` ->
 `devtools::submit_cran()`, followed by `usethis::use_github_release()` ->
 `usethis::use_dev_version(push = TRUE)`.
+
+**Candidate addition, carried over from Phase 5:** "Path B" -- a
+GitHub Actions template for `containr` *users'* own projects, directly
+solving the Session 4 QEMU incident by building on a native `x86_64`
+GitHub-hosted runner instead of cross-compiling locally. Deliberately not
+decided yet -- three nested sub-questions (plain shell vs. R-based;
+docs-only vs. shipped template file vs. a new exported function) need
+their own scoping before writing anything, the same way Phase 5's own
+Path A/B split did. If this happens in `0.2.0` at all, this phase is
+where it belongs, since it's fundamentally documentation-shaped work
+regardless of which sub-option it lands on -- but it's also fine to push
+to its own pass entirely if `0.2.0`'s release timeline doesn't have room
+for it.
 
 ---
 
