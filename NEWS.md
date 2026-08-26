@@ -66,6 +66,17 @@
   runner, which is natively `x86_64` -- a direct fix, not a workaround,
   for QEMU emulation issues building `linux/amd64` images locally on
   Apple Silicon. See `README.md`'s "Building in CI" section.
+  
+* `data_file`, `code_file`, and `misc_file` on `generate_dockerfile()`
+  now accept a character vector of paths, not just a single path, and a
+  path may point to a directory, copied whole rather than one file at a
+  time. `code_file = c("R/prepare.R", "R/model.R")` and
+  `misc_file = "assets/"` both work in a single call now; previously
+  each argument accepted exactly one file path and rejected directories
+  outright. Fully backward-compatible -- a length-1 character path
+  behaves exactly as before. The `COPY`-instruction generation already
+  built its output via `purrr::map_chr()` over these arguments, so this
+  change is contained to `.validate_file_arg()`.
 
 ## Bug fixes
 

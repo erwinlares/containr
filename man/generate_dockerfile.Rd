@@ -49,26 +49,31 @@ element should be a valid \code{apt} package name, e.g.
 \item{output}{A character string. Directory path where the \code{Dockerfile} will
 be written. Defaults to \code{tempdir()}.}
 
-\item{data_file}{A character string or \code{NULL}. Path to a data file to copy
-into the container. The local directory structure is preserved under
-\verb{/home/} for \code{"base"}, \code{"tidyverse"}, \code{"rstudio"}, and \code{"verse"} (e.g.
-\code{"data-raw/sample.csv"} becomes \verb{/home/data-raw/sample.csv}), or under
-\verb{/srv/shiny-server/} for \code{"shiny_server"} and \code{"rstudio_shiny"},
-matching Shiny Server's own default app directory. The file must be
-inside the current working directory (the build context). Defaults to
-\code{NULL}.}
+\item{data_file}{A character vector or \code{NULL}. Path(s) to data file(s)
+and/or directories to copy into the container -- a single path, a
+vector of paths, or a directory (copied whole, with its contents) may
+all be mixed freely in the same vector. The local directory structure
+is preserved under \verb{/home/} for \code{"base"}, \code{"tidyverse"}, \code{"rstudio"},
+and \code{"verse"} (e.g. \code{"data-raw/sample.csv"} becomes
+\verb{/home/data-raw/sample.csv}, and a directory \code{"data-raw/"} is copied to
+\verb{/home/data-raw/} in full), or under \verb{/srv/shiny-server/} for
+\code{"shiny_server"} and \code{"rstudio_shiny"}, matching Shiny Server's own
+default app directory. Every path must be inside the current working
+directory (the build context). Defaults to \code{NULL}.}
 
-\item{code_file}{A character string or \code{NULL}. Path to a script file (e.g.
-\code{.R}, \code{.qmd}, \code{.rmd}) to copy into the container. The local directory
-structure is preserved under the mode's copy root -- see \code{data_file}.
-The file must be inside the current working directory. Defaults to
-\code{NULL}.}
+\item{code_file}{A character vector or \code{NULL}. Path(s) to script file(s)
+(e.g. \code{.R}, \code{.qmd}, \code{.rmd}) and/or directories to copy into the
+container -- see \code{data_file} for vector and directory behavior. The
+local directory structure is preserved under the mode's copy root --
+see \code{data_file}. Every path must be inside the current working
+directory. Defaults to \code{NULL}.}
 
-\item{misc_file}{A character string or \code{NULL}. Path to a miscellaneous file
-(e.g. an image or shell script) to copy into the container. The local
-directory structure is preserved under the mode's copy root -- see
-\code{data_file}. The file must be inside the current working directory.
-Defaults to \code{NULL}.}
+\item{misc_file}{A character vector or \code{NULL}. Path(s) to miscellaneous
+file(s) (e.g. images or shell scripts) and/or directories to copy into
+the container -- see \code{data_file} for vector and directory behavior. The
+local directory structure is preserved under the mode's copy root --
+see \code{data_file}. Every path must be inside the current working
+directory. Defaults to \code{NULL}.}
 
 \item{add_user}{A character string. Name of a Linux user to create inside
 the container with sudo access. Defaults to \code{NULL}.}
@@ -137,6 +142,16 @@ generate_dockerfile(
   data_file = "data-raw/penguins.csv",
   code_file = "analysis.R",
   comments  = TRUE,
+  output    = "."
+)
+
+#' # Multiple scripts and a whole assets folder, copied in one call --
+# data_file, code_file, and misc_file all accept vectors, and a directory
+# is copied whole
+generate_dockerfile(
+  r_version = "4.3.0",
+  code_file = c("R/prepare.R", "R/model.R"),
+  misc_file = "assets/",
   output    = "."
 )
 

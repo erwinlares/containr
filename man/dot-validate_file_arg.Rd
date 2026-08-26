@@ -10,16 +10,21 @@
 \item{arg_name}{Character string, the name of the argument being checked
 (used only in error messages).}
 
-\item{value}{A character path to a file, or \code{NULL}.}
+\item{value}{A character vector of paths to files and/or directories, or
+\code{NULL}. Every element is validated independently, so a vector may
+freely mix files and directories.}
 }
 \value{
-A file path relative to the current working directory if
-validation succeeds, or \code{NULL} if the input was \code{NULL}.
+A character vector of paths relative to the current working
+directory, one per element of \code{value}, if validation succeeds, or
+\code{NULL} if the input was \code{NULL}.
 }
 \description{
 Internal helper used by \code{generate_dockerfile()} to check that
 optional file arguments (e.g. \code{data_file}, \code{code_file},
-\code{misc_file}) are valid. Returns a path relative to the current
-working directory, which serves as the Docker/Podman build context.
+\code{misc_file}) are valid. Accepts a single path, a character vector
+of paths, or a path to a directory (copied whole). Returns each path
+relative to the current working directory, which serves as the
+Docker/Podman build context.
 }
 \keyword{internal}

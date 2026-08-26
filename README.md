@@ -189,6 +189,11 @@ inside the current working directory (the build context) -- files outside
 it will produce an error, since Dockerfile `COPY` cannot reach beyond the
 build context.
 
+Each of these three arguments accepts a single path, a character vector of
+paths, or a path to a directory -- a directory is copied whole, contents
+and all, rather than one file at a time -- and files and directories can be
+freely mixed in the same vector.
+
 ```r
 # Generate a Dockerfile from the current project
 generate_dockerfile(r_version = "4.4.0", output = ".")
@@ -198,6 +203,14 @@ generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/penguins.csv",
   code_file = "analysis.R",
+  output    = "."
+)
+
+# Multiple scripts and a whole assets folder, copied in one call
+generate_dockerfile(
+  r_version = "4.4.0",
+  code_file = c("R/prepare.R", "R/model.R"),
+  misc_file = "assets/",
   output    = "."
 )
 

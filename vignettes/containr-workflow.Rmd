@@ -121,22 +121,25 @@ generate_dockerfile(
 )
 ```
 
-If your analysis depends on data files or scripts that should be available
-inside the container, pass them via `data_file` and `code_file`. The generated
-`COPY` instructions preserve your local directory structure under `/home/` --
-a file at `data-raw/sample.csv` locally becomes `/home/data-raw/sample.csv`
-in the container. All files must be inside the current working directory (the
-build context).
+If your analysis depends on data files, scripts, or other assets that should
+be available inside the container, pass them via `data_file`, `code_file`,
+and `misc_file`. The generated `COPY` instructions preserve your local
+directory structure under `/home/` -- a file at `data-raw/sample.csv`
+locally becomes `/home/data-raw/sample.csv` in the container. All files must
+be inside the current working directory (the build context). Each argument
+accepts a single path, a character vector of paths, or a path to a
+directory -- a directory is copied whole rather than one file at a time,
+and files and directories can be mixed freely within the same vector.
 
 ```{r, eval=FALSE}
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/sample.csv",
-  code_file = "analysis.R",
+  code_file = c("analysis.R", "helpers.R"),
+  misc_file = "assets/",
   output    = ".",
   comments  = TRUE
 )
-```
 
 If your project uses RStudio Server rather than plain R, pass `r_mode =
 "rstudio"` to use the `rocker/rstudio` base image instead:

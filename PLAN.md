@@ -901,3 +901,101 @@ Docker-to-Apptainer-conversion, and HPC-cluster-overview guides
 (chtc.cs.wisc.edu), and OSPool's container-building documentation
 (portal.osg-htc.org) -- all fetched directly, not recalled from general
 knowledge of the tool.
+
+---
+
+## Open GitHub issues -- next session
+
+Not yet started; not formally assigned to `0.2.0`, a patch, or `0.3.0`.
+Assessed against the current `main` (post-`containr-modes-0.2.0` merge,
+not yet pushed to CRAN) in the session that filed this section. Both are
+scoped narrowly enough to tackle independently, in either order --
+leaning toward #4 first since it has no external API dependency.
+
+### Issue #4 -- vector and folder support for `code_file`/`data_file`/`misc_file`
+
+**Problem:** `data_file`, `code_file`, and `misc_file` currently accept
+only a length-1 character path or `NULL`. Requested: a character vector
+(`code_file = c("file1.R", "file2.R")`) and a folder path
+(`misc_file = "assets/"`), copied whole.
+
+**Assessment: small.** The `COPY` instruction blocks in
+`generate_dockerfile()` already build their lines via
+`purrr::map_chr(data_file, ~ glue::glue("COPY {.x} {copy_root}/{.x}"))` --
+already vector-shaped, no change needed there. Docker's `COPY` copies an
+entire directory tree when the source is a directory, so folder support
+falls out for free once directories are no longer rejected. The whole
+fix is contained to `.validate_file_arg()` in `validate-args.R`:
+
+- Vectorize the length/type check and the existence/build-context checks
+  (loop over each element, same per-element logic as today).
+- Drop the directory rejection (`file.info(path)$isdir` check).
+- Return a character vector of relative paths instead of a scalar.
+
+**Cost is mostly in tests, not implementation.**
+`test-validate-file-arg.R` currently has explicit tests asserting the
+*old* contract -- `rejects length > 1 character vectors`,
+`rejects a directory` -- both of which need to flip to positive-case
+tests, plus new coverage for a folder being copied and a vector with a
+mix of valid/invalid entries. Roxygen docs for the three params also
+need a rewrite to describe vector + folder behavior, and the
+`generate_dockerfile()` `@examples` block could use one more example
+demonstrating a vector or folder argument.
+
+### Issue #3 -- pin the Quarto version when `install_quarto = TRUE`
+
+**Problem:** `generate_dockerfile(install_quarto = TRUE)` installs
+Quarto via `quarto.org/download/latest/`, which resolves to whatever
+release is current at build time -- the one unpinned layer in an
+otherwise deliberately pinned image (`r_version` pins R and system
+libraries, `renv.lock` pins R packages).
+
+**Proposal (full text captured from the issue):** add a
+`quarto_version` argument, defaulting to `"latest"` for backward
+compatibility, accepting an explicit version string (e.g. `"1.5.57"`).
+When a version is supplied, resolve it to Quarto's versioned GitHub
+release download URL rather than `/download/latest/`. Separately,
+capture and surface the version actually installed:
+
+- **Record it at generation time.** If `quarto_version` is left at
+  `"latest"`, resolve the current version at the point
+  `generate_dockerfile()` runs (query the Quarto releases API) and
+  write the resolved version into the generated `Dockerfile` as a
+  comment or `ARG`/`ENV` line, rather than leaving `/download/latest/`
+  in the file itself.
+- **Record it at build/render time.** Add `RUN quarto --version` (or
+  write it to a file inside the image, e.g. `/home/.quarto-version`) so
+  the installed version is inspectable from a running container without
+  the original Dockerfile. Cheap verification on top of the
+  generation-time capture, not a replacement for it.
+
+**Assessment: small-to-moderate, with a close precedent already in the
+codebase.** `.get_r_ver_tags()` and `.r_ver_exists()` already query an
+external API (Docker Hub) to resolve and validate a version string
+against `r_version`, following the exact `resolved_version <- if (x ==
+"current") {...} else {...}` shape this issue needs for
+`quarto_version`. Concretely:
+
+- New internal helper (`.get_quarto_version()` or similar) querying
+  `https://api.github.com/repos/quarto-dev/quarto-cli/releases/latest`
+  (tag name minus the leading `v`) when `quarto_version == "latest"`,
+  same `httr2::request() |> req_perform() |> resp_body_json()` shape as
+  `.get_r_ver_tags()`.
+- Replace the `install_quarto` block's hardcoded `RUN wget` instruction
+  with the pinned-URL version using the resolved value.
+- Surface the resolved version via `ENV QUARTO_VERSION=...` -- more
+  robust than a comment, since it survives regardless of the `comments`
+  toggle and is inspectable from a running container without a separate
+  `RUN quarto --version` step (though that remains a reasonable
+  belt-and-suspenders addition per the issue's second bullet).
+- **Open, not yet decided:** whether an invalid/nonexistent
+  `quarto_version` should `cli_abort()` before any Docker layers are
+  written, consistent with how `r_version` is validated in step 6 of
+  `generate_dockerfile()`. Also open: Quarto's tags are plain semver
+  (`1.5.57`), unlike Rocker's `latest`/`devel`/CUDA-suffix grammar, so
+  `.r_ver_exists()`'s validation regex isn't reusable as-is and needs
+  its own pattern.
+
+**Scope, per the issue:** `containr` only. No changes needed to
+`build_image()`, `push_image()`, or `push_image()`'s registry/tagging
+logic.
