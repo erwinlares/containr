@@ -220,6 +220,16 @@
 <span>  output          <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Install Quarto, pinned to a specific release rather than whatever is</span></span>
+<span><span class="co"># currently latest -- the resolved version is recorded as</span></span>
+<span><span class="co"># ENV QUARTO_VERSION in the generated Dockerfile either way</span></span>
+<span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version      <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  install_quarto <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  quarto_version <span class="op">=</span> <span class="st">"1.5.57"</span>,</span>
+<span>  output         <span class="op">=</span> <span class="st">"."</span></span>
+<span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># Guided generation with progress messages and annotated Dockerfile</span></span>
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
@@ -228,7 +238,7 @@
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The <code>comments = TRUE</code> argument annotates each instruction in the generated <code>Dockerfile</code> with an explanation of what it does. This is useful when you are learning containerization, reviewing the file with collaborators, or teaching why each layer exists.</p>
-<p><code>r_mode</code> accepts six values: <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>, <code>"verse"</code> (tidyverse plus TeX Live, for R Markdown/Quarto documents that need LaTeX), <code>"shiny_server"</code>, and <code>"rstudio_shiny"</code>. The last two require R &gt;= 4.0.0, enforced with an informative error if you request an older version – the Shiny Server install script they depend on isn’t available for earlier Rocker images.</p>
+<p>Every other layer in the generated image is pinned deliberately – <code>r_version</code> locks R and system libraries to a Rocker snapshot, <code>renv.lock</code> locks R package versions – and <code>quarto_version</code> closes what was previously the one unpinned layer. Left at the default <code>"latest"</code>, the actual Quarto release is resolved once at generation time and installed from a versioned URL rather than <code>quarto.org/download/latest/</code>, so a <code>Dockerfile</code> built today and rebuilt six months from now installs the same Quarto version both times. An explicit version (e.g. <code>"1.5.57"</code>) is validated against Quarto’s own releases and errors if no matching release exists. Either way, the resolved version is recorded in the <code>Dockerfile</code> as <code>ENV QUARTO_VERSION=...</code>, so it’s recoverable from a running container without the original <code>Dockerfile</code> on hand.</p>
 <hr>
 </div>
 <div class="section level3">

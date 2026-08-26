@@ -22,6 +22,7 @@ generate_dockerfile(
   home_dir = "/home",
   expose_port = "8787",
   install_quarto = FALSE,
+  quarto_version = "latest",
   comments = FALSE,
   verbose = FALSE
 )
@@ -122,7 +123,21 @@ generate_dockerfile(
 - install_quarto:
 
   Logical. If `TRUE`, downloads and installs the Quarto CLI inside the
-  container. Defaults to `FALSE`.
+  container. Defaults to `FALSE`. See `quarto_version` to pin a specific
+  release rather than always installing whatever is currently latest.
+
+- quarto_version:
+
+  Character string. Either `"latest"` (the default) or an explicit
+  Quarto version, e.g. `"1.5.57"`. Ignored unless
+  `install_quarto = TRUE`. When `"latest"`, the actual version is
+  resolved at generation time via the Quarto releases API and recorded
+  in the generated `Dockerfile` as `ENV QUARTO_VERSION=...`, so a later
+  rebuild from the same `Dockerfile` reproduces the same Quarto version
+  rather than whatever happens to be current at build time – consistent
+  with how `r_version` and `renv.lock` are pinned elsewhere in the
+  image. An explicit version is validated against the Quarto releases
+  API and errors if no matching release exists.
 
 - comments:
 
@@ -180,7 +195,7 @@ generate_dockerfile(
   output    = "."
 )
 
-#' # Multiple scripts and a whole assets folder, copied in one call --
+# Multiple scripts and a whole assets folder, copied in one call --
 # data_file, code_file, and misc_file all accept vectors, and a directory
 # is copied whole
 generate_dockerfile(
@@ -204,6 +219,16 @@ generate_dockerfile(
   r_mode    = "rstudio_shiny",
   code_file = "app.R",
   output    = "."
+)
+
+# Install Quarto, pinned to a specific release rather than whatever is
+# currently latest -- the resolved version is recorded as
+# ENV QUARTO_VERSION in the generated Dockerfile either way
+generate_dockerfile(
+  r_version      = "4.3.0",
+  install_quarto = TRUE,
+  quarto_version = "1.5.57",
+  output         = "."
 )
 } # }
 ```

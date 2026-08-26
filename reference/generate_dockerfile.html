@@ -68,6 +68,7 @@ inline documentation comments.</p>
 <span>  home_dir <span class="op">=</span> <span class="st">"/home"</span>,</span>
 <span>  expose_port <span class="op">=</span> <span class="st">"8787"</span>,</span>
 <span>  install_quarto <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  quarto_version <span class="op">=</span> <span class="st">"latest"</span>,</span>
 <span>  comments <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -167,7 +168,22 @@ single override value can't address more than one port.</p></dd>
 
 <dt id="arg-install-quarto">install_quarto<a class="anchor" aria-label="anchor" href="#arg-install-quarto"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, downloads and installs the Quarto
-CLI inside the container. Defaults to <code>FALSE</code>.</p></dd>
+CLI inside the container. Defaults to <code>FALSE</code>. See <code>quarto_version</code> to
+pin a specific release rather than always installing whatever is
+currently latest.</p></dd>
+
+
+<dt id="arg-quarto-version">quarto_version<a class="anchor" aria-label="anchor" href="#arg-quarto-version"></a></dt>
+<dd><p>Character string. Either <code>"latest"</code> (the default) or
+an explicit Quarto version, e.g. <code>"1.5.57"</code>. Ignored unless
+<code>install_quarto = TRUE</code>. When <code>"latest"</code>, the actual version is resolved
+at generation time via the Quarto releases API and recorded in the
+generated <code>Dockerfile</code> as <code>ENV QUARTO_VERSION=...</code>, so a later rebuild
+from the same <code>Dockerfile</code> reproduces the same Quarto version rather
+than whatever happens to be current at build time – consistent with
+how <code>r_version</code> and <code>renv.lock</code> are pinned elsewhere in the image. An
+explicit version is validated against the Quarto releases API and
+errors if no matching release exists.</p></dd>
 
 
 <dt id="arg-comments">comments<a class="anchor" aria-label="anchor" href="#arg-comments"></a></dt>
@@ -225,7 +241,7 @@ issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co">#' # Multiple scripts and a whole assets folder, copied in one call --</span></span></span>
+<span class="r-in"><span><span class="co"># Multiple scripts and a whole assets folder, copied in one call --</span></span></span>
 <span class="r-in"><span><span class="co"># data_file, code_file, and misc_file all accept vectors, and a directory</span></span></span>
 <span class="r-in"><span><span class="co"># is copied whole</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
@@ -249,6 +265,16 @@ issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span>  r_mode    <span class="op">=</span> <span class="st">"rstudio_shiny"</span>,</span></span>
 <span class="r-in"><span>  code_file <span class="op">=</span> <span class="st">"app.R"</span>,</span></span>
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Install Quarto, pinned to a specific release rather than whatever is</span></span></span>
+<span class="r-in"><span><span class="co"># currently latest -- the resolved version is recorded as</span></span></span>
+<span class="r-in"><span><span class="co"># ENV QUARTO_VERSION in the generated Dockerfile either way</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  r_version      <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
+<span class="r-in"><span>  install_quarto <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>  quarto_version <span class="op">=</span> <span class="st">"1.5.57"</span>,</span></span>
+<span class="r-in"><span>  output         <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>

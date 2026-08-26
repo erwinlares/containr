@@ -248,6 +248,16 @@ generate_dockerfile(
   output          = "."
 )
 
+# Install Quarto, pinned to a specific release rather than whatever is
+# currently latest -- the resolved version is recorded as
+# ENV QUARTO_VERSION in the generated Dockerfile either way
+generate_dockerfile(
+  r_version      = "4.4.0",
+  install_quarto = TRUE,
+  quarto_version = "1.5.57",
+  output         = "."
+)
+
 # Guided generation with progress messages and annotated Dockerfile
 generate_dockerfile(
   r_version = "4.4.0",
@@ -262,12 +272,19 @@ generated `Dockerfile` with an explanation of what it does. This is
 useful when you are learning containerization, reviewing the file with
 collaborators, or teaching why each layer exists.
 
-`r_mode` accepts six values: `"base"`, `"tidyverse"`, `"rstudio"`,
-`"verse"` (tidyverse plus TeX Live, for R Markdown/Quarto documents that
-need LaTeX), `"shiny_server"`, and `"rstudio_shiny"`. The last two
-require R \>= 4.0.0, enforced with an informative error if you request
-an older version – the Shiny Server install script they depend on isn’t
-available for earlier Rocker images.
+Every other layer in the generated image is pinned deliberately –
+`r_version` locks R and system libraries to a Rocker snapshot,
+`renv.lock` locks R package versions – and `quarto_version` closes what
+was previously the one unpinned layer. Left at the default `"latest"`,
+the actual Quarto release is resolved once at generation time and
+installed from a versioned URL rather than
+`quarto.org/download/latest/`, so a `Dockerfile` built today and rebuilt
+six months from now installs the same Quarto version both times. An
+explicit version (e.g. `"1.5.57"`) is validated against Quarto’s own
+releases and errors if no matching release exists. Either way, the
+resolved version is recorded in the `Dockerfile` as
+`ENV QUARTO_VERSION=...`, so it’s recoverable from a running container
+without the original `Dockerfile` on hand.
 
 ------------------------------------------------------------------------
 

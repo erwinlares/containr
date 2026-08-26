@@ -132,6 +132,7 @@ than one file at a time, and files and directories can be mixed freely
 within the same vector.
 
 ``` r
+
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/sample.csv",
@@ -140,10 +141,10 @@ generate_dockerfile(
   output    = ".",
   comments  = TRUE
 )
-
-If your project uses RStudio Server rather than plain R, pass `r_mode =
-"rstudio"` to use the `rocker/rstudio` base image instead:
 ```
+
+If your project uses RStudio Server rather than plain R, pass
+`r_mode = "rstudio"` to use the `rocker/rstudio` base image instead:
 
 ``` r
 
@@ -151,6 +152,31 @@ generate_dockerfile(
   r_version = "4.4.0",
   r_mode    = "rstudio",
   output    = "."
+)
+```
+
+If your project renders `.qmd` files, pass `install_quarto = TRUE` to
+install the Quarto CLI inside the container. Every other layer in the
+image is pinned deliberately – `r_version` locks R and system libraries,
+`renv.lock` locks R package versions – and `quarto_version` extends that
+same guarantee to Quarto. Left at the default `"latest"`, the actual
+release is resolved once at generation time and installed from a
+versioned URL, so rebuilding the same `Dockerfile` later reproduces the
+same Quarto version rather than whatever happens to be current at build
+time. Pass an explicit version (e.g. `"1.5.57"`) to pin to a specific
+release instead; it’s validated against Quarto’s own releases and errors
+if no matching release exists. Either way, the resolved version is
+recorded in the `Dockerfile` as `ENV QUARTO_VERSION=...`, so it’s
+recoverable from a running container without the original `Dockerfile`
+on hand.
+
+``` r
+
+generate_dockerfile(
+  r_version      = "4.4.0",
+  install_quarto = TRUE,
+  quarto_version = "1.5.57",
+  output         = "."
 )
 ```
 
