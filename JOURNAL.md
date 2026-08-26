@@ -1579,3 +1579,151 @@ work rather than being tracked as a separate task.
 - Everything else in Phase 6: `README.md`, both vignettes' remaining
   content, a consolidated `NEWS.md` entry for the whole `0.2.0` release,
   `WORDLIST` additions, then the actual release cycle.
+
+---
+
+## Session 9 -- GitHub issues #4 and #3 implemented
+
+### What we set out to do
+
+Two issues were open on `containr`'s GitHub repo, filed by Erwin ahead of
+this session: #4 (vector and folder support for `data_file`/`code_file`/
+`misc_file`) and #3 (pin the Quarto version when `install_quarto = TRUE`).
+The session started with an assessment pass against the current `main`
+(post-`containr-modes-0.2.0` merge, not yet pushed to CRAN), then
+implemented both in full.
+
+### Fetching the issues
+
+`gh api` hit GitHub's unauthenticated rate limit on the first two
+attempts; succeeded on retry. Issue #3's body came back truncated
+mid-sentence ("...write the resolved version into the generated") --
+initially unclear whether this was a fetch artifact, so checked the
+issue's comments (empty) and retried the raw fetch (same truncation),
+confirming the body was genuinely cut off on GitHub's end, not a local
+rendering issue. Erwin supplied the complete text directly, which
+confirmed the second bullet of the proposal (recording the version at
+build/render time as a "not mutually exclusive" alternative to
+generation-time capture) and its rationale section, both absent from the
+truncated fetch.
+
+### Issue #4 -- vector and folder support
+
+**Assessment held up under implementation.** The `COPY`-instruction
+blocks in `generate_dockerfile()` were already vector-shaped via
+`purrr::map_chr()`, so the fix was contained entirely to
+`.validate_file_arg()` in `validate-args.R`: vectorized the length/type
+check (any length >= 1, `anyNA()` catches missing values anywhere in the
+vector), dropped the directory-rejection branch entirely (Docker's `COPY`
+already copies a directory tree whole when the source is a directory, so
+no separate handling was needed once the rejection was removed), and
+returned a character vector of relative paths instead of a scalar via
+`vapply()`.
+
+**Test cost was in flipping old-contract tests, not writing new logic.**
+`test-validate-file-arg.R` had explicit tests asserting the *old*
+contract (`rejects length > 1 character vectors`, `rejects a directory`)
+-- both rewritten as positive-case tests, with new coverage added for a
+vector of files, a directory alone, and a vector mixing files and a
+directory. `test-generate-dockerfile-file-args.R`'s two matching stale
+tests were replaced with four covering the same ground at the
+`generate_dockerfile()` level. Roxygen for `data_file`/`code_file`/
+`misc_file` rewritten to describe vector and directory behavior; one new
+`@examples` entry added. Fully backward-compatible -- a length-1
+character path behaves exactly as before, so no version-bump pressure
+from this change alone.
+
+### Issue #3 -- pin the Quarto version
+
+**Close precedent already in the codebase.** `.get_r_ver_tags()` and
+`.r_ver_exists()` already resolve and validate a version string against
+an external API (Docker Hub) for `r_version`, in exactly the shape this
+issue needed for `quarto_version` against a different API (Quarto's
+GitHub releases). New internal helper `.get_quarto_version()` in
+`R/get-quarto-version.R`: resolves `"latest"` via
+`GET /repos/quarto-dev/quarto-cli/releases/latest` (tag name minus the
+leading `v`) when `quarto_version == "latest"`, or validates an explicit
+version's format (plain semver, optionally with a pre-release suffix --
+Quarto's tag grammar isn't the same as Rocker's `latest`/`devel`/CUDA-
+suffix grammar, so `.r_ver_exists()`'s regex wasn't reusable) and
+confirms a matching release exists via `GET .../releases/tags/v{version}`
+before returning it.
+
+**`quarto_version` defaults to `"latest"` -- confirmed non-breaking**,
+a point Erwin raised directly: existing `install_quarto = TRUE` calls
+with no `quarto_version` argument see identical resolved behavior:
+"latest" is still what gets installed, only the resolution mechanism
+changed (queried and pinned at generation time via the releases API,
+rather than left as `wget`'s own `/download/latest/` moving target at
+build time).
+
+**Design decision made and kept, not left open going forward:** an
+explicit `quarto_version` is validated for existence against the
+releases API, not just format. Discussed the tradeoff explicitly with
+Erwin -- for: consistent with `r_version`'s treatment, and a
+generation-time failure with a clear message beats an opaque `wget` 404
+partway through `docker build`; against: a second mandatory GitHub API
+call on top of the `r_version` check, and GitHub's unauthenticated rate
+limit (60/hour) could bite someone generating many Dockerfiles in a
+loop. Also worth noting: the `quarto` instruction block sits before
+`renv_restore` (the expensive step) in the generated `Dockerfile`, so
+even without this check a bad version fails relatively early during a
+real build -- meaning the check's actual value is failing *before*
+`docker build` runs at all, not saving a large amount of build time.
+Kept the check; **flagged as revisitable** if GitHub rate limits turn
+out to be a real problem in practice, not a closed question.
+
+**The issue's second recording mechanism was evaluated and explicitly
+not implemented.** The proposal offered two "not mutually exclusive"
+ways to make the resolved version recoverable: recording it in the
+generated `Dockerfile` at generation time, or recording it inside the
+image at build/render time (`RUN quarto --version`, or a written
+version file). Implemented only the first, as `ENV QUARTO_VERSION=...`
+-- which, being baked into the image, is already inspectable from a
+running container without the original `Dockerfile` on hand, the exact
+goal the second bullet was proposed to satisfy. Walked through this with
+Erwin explicitly; he confirmed the `ENV` line alone covers it and the
+second mechanism can be skipped rather than added redundantly.
+
+**Tests:** new `tests/testthat/test-quarto-version.R`, full coverage of
+`.get_quarto_version()` (format rejection, `"latest"` resolution, the
+leading-`v` strip, non-200 handling for both code paths, explicit-version
+existence success/404/other-error cases, pre-release suffix acceptance)
+using the same `with_mocked_bindings()` / fake `httr2_response` pattern
+already established in `test-r-ver-tags.R` and `test-r-ver-exists.R`.
+`test-generate-dockerfile-content.R`'s two existing Quarto tests updated
+to mock `.get_quarto_version()` and check the new pinned-URL output
+instead of the old unversioned filename; two new tests added (argument
+pass-through to the mock, and confirming no network call happens when
+`install_quarto = FALSE`).
+
+### Documentation
+
+`NEWS.md`, `README.md`, and the vignette (`containr-workflow.Rmd`) all
+updated for both issues -- new bullets/paragraphs plus runnable examples
+in each, following the weight already given to `install_syslibs` and the
+file-args paragraph in the README (a short explanatory paragraph before
+the example, not just a bare code comment) rather than the lighter,
+comment-only treatment given to features like `r_mode` switching.
+
+### A process lapse, caught and corrected
+
+Partway through presenting the Quarto-version changes, described the
+changed files in prose (file list, snippet quotes) rather than pasting
+their full contents -- a regression from the "full individual files
+only, no patch format" convention already established for this project.
+Erwin flagged it directly. Corrected by pasting every changed file in
+full for the remainder of the session, including the ~700-line
+`test-generate-dockerfile-content.R` in its entirety despite only one
+section of it having changed, consistent with the existing convention
+rather than a new exception for long files.
+
+### Open, carried forward
+
+- Whether to keep the existence-check network call on an explicit
+  `quarto_version` -- kept for now, revisitable if GitHub API rate
+  limits prove a real problem.
+- Neither implementation has been run through `devtools::document()`,
+  `devtools::test()`, or `devtools::check()` locally yet as of this
+  note -- both are code-complete but not yet verified against a live R
+  session.

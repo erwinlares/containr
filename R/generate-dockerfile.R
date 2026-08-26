@@ -26,9 +26,6 @@
 #'   libraries to install beyond those auto-detected from `renv.lock`. Each
 #'   element should be a valid `apt` package name, e.g.
 #'   `c("libuv1-dev", "libwebp-dev")`. Defaults to `NULL`.
-
-#' @param output A character string. Directory path where the `Dockerfile` will
-#'   be written. Defaults to `tempdir()`.
 #' @param output A character string. Directory path where the `Dockerfile` will
 #'   be written. Defaults to `tempdir()`.
 #' @param data_file A character vector or `NULL`. Path(s) to data file(s)
@@ -65,7 +62,19 @@
 #'   fixed port(s) (`"3838"`, and `"8787"`/`"3838"` respectively), since a
 #'   single override value can't address more than one port.
 #' @param install_quarto Logical. If `TRUE`, downloads and installs the Quarto
-#'   CLI inside the container. Defaults to `FALSE`.
+#'   CLI inside the container. Defaults to `FALSE`. See `quarto_version` to
+#'   pin a specific release rather than always installing whatever is
+#'   currently latest.
+#' @param quarto_version Character string. Either `"latest"` (the default) or
+#'   an explicit Quarto version, e.g. `"1.5.57"`. Ignored unless
+#'   `install_quarto = TRUE`. When `"latest"`, the actual version is resolved
+#'   at generation time via the Quarto releases API and recorded in the
+#'   generated `Dockerfile` as `ENV QUARTO_VERSION=...`, so a later rebuild
+#'   from the same `Dockerfile` reproduces the same Quarto version rather
+#'   than whatever happens to be current at build time -- consistent with
+#'   how `r_version` and `renv.lock` are pinned elsewhere in the image. An
+#'   explicit version is validated against the Quarto releases API and
+#'   errors if no matching release exists.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
 #'   with an explanatory comment. Useful for learning or sharing. Defaults to
 #'   `FALSE`.
@@ -111,7 +120,7 @@
 #'   output    = "."
 #' )
 #'
-#'#' # Multiple scripts and a whole assets folder, copied in one call --
+#' # Multiple scripts and a whole assets folder, copied in one call --
 #' # data_file, code_file, and misc_file all accept vectors, and a directory
 #' # is copied whole
 #' generate_dockerfile(
@@ -136,6 +145,16 @@
 #'   code_file = "app.R",
 #'   output    = "."
 #' )
+#'
+#' # Install Quarto, pinned to a specific release rather than whatever is
+#' # currently latest -- the resolved version is recorded as
+#' # ENV QUARTO_VERSION in the generated Dockerfile either way
+#' generate_dockerfile(
+#'   r_version      = "4.3.0",
+#'   install_quarto = TRUE,
+#'   quarto_version = "1.5.57",
+#'   output         = "."
+#' )
 #' }
 generate_dockerfile <- function(r_version       = "current",
                                 r_mode          = "base",
@@ -149,6 +168,7 @@ generate_dockerfile <- function(r_version       = "current",
                                 home_dir        = "/home",
                                 expose_port     = "8787",
                                 install_quarto  = FALSE,
+                                quarto_version  = "latest",
                                 comments        = FALSE,
                                 verbose         = FALSE) {
 
@@ -246,6 +266,19 @@ generate_dockerfile <- function(r_version       = "current",
             "i" = "{.val {resolved_version}} predates the rocker-versioned2 image",
             " " = "  lineage that {.file /rocker_scripts/} ships in."
         ))
+    }
+
+    # -- 6c. Resolve quarto_version, if installing Quarto -----------------------
+    # Every other layer in this image is pinned deliberately (r_version,
+    # renv.lock); resolving "latest" to a concrete version here -- rather
+    # than leaving /download/latest/ in the generated RUN instruction --
+    # closes what was previously the one unpinned layer. Skipped entirely
+    # when install_quarto = FALSE, so no network call is made unless Quarto
+    # is actually being installed.
+    resolved_quarto_version <- if (install_quarto) {
+        .get_quarto_version(quarto_version, verbose = verbose)
+    } else {
+        NULL
     }
 
     # -- 7. Resolve system libraries -------------------------------------------
@@ -350,16 +383,17 @@ generate_dockerfile <- function(r_version       = "current",
         quarto = list(
             instruction = if (install_quarto) {
                 glue::glue(
-                    "RUN wget -q https://quarto.org/download/latest/quarto-linux-amd64.deb \\\n",
-                    "    && gdebi --non-interactive quarto-linux-amd64.deb \\\n",
-                    "    && rm quarto-linux-amd64.deb"
+                    "ENV QUARTO_VERSION={resolved_quarto_version}\n",
+                    "RUN wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v{resolved_quarto_version}/quarto-{resolved_quarto_version}-linux-amd64.deb \\\n",
+                    "    && gdebi --non-interactive quarto-{resolved_quarto_version}-linux-amd64.deb \\\n",
+                    "    && rm quarto-{resolved_quarto_version}-linux-amd64.deb"
                 )
             } else {
                 NULL
             },
             verbose_msg = "Install Quarto CLI",
             comment     = if (install_quarto) {
-                "Download and install the Quarto CLI for rendering .qmd files"
+                glue::glue("Download and install Quarto {resolved_quarto_version} for rendering .qmd files")
             } else {
                 NULL
             }

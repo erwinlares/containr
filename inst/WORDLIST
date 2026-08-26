@@ -14,6 +14,7 @@ HTC
 HTCondor
 Lifecycle
 NetID
+OCI
 ORCID
 PATs
 Podman
@@ -41,6 +42,7 @@ json
 lifecycle
 linux
 lockfile
+natively
 pre
 renv
 reviewable

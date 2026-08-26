@@ -212,12 +212,14 @@ test_that("Dockerfile contains Quarto install when install_quarto = TRUE", {
     tmp <- withr::local_tempdir()
     writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
-    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
-    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
-    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    local_mocked_bindings(`.r_ver_exists`      = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs`     = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`             = function(...) list(synchronized = TRUE), .package = "renv")
     generate_dockerfile(r_version = "4.3.0", install_quarto = TRUE, output = tmp)
     lines <- read_dockerfile(tmp)
-    expect_true(any(grepl("quarto-linux-amd64\\.deb", lines)))
+    expect_true(any(grepl("ENV QUARTO_VERSION=1\\.5\\.57", lines)))
+    expect_true(any(grepl("quarto-cli/releases/download/v1\\.5\\.57/quarto-1\\.5\\.57-linux-amd64\\.deb", lines)))
 })
 
 test_that("Dockerfile omits Quarto install when install_quarto = FALSE", {
@@ -229,7 +231,50 @@ test_that("Dockerfile omits Quarto install when install_quarto = FALSE", {
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
     generate_dockerfile(r_version = "4.3.0", install_quarto = FALSE, output = tmp)
     lines <- read_dockerfile(tmp)
-    expect_false(any(grepl("quarto-linux-amd64\\.deb", lines)))
+    expect_false(any(grepl("QUARTO_VERSION", lines)))
+    expect_false(any(grepl("quarto-cli/releases", lines)))
+})
+
+test_that("generate_dockerfile() passes quarto_version through to .get_quarto_version()", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists` = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    captured <- NULL
+    local_mocked_bindings(
+        `.get_quarto_version` = function(quarto_version, ...) {
+            captured <<- quarto_version
+            "1.6.39"
+        },
+        .package = "containr"
+    )
+
+    generate_dockerfile(r_version = "4.3.0", install_quarto = TRUE,
+                        quarto_version = "1.6.39", output = tmp)
+
+    expect_equal(captured, "1.6.39")
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("ENV QUARTO_VERSION=1\\.6\\.39", lines)))
+})
+
+test_that(".get_quarto_version() is not called when install_quarto = FALSE", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    local_mocked_bindings(
+        `.get_quarto_version` = function(...) cli::cli_abort("should not be called"),
+        .package = "containr"
+    )
+
+    expect_no_error(
+        generate_dockerfile(r_version = "4.3.0", install_quarto = FALSE, output = tmp)
+    )
 })
 
 # ---------------------------------------------------------------------------

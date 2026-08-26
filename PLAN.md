@@ -906,6 +906,10 @@ knowledge of the tool.
 
 ## Open GitHub issues -- next session
 
+**Status: both implemented as of the following session -- see
+"Status update" at the end of this section.** Original assessment below
+kept as-is for the reasoning trail.
+
 Not yet started; not formally assigned to `0.2.0`, a patch, or `0.3.0`.
 Assessed against the current `main` (post-`containr-modes-0.2.0` merge,
 not yet pushed to CRAN) in the session that filed this section. Both are
@@ -999,3 +1003,76 @@ against `r_version`, following the exact `resolved_version <- if (x ==
 **Scope, per the issue:** `containr` only. No changes needed to
 `build_image()`, `push_image()`, or `push_image()`'s registry/tagging
 logic.
+
+### Status update -- both implemented
+
+**Issue #4** implemented as scoped above. `.validate_file_arg()`
+vectorized: length/type check now accepts any length >= 1 (`anyNA()`
+catches missing values anywhere in the vector), the directory-rejection
+branch is removed entirely, and the function returns a character vector
+of relative paths via `vapply()`. `tests/testthat/test-validate-file-arg.R`
+rewritten in full -- the old length/directory-rejection tests flipped to
+positive-case tests, new coverage added for a vector of files, a bare
+directory, and a vector mixing files and a directory.
+`test-generate-dockerfile-file-args.R`'s two matching stale tests
+replaced with four covering the same ground at the
+`generate_dockerfile()` level. Roxygen for `data_file`/`code_file`/
+`misc_file` rewritten; one new `@examples` entry added.  `README.md` and
+`vignettes/containr-workflow.Rmd` both updated with matching explanatory
+paragraphs and examples. Fully backward-compatible -- no version-bump
+pressure from this change alone.
+
+**Issue #3** implemented per the full issue text Erwin supplied after
+the initial GitHub API fetch came back truncated mid-body. New internal
+helper `.get_quarto_version()` in `R/get-quarto-version.R`, following
+the `.get_r_ver_tags()`/`.r_ver_exists()` precedent but against the
+Quarto GitHub releases API rather than Docker Hub. `quarto_version`
+defaults to `"latest"` -- confirmed non-breaking, since existing
+`install_quarto = TRUE` calls with no `quarto_version` argument see
+identical resolved behavior; only the resolution mechanism changed
+(queried and pinned at generation time, rather than left as `wget`'s own
+`/download/latest/` moving target).
+
+One of the two open sub-questions above is now **decided, not open**:
+an explicit `quarto_version` *is* validated against the releases API for
+existence, not just format -- `.get_quarto_version()` hits
+`releases/tags/v{version}` and aborts with a clear message on a 404,
+mirroring how `.r_ver_exists()` treats `r_version`. Tradeoff discussed
+explicitly with Erwin: this adds a second mandatory GitHub API call
+(rate-limited to 60/hour unauthenticated) on top of the `r_version`
+check, but a generation-time failure with a helpful message beats an
+opaque `wget` 404 mid-`docker build` -- and the `quarto` instruction
+block sits before `renv_restore` (the expensive step) in the generated
+`Dockerfile`, so even without this check a bad version fails relatively
+early, meaning the check's actual value is failing *before* `docker
+build` runs at all, not saving a large amount of build time. **Kept, but
+flagged as revisitable** if GitHub API rate limits prove a real problem
+in practice (e.g. a CI matrix generating many Dockerfiles per hour) --
+not a closed question, just not blocking this implementation.
+
+The other open sub-question (Quarto's plain-semver tag grammar not
+matching `.r_ver_exists()`'s Rocker-specific regex) is resolved by
+construction: `.get_quarto_version()` uses its own pattern
+(`^\d+\.\d+\.\d+(-[A-Za-z0-9.]+)?$`), not a shared one.
+
+The issue's second recording mechanism (`RUN quarto --version`, or
+writing an in-image version file at build/render time) was evaluated
+and **not implemented** -- the `ENV QUARTO_VERSION=...` line already
+satisfies the stated goal (recoverable from a running container without
+the original `Dockerfile` on hand), confirmed directly with Erwin as
+redundant rather than complementary in practice.
+
+New test file `tests/testthat/test-quarto-version.R`, full coverage of
+`.get_quarto_version()` using the same `with_mocked_bindings()` / fake
+`httr2_response` pattern already established in `test-r-ver-tags.R` and
+`test-r-ver-exists.R`. `test-generate-dockerfile-content.R`'s two
+existing Quarto tests updated to mock `.get_quarto_version()` and check
+the new pinned-URL output; two new tests added (argument pass-through,
+and confirming no network call happens when `install_quarto = FALSE`).
+`NEWS.md`, `README.md`, and the vignette all updated with matching
+explanatory paragraphs and examples.
+
+**Pending:** neither implementation has been run through
+`devtools::document()`, `devtools::test()`, or `devtools::check()`
+locally yet as of this note -- both are code-complete but not yet
+verified against a live R session.
