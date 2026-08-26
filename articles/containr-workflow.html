@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>A first containerization workflow with containr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-08-03</h4>
+updated 2026-08-26</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/containr/blob/main/vignettes/containr-workflow.Rmd" class="external-link"><code>vignettes/containr-workflow.Rmd</code></a></small>
       <div class="d-none name"><code>containr-workflow.Rmd</code></div>
@@ -178,24 +178,29 @@ unusual system library requirements that
 <span>  output          <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  install_syslibs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"libuv1-dev"</span>, <span class="st">"libwebp-dev"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>If your analysis depends on data files or scripts that should be
-available inside the container, pass them via <code>data_file</code> and
-<code>code_file</code>. The generated <code>COPY</code> instructions
+<p>If your analysis depends on data files, scripts, or other assets that
+should be available inside the container, pass them via
+<code>data_file</code>, <code>code_file</code>, and
+<code>misc_file</code>. The generated <code>COPY</code> instructions
 preserve your local directory structure under <code>/home/</code> – a
 file at <code>data-raw/sample.csv</code> locally becomes
 <code>/home/data-raw/sample.csv</code> in the container. All files must
-be inside the current working directory (the build context).</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
-<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
-<span>  data_file <span class="op">=</span> <span class="st">"data-raw/sample.csv"</span>,</span>
-<span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
-<span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
-<span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<p>If your project uses RStudio Server rather than plain R, pass
-<code>r_mode = "rstudio"</code> to use the <code>rocker/rstudio</code>
-base image instead:</p>
+be inside the current working directory (the build context). Each
+argument accepts a single path, a character vector of paths, or a path
+to a directory – a directory is copied whole rather than one file at a
+time, and files and directories can be mixed freely within the same
+vector.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">generate_dockerfile</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="at">r_version =</span> <span class="st">"4.4.0"</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">data_file =</span> <span class="st">"data-raw/sample.csv"</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">code_file =</span> <span class="fu">c</span>(<span class="st">"analysis.R"</span>, <span class="st">"helpers.R"</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">misc_file =</span> <span class="st">"assets/"</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="at">output    =</span> <span class="st">"."</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">comments  =</span> <span class="cn">TRUE</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>)</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>If your project uses RStudio Server rather than plain R, pass <span class="st">`</span><span class="at">r_mode =</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="at">"rstudio"</span><span class="st">`</span> to use the <span class="st">`</span><span class="at">rocker/rstudio</span><span class="st">`</span> base image instead<span class="sc">:</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>

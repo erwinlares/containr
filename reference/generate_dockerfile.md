@@ -70,30 +70,35 @@ generate_dockerfile(
 
 - data_file:
 
-  A character string or `NULL`. Path to a data file to copy into the
-  container. The local directory structure is preserved under `/home/`
-  for `"base"`, `"tidyverse"`, `"rstudio"`, and `"verse"` (e.g.
-  `"data-raw/sample.csv"` becomes `/home/data-raw/sample.csv`), or under
-  `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`,
-  matching Shiny Server's own default app directory. The file must be
-  inside the current working directory (the build context). Defaults to
-  `NULL`.
+  A character vector or `NULL`. Path(s) to data file(s) and/or
+  directories to copy into the container – a single path, a vector of
+  paths, or a directory (copied whole, with its contents) may all be
+  mixed freely in the same vector. The local directory structure is
+  preserved under `/home/` for `"base"`, `"tidyverse"`, `"rstudio"`, and
+  `"verse"` (e.g. `"data-raw/sample.csv"` becomes
+  `/home/data-raw/sample.csv`, and a directory `"data-raw/"` is copied
+  to `/home/data-raw/` in full), or under `/srv/shiny-server/` for
+  `"shiny_server"` and `"rstudio_shiny"`, matching Shiny Server's own
+  default app directory. Every path must be inside the current working
+  directory (the build context). Defaults to `NULL`.
 
 - code_file:
 
-  A character string or `NULL`. Path to a script file (e.g. `.R`,
-  `.qmd`, `.rmd`) to copy into the container. The local directory
+  A character vector or `NULL`. Path(s) to script file(s) (e.g. `.R`,
+  `.qmd`, `.rmd`) and/or directories to copy into the container – see
+  `data_file` for vector and directory behavior. The local directory
   structure is preserved under the mode's copy root – see `data_file`.
-  The file must be inside the current working directory. Defaults to
+  Every path must be inside the current working directory. Defaults to
   `NULL`.
 
 - misc_file:
 
-  A character string or `NULL`. Path to a miscellaneous file (e.g. an
-  image or shell script) to copy into the container. The local directory
-  structure is preserved under the mode's copy root – see `data_file`.
-  The file must be inside the current working directory. Defaults to
-  `NULL`.
+  A character vector or `NULL`. Path(s) to miscellaneous file(s) (e.g.
+  images or shell scripts) and/or directories to copy into the container
+  – see `data_file` for vector and directory behavior. The local
+  directory structure is preserved under the mode's copy root – see
+  `data_file`. Every path must be inside the current working directory.
+  Defaults to `NULL`.
 
 - add_user:
 
@@ -172,6 +177,16 @@ generate_dockerfile(
   data_file = "data-raw/penguins.csv",
   code_file = "analysis.R",
   comments  = TRUE,
+  output    = "."
+)
+
+#' # Multiple scripts and a whole assets folder, copied in one call --
+# data_file, code_file, and misc_file all accept vectors, and a directory
+# is copied whole
+generate_dockerfile(
+  r_version = "4.3.0",
+  code_file = c("R/prepare.R", "R/model.R"),
+  misc_file = "assets/",
   output    = "."
 )
 

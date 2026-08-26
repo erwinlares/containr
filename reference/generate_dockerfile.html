@@ -115,30 +115,35 @@ be written. Defaults to <code><a href="https://rdrr.io/r/base/tempfile.html" cla
 
 
 <dt id="arg-data-file">data_file<a class="anchor" aria-label="anchor" href="#arg-data-file"></a></dt>
-<dd><p>A character string or <code>NULL</code>. Path to a data file to copy
-into the container. The local directory structure is preserved under
-<code>/home/</code> for <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>, and <code>"verse"</code> (e.g.
-<code>"data-raw/sample.csv"</code> becomes <code>/home/data-raw/sample.csv</code>), or under
-<code>/srv/shiny-server/</code> for <code>"shiny_server"</code> and <code>"rstudio_shiny"</code>,
-matching Shiny Server's own default app directory. The file must be
-inside the current working directory (the build context). Defaults to
-<code>NULL</code>.</p></dd>
+<dd><p>A character vector or <code>NULL</code>. Path(s) to data file(s)
+and/or directories to copy into the container – a single path, a
+vector of paths, or a directory (copied whole, with its contents) may
+all be mixed freely in the same vector. The local directory structure
+is preserved under <code>/home/</code> for <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>,
+and <code>"verse"</code> (e.g. <code>"data-raw/sample.csv"</code> becomes
+<code>/home/data-raw/sample.csv</code>, and a directory <code>"data-raw/"</code> is copied to
+<code>/home/data-raw/</code> in full), or under <code>/srv/shiny-server/</code> for
+<code>"shiny_server"</code> and <code>"rstudio_shiny"</code>, matching Shiny Server's own
+default app directory. Every path must be inside the current working
+directory (the build context). Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-code-file">code_file<a class="anchor" aria-label="anchor" href="#arg-code-file"></a></dt>
-<dd><p>A character string or <code>NULL</code>. Path to a script file (e.g.
-<code>.R</code>, <code>.qmd</code>, <code>.rmd</code>) to copy into the container. The local directory
-structure is preserved under the mode's copy root – see <code>data_file</code>.
-The file must be inside the current working directory. Defaults to
-<code>NULL</code>.</p></dd>
+<dd><p>A character vector or <code>NULL</code>. Path(s) to script file(s)
+(e.g. <code>.R</code>, <code>.qmd</code>, <code>.rmd</code>) and/or directories to copy into the
+container – see <code>data_file</code> for vector and directory behavior. The
+local directory structure is preserved under the mode's copy root –
+see <code>data_file</code>. Every path must be inside the current working
+directory. Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-misc-file">misc_file<a class="anchor" aria-label="anchor" href="#arg-misc-file"></a></dt>
-<dd><p>A character string or <code>NULL</code>. Path to a miscellaneous file
-(e.g. an image or shell script) to copy into the container. The local
-directory structure is preserved under the mode's copy root – see
-<code>data_file</code>. The file must be inside the current working directory.
-Defaults to <code>NULL</code>.</p></dd>
+<dd><p>A character vector or <code>NULL</code>. Path(s) to miscellaneous
+file(s) (e.g. images or shell scripts) and/or directories to copy into
+the container – see <code>data_file</code> for vector and directory behavior. The
+local directory structure is preserved under the mode's copy root –
+see <code>data_file</code>. Every path must be inside the current working
+directory. Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-add-user">add_user<a class="anchor" aria-label="anchor" href="#arg-add-user"></a></dt>
@@ -217,6 +222,16 @@ issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span>  data_file <span class="op">=</span> <span class="st">"data-raw/penguins.csv"</span>,</span></span>
 <span class="r-in"><span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span></span>
 <span class="r-in"><span>  comments  <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
+<span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co">#' # Multiple scripts and a whole assets folder, copied in one call --</span></span></span>
+<span class="r-in"><span><span class="co"># data_file, code_file, and misc_file all accept vectors, and a directory</span></span></span>
+<span class="r-in"><span><span class="co"># is copied whole</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
+<span class="r-in"><span>  code_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R/prepare.R"</span>, <span class="st">"R/model.R"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  misc_file <span class="op">=</span> <span class="st">"assets/"</span>,</span></span>
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
