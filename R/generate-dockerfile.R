@@ -46,11 +46,19 @@
 #'   see `data_file`. Every path must be inside the current working
 #'   directory. Defaults to `NULL`.
 #' @param misc_file A character vector or `NULL`. Path(s) to miscellaneous
-#'   file(s) (e.g. images or shell scripts) and/or directories to copy into
-#'   the container -- see `data_file` for vector and directory behavior. The
-#'   local directory structure is preserved under the mode's copy root --
-#'   see `data_file`. Every path must be inside the current working
-#'   directory. Defaults to `NULL`.
+#'   file(s) (e.g. images, shell scripts, or branding assets) and/or
+#'   directories to copy into the container -- see `data_file` for vector
+#'   and directory behavior. The local directory structure is preserved under
+#'   the mode's copy root -- see `data_file`. Every path must be inside the
+#'   current working directory. Defaults to `NULL`.
+#'   If the project was scaffolded with [toolero::init_project()] using
+#'   `branding = TRUE` or `branding = "uw-madison"`, the generated `.qmd`
+#'   will reference `assets/styles.css`, `assets/header.html`, and
+#'   `assets/footer.html` at render time. Those files must be present inside
+#'   the container or Quarto will error on render. Pass
+#'   `misc_file = "assets/"` to copy the entire branding folder in one step.
+#'   Additional files and directories can be combined freely in the same
+#'   vector, e.g. `misc_file = c("assets/", "extra-script.sh")`.
 #' @param add_user A character string. Name of a Linux user to create inside
 #'   the container with sudo access. Defaults to `NULL`.
 #' @param home_dir A character string. The working directory set inside the
@@ -90,6 +98,15 @@
 #' If the lock file is out of sync with your project library, a warning is
 #' issued -- run `renv::snapshot()` to update it before building the image.
 #'
+#' If the project uses Quarto with branding assets (i.e. [toolero::create_qmd()]
+#' was called with `use_style = TRUE`), the `assets/` folder must be copied
+#' into the container alongside the `.qmd` file or Quarto will be unable to
+#' resolve the CSS and HTML includes at render time. The simplest way to
+#' ensure this is to pass `misc_file = "assets/"` -- or
+#' `misc_file = c("assets/", other_files)` if additional files are needed --
+#' when calling `generate_dockerfile()`. No code change is required;
+#' `misc_file` already accepts directories and copies them whole.
+#'
 #' @export
 #'
 #' @examples
@@ -120,9 +137,9 @@
 #'   output    = "."
 #' )
 #'
-#' # Multiple scripts and a whole assets folder, copied in one call --
-#' # data_file, code_file, and misc_file all accept vectors, and a directory
-#' # is copied whole
+#' # Multiple scripts and a whole assets folder -- pass assets/ via misc_file
+#' # so that branding files (styles.css, header.html, footer.html) are present
+#' # inside the container when Quarto renders the .qmd
 #' generate_dockerfile(
 #'   r_version = "4.3.0",
 #'   code_file = c("R/prepare.R", "R/model.R"),
