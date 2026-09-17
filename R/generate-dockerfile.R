@@ -522,6 +522,24 @@ generate_dockerfile <- function(r_version       = "current",
             }
         ),
         renv_restore = list(
+            # C23, verified: this script calls renv::restore() with no
+            # subsequent renv::activate(), so no .Rprofile or
+            # renv/activate.R is ever written -- a later, independent R
+            # session (a further RUN layer, or `docker run <image>
+            # Rscript ...`) has no automatic way to rediscover a
+            # project-isolated library. That would ordinarily mean the
+            # restored packages are invisible outside the one RUN step
+            # that installed them. It doesn't happen here, because
+            # Rocker's own r-ver family pre-wires renv's library path so
+            # a project's restore resolves directly into
+            # /usr/local/lib/R/site-library -- already on every R
+            # session's default .libPaths() -- rather than an isolated
+            # per-project renv/library/<platform>/<r-version>/ subfolder.
+            # Confirmed 2026-09 with `docker run --rm <image> R -e
+            # 'find.package("<a lockfile-only package>")'`, which
+            # resolved under site-library, not under a hidden renv/
+            # directory. No change needed; recorded here so nobody has
+            # to re-derive this from scratch.
             instruction = readr::read_lines(
                 system.file("extdata", "install_and_restore_packages.sh",
                             package = "containr")
