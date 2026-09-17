@@ -106,6 +106,11 @@
   
 
 ## Bug fixes
+* `generate_dockerfile(install_quarto = TRUE)` now fetches and installs Quarto with     `curl -LO` and `dpkg -i` (falling back to `apt-get install -f` to resolve             dependencies) instead of `wget` and `gdebi`. Neither `wget` nor `gdebi` is present    in `rocker/r-ver`, so `install_quarto = TRUE` previously failed at build time on      every `r_mode` unless something in the lockfile happened to pull those two programs   in as a side effect. `curl` is already installed unconditionally as a baseline        system library, so the new approach adds no packages to the image.
+
+* `generate_dockerfile()` now validates the requested R version against the tag         repository the resolved `r_mode` will actually build `FROM`, instead of always        checking it against `rocker/r-ver`. A version that exists in `rocker/r-ver` but not   in, say, `rocker/verse` previously passed validation and only failed later, at the    `FROM` instruction itself; the "version does not exist" error now also points at the   right repository's page instead of always linking to `rocker/r-ver`'s.
+
+* expose_port's "only used when `r_mode` is `rstudio`" warning is now based on whether the argument was supplied at all (`missing(expose_port)`), not on whether its value differs from the default. Previously, explicitly passing `expose_port = "8787"` under a non-rstudio `r_mode` produced no warning even though the value is still ignored there.
 
 * `generate_dockerfile()` now creates `output`, including any missing parent directories, if it does not already exist. Previously, a nonexistent `output` directory surfaced as a raw file-connection error from `readr::write_lines()` rather than an informative message.
 

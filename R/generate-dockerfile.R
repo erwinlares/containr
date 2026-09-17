@@ -205,11 +205,16 @@ generate_dockerfile <- function(r_version       = "current",
         ))
     }
 
-    # -- 2. Warn if expose_port is customised but r_mode is not rstudio --------
+    # -- 2. Warn if expose_port is supplied but r_mode is not rstudio ----------
     # shiny_server and rstudio_shiny expose fixed port(s) from the registry
     # (a single expose_port value can't address rstudio_shiny's two ports),
-    # so the override remains rstudio-only.
-    if (expose_port != "8787" && r_mode != "rstudio") {
+    # so the override remains rstudio-only. Testing missing(expose_port)
+    # rather than expose_port != "8787" means the warning is about whether an
+    # override was supplied at all, not about what value it happens to be --
+    # explicitly passing expose_port = "8787" under a non-rstudio r_mode is
+    # still an override that gets ignored, and deserves the same warning as
+    # any other value would.
+    if (!missing(expose_port) && r_mode != "rstudio") {
         cli::cli_warn(c(
             "{.arg expose_port} is only used when {.arg r_mode} is {.val rstudio}.",
             "i" = "The supplied value {.val {expose_port}} will be ignored."
@@ -259,11 +264,18 @@ generate_dockerfile <- function(r_version       = "current",
         r_version
     }
 
-    if (!.r_ver_exists(resolved_version)) {
+    # r_mode is passed through so the version is checked against the tag
+    # repository the resolved r_mode will actually build FROM (tag_repo), not
+    # always against rocker/r-ver -- a version can exist in one and not the
+    # other, and previously that mismatch would only surface later, at the
+    # FROM instruction, rather than here.
+    if (!.r_ver_exists(resolved_version, r_mode = r_mode)) {
+        tag_repo <- .r_mode_registry[[r_mode]]$tag_repo
         cli::cli_abort(c(
-            "Requested R version {.val {resolved_version}} does not exist.",
+            "Requested R version {.val {resolved_version}} does not exist",
+            " " = "for {.arg r_mode} {.val {r_mode}}.",
             "i" = "Check available tags at",
-            " " = "  {.url https://rocker-project.org/images/versioned/r-ver}"
+            " " = "  {.url https://rocker-project.org/images/versioned/{tag_repo}}"
         ))
     }
 
@@ -406,11 +418,20 @@ generate_dockerfile <- function(r_version       = "current",
             comment     = if (!is.null(add_user)) "Create the Linux user" else NULL
         ),
         quarto = list(
+            # Neither wget nor gdebi is present in rocker/r-ver, so the
+            # previous wget + gdebi incantation failed at build time on every
+            # r_mode unless something in the lockfile happened to pull those
+            # two programs in as a side effect. curl is already installed
+            # unconditionally as a baseline syslib (see step 7), so this uses
+            # curl -LO to fetch the .deb and dpkg -i / apt-get install -f to
+            # install it -- the same two steps gdebi was a convenience
+            # wrapper for -- rather than adding wget and gdebi-core as two
+            # more packages to the image.
             instruction = if (install_quarto) {
                 glue::glue(
                     "ENV QUARTO_VERSION={resolved_quarto_version}\n",
-                    "RUN wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v{resolved_quarto_version}/quarto-{resolved_quarto_version}-linux-amd64.deb \\\n",
-                    "    && gdebi --non-interactive quarto-{resolved_quarto_version}-linux-amd64.deb \\\n",
+                    "RUN curl -LO https://github.com/quarto-dev/quarto-cli/releases/download/v{resolved_quarto_version}/quarto-{resolved_quarto_version}-linux-amd64.deb \\\n",
+                    "    && (dpkg -i quarto-{resolved_quarto_version}-linux-amd64.deb || apt-get install -f -y) \\\n",
                     "    && rm quarto-{resolved_quarto_version}-linux-amd64.deb"
                 )
             } else {

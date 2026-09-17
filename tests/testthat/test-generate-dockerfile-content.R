@@ -103,6 +103,52 @@ test_that("Dockerfile FROM line uses resolved current R version", {
     expect_true(any(grepl(paste0("FROM rocker/r-ver:", r_ver_str), lines, fixed = TRUE)))
 })
 
+test_that("generate_dockerfile() checks the R version against the resolved r_mode's own repository (C12)", {
+    # .r_ver_exists()'s signature is function(version, r_mode = "base",
+    # verbose = FALSE), but the call site previously never passed r_mode
+    # through, so every mode's version was checked against rocker/r-ver
+    # regardless of which image it would actually build FROM. A version
+    # that exists in rocker/r-ver but not in, say, rocker/verse would pass
+    # validation and only fail later, at the FROM instruction itself.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    captured_mode <- NULL
+    local_mocked_bindings(
+        `.r_ver_exists` = function(version, r_mode = "base", ...) {
+            captured_mode <<- r_mode
+            TRUE
+        },
+        .package = "containr"
+    )
+
+    generate_dockerfile(r_version = "4.3.0", r_mode = "verse", output = tmp)
+
+    expect_equal(captured_mode, "verse")
+})
+
+test_that("the R-version-not-found error points at the resolved r_mode's own tag repository (C12)", {
+    # Previously this error always pointed at rocker-project.org's r-ver
+    # page even when the mode in question was, say, verse -- misleading
+    # whenever the two repositories' available tags disagree.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`status`        = function(...) list(synchronized = TRUE), .package = "renv")
+    local_mocked_bindings(`.r_ver_exists` = function(...) FALSE, .package = "containr")
+
+    tag_repo <- containr:::.r_mode_registry[["verse"]]$tag_repo
+
+    expect_error(
+        generate_dockerfile(r_version = "9.9.9", r_mode = "verse", output = tmp),
+        tag_repo,
+        fixed = TRUE
+    )
+})
+
 # ---------------------------------------------------------------------------
 # Standard Dockerfile instructions
 # ---------------------------------------------------------------------------
@@ -220,6 +266,30 @@ test_that("Dockerfile contains Quarto install when install_quarto = TRUE", {
     lines <- read_dockerfile(tmp)
     expect_true(any(grepl("ENV QUARTO_VERSION=1\\.5\\.57", lines)))
     expect_true(any(grepl("quarto-cli/releases/download/v1\\.5\\.57/quarto-1\\.5\\.57-linux-amd64\\.deb", lines)))
+})
+
+test_that("Quarto install uses curl and dpkg rather than wget and gdebi (C11)", {
+    # Neither wget nor gdebi is present in rocker/r-ver, so install_quarto =
+    # TRUE previously failed at build time on every r_mode unless something
+    # in the lockfile happened to pull those two programs in as a side
+    # effect. curl is already guaranteed present as a baseline syslib, so
+    # the fetch step now uses curl -LO, and the install step uses dpkg -i
+    # with an apt-get install -f fallback to resolve dependencies -- the
+    # same two steps gdebi was a convenience wrapper for.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`      = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs`     = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`             = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", install_quarto = TRUE, output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^RUN curl -LO ", lines)))
+    expect_true(any(grepl("dpkg -i quarto-1\\.5\\.57-linux-amd64\\.deb", lines)))
+    expect_true(any(grepl("apt-get install -f", lines)))
+    expect_false(any(grepl("wget", lines, fixed = TRUE)))
+    expect_false(any(grepl("gdebi", lines, fixed = TRUE)))
 })
 
 test_that("Dockerfile omits Quarto install when install_quarto = FALSE", {
@@ -357,6 +427,37 @@ test_that("expose_port override is ignored for shiny_server and rstudio_shiny", 
     lines <- read_dockerfile(tmp)
     expect_true(any(grepl("^EXPOSE 3838$", lines)))
     expect_false(any(grepl("9090", lines, fixed = TRUE)))
+})
+
+test_that("expose_port warns even when explicitly set to the default value (C16)", {
+    # The guard used to test expose_port != "8787", so explicitly passing
+    # expose_port = "8787" under a non-rstudio r_mode -- an override that is
+    # still ignored -- produced no warning at all. missing(expose_port) is
+    # the honest test: it warns whenever an override was supplied, whatever
+    # value it happens to be.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    expect_warning(
+        generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server",
+                            expose_port = "8787", output = tmp),
+        "only used when"
+    )
+})
+
+test_that("expose_port does not warn when left at its default (not supplied)", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    expect_no_warning(
+        generate_dockerfile(r_version = "4.3.0", r_mode = "shiny_server", output = tmp)
+    )
 })
 
 # ---------------------------------------------------------------------------
