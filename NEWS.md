@@ -210,6 +210,20 @@
   
 ## Testing 
 
+
+* Added `tests/testthat/test-readme-workflow.R`, which extracts the actual
+  `generate_dockerfile()` call from the README's "A first workflow" section,
+  runs it exactly as printed, and confirms the resulting `Dockerfile` pins
+  the requested R version and copies in the referenced files. The other
+  three steps in that workflow (`build_image()`, `list_images()`,
+  `push_image()`) need a live container engine and registry and can't run
+  in CI, but `generate_dockerfile()` needs nothing but a lockfile in a
+  temporary directory, and it's the step everything else depends on. This
+  test reads the README rather than holding a copy of its example, so the
+  two can't quietly drift apart, and skips (rather than fails) when
+  `README.md` isn't on disk, such as from a built tarball (#C20).
+
+
 * Added a test that generates a Dockerfile for every r_mode crossed with both           `"/home"` and `"/workspace"` `home_dir` values, parses the actual `WORKDIR` and       `COPY` lines out of the result, and asserts that renv.lock lands under `WORKDIR` and   that project files land under the mode's `copy_root`. Previously each of those facts   was tested in isolation, which is exactly how #C10 stayed invisible: every            individual assertion was true at once.
 
 
