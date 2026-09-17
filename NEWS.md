@@ -106,6 +106,9 @@
   
 
 ## Bug fixes
+
+* `generate_dockerfile()` now copies `renv.lock` to `{home_dir}/renv.lock` instead of   a hardcoded `/home/renv.lock`. The image's install script runs `renv::restore()`      with no explicit project, which resolves the project from the working directory --    i.e. w`herever WORKDIR (home_dir)` points. The hardcoded destination only worked by   coincidence when home_dir was left at its own default of `"/home"`; passing           `home_dir = "/workspace"` left the lockfile somewhere `renv::restore() never`         looked.
+
 * `generate_dockerfile(install_quarto = TRUE)` now fetches and installs Quarto with     `curl -LO` and `dpkg -i` (falling back to `apt-get install -f` to resolve             dependencies) instead of `wget` and `gdebi`. Neither `wget` nor `gdebi` is present    in `rocker/r-ver`, so `install_quarto = TRUE` previously failed at build time on      every `r_mode` unless something in the lockfile happened to pull those two programs   in as a side effect. `curl` is already installed unconditionally as a baseline        system library, so the new approach adds no packages to the image.
 
 * `generate_dockerfile()` now validates the requested R version against the tag         repository the resolved `r_mode` will actually build `FROM`, instead of always        checking it against `rocker/r-ver`. A version that exists in `rocker/r-ver` but not   in, say, `rocker/verse` previously passed validation and only failed later, at the    `FROM` instruction itself; the "version does not exist" error now also points at the   right repository's page instead of always linking to `rocker/r-ver`'s.
@@ -164,6 +167,11 @@
   These now run automatically in CI on every push/PR touching the
   relevant files, via a new `container-integration-tests.yaml` GitHub
   Actions workflow.
+  
+## Testing 
+
+* Added a test that generates a Dockerfile for every r_mode crossed with both           `"/home"` and `"/workspace"` `home_dir` values, parses the actual `WORKDIR` and       `COPY` lines out of the result, and asserts that renv.lock lands under `WORKDIR` and   that project files land under the mode's `copy_root`. Previously each of those facts   was tested in isolation, which is exactly how #C10 stayed invisible: every            individual assertion was true at once.
+
 
 # containr 0.1.3.9000
 

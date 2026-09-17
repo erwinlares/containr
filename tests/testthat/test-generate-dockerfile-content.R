@@ -201,6 +201,78 @@ test_that("Dockerfile contains COPY renv.lock line", {
     expect_true(any(grepl("COPY renv\\.lock", lines)))
 })
 
+test_that("COPY renv.lock lands under custom home_dir, not a hardcoded /home (C10)", {
+    # renv::restore() (in install_and_restore_packages.sh) resolves the
+    # project from the working directory, which is home_dir, not from a
+    # fixed location. COPY renv.lock /home/renv.lock only worked by
+    # coincidence when home_dir was left at its own default of "/home";
+    # passing home_dir = "/workspace" previously left the lockfile in
+    # /home while the restore ran in /workspace and found nothing there.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", home_dir = "/workspace", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^COPY renv\\.lock /workspace/renv\\.lock$", lines)))
+    expect_false(any(grepl("/home/renv\\.lock", lines, fixed = TRUE)))
+})
+
+# ---------------------------------------------------------------------------
+# Path agreement across WORKDIR, COPY renv.lock, and copy_root (C22)
+# ---------------------------------------------------------------------------
+#
+# Individually, one test asserts WORKDIR reflects home_dir, another asserts a
+# COPY renv.lock line exists, and another asserts project files land under
+# copy_root -- but nothing checked those results against each other, which
+# is exactly how C10 stayed invisible: every individual assertion was true
+# at once. This test parses one generated Dockerfile per r_mode and per
+# home_dir and checks the relationships directly instead of re-deriving
+# what each path "should" be.
+
+test_that("renv.lock lands under WORKDIR and project files land under copy_root, for every r_mode and home_dir (C22)", {
+    for (mode in names(containr:::.r_mode_registry)) {
+        for (hd in c("/home", "/workspace")) {
+            tmp <- withr::local_tempdir()
+            writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+            withr::local_dir(tmp)
+            local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+            local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+            local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+            writeLines("x", "script.R")
+
+            generate_dockerfile(
+                r_version = "4.3.0",
+                r_mode    = mode,
+                home_dir  = hd,
+                code_file = "script.R",
+                output    = tmp
+            )
+            lines <- read_dockerfile(tmp)
+            info  <- paste("r_mode =", mode, "home_dir =", hd)
+
+            workdir_line <- lines[grepl("^WORKDIR ", lines)]
+            expect_length(workdir_line, 1)
+            workdir <- sub("^WORKDIR ", "", workdir_line)
+            expect_equal(workdir, hd, info = info)
+
+            renv_copy_line <- lines[grepl("^COPY renv\\.lock ", lines)]
+            expect_length(renv_copy_line, 1)
+            renv_dest <- sub("^COPY renv\\.lock ", "", renv_copy_line)
+            expect_equal(renv_dest, paste0(workdir, "/renv.lock"), info = info)
+
+            copy_root         <- containr:::.r_mode_registry[[mode]]$copy_root
+            script_copy_line  <- lines[grepl("^COPY script\\.R ", lines)]
+            expect_length(script_copy_line, 1)
+            script_dest <- sub("^COPY script\\.R ", "", script_copy_line)
+            expect_true(startsWith(script_dest, paste0(copy_root, "/")), info = info)
+        }
+    }
+})
+
 # ---------------------------------------------------------------------------
 # System libraries
 # ---------------------------------------------------------------------------

@@ -467,7 +467,15 @@ generate_dockerfile <- function(r_version       = "current",
             comment     = "Set the working directory inside the container"
         ),
         renv_lock = list(
-            instruction = "COPY renv.lock /home/renv.lock",
+            # home_dir, not copy_root: the lockfile isn't project content
+            # (copy_root's job), it's the input to a restore that runs
+            # wherever WORKDIR points. The image's later
+            # `RUN R -e "renv::restore()"` resolves the project from the
+            # working directory, which is home_dir, so a lockfile hardcoded
+            # to /home/renv.lock only worked by coincidence when home_dir
+            # was left at its own default of "/home" -- pass
+            # home_dir = "/workspace" and restore() finds no lockfile there.
+            instruction = glue::glue("COPY renv.lock {home_dir}/renv.lock"),
             verbose_msg = "Copy renv.lock file",
             comment     = "Copy the renv lockfile from the host into the container"
         ),
