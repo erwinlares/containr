@@ -102,22 +102,62 @@
   behaves exactly as before. The `COPY`-instruction generation already
   built its output via `purrr::map_chr()` over these arguments, so this
   change is contained to `.validate_file_arg()`.
-  
-  
 
 ## Bug fixes
 
-* `generate_dockerfile()` now copies `renv.lock` to `{home_dir}/renv.lock` instead of   a hardcoded `/home/renv.lock`. The image's install script runs `renv::restore()`      with no explicit project, which resolves the project from the working directory --    i.e. w`herever WORKDIR (home_dir)` points. The hardcoded destination only worked by   coincidence when home_dir was left at its own default of `"/home"`; passing           `home_dir = "/workspace"` left the lockfile somewhere `renv::restore() never`         looked.
+* The generated `Dockerfile` now restores the `renv` project library
+  immediately after copying `renv.lock`, before any of the `data_file`,
+  `code_file`, or `misc_file` content is copied in. Previously the three
+  `COPY` blocks for project content sat above the restore step, so editing
+  a single line of an analysis script invalidated Docker/Podman's build
+  cache for that `COPY` layer and, because the restore came after it, for
+  the single most expensive layer in the image too -- every package
+  reinstalled from source on every rebuild, contrary to what the README
+  says about later builds being faster. The restore only depends on
+  `renv.lock`, already in place earlier in the file, so nothing about
+  moving it changes what gets installed.
 
-* `generate_dockerfile(install_quarto = TRUE)` now fetches and installs Quarto with     `curl -LO` and `dpkg -i` (falling back to `apt-get install -f` to resolve             dependencies) instead of `wget` and `gdebi`. Neither `wget` nor `gdebi` is present    in `rocker/r-ver`, so `install_quarto = TRUE` previously failed at build time on      every `r_mode` unless something in the lockfile happened to pull those two programs   in as a side effect. `curl` is already installed unconditionally as a baseline        system library, so the new approach adds no packages to the image.
+* `generate_dockerfile()` now copies `renv.lock` to `{home_dir}/renv.lock`
+  instead of a hardcoded `/home/renv.lock`. The image's install script runs
+  `renv::restore()` with no explicit project, which resolves the project
+  from the working directory -- i.e. w`herever WORKDIR (home_dir)` points.
+  The hardcoded destination only worked by coincidence when home_dir was
+  left at its own default of `"/home"`; passing `home_dir = "/workspace"`
+  left the lockfile somewhere `renv::restore()` never             looked.
 
-* `generate_dockerfile()` now validates the requested R version against the tag         repository the resolved `r_mode` will actually build `FROM`, instead of always        checking it against `rocker/r-ver`. A version that exists in `rocker/r-ver` but not   in, say, `rocker/verse` previously passed validation and only failed later, at the    `FROM` instruction itself; the "version does not exist" error now also points at the   right repository's page instead of always linking to `rocker/r-ver`'s.
+* `generate_dockerfile(install_quarto = TRUE)` now fetches and installs
+  Quarto with `curl -LO` and `dpkg -i` (falling back to `apt-get install -f`
+  to resolve dependencies) instead of `wget` and `gdebi`. Neither `wget`
+  nor `gdebi` is presentin `rocker/r-ver`, so `install_quarto = TRUE
+  previously failed at build time on every `r_mode` unless something in the
+  lockfile happened to pull those two programs   in as a side effect.
+  `curl` is already installed unconditionally as a baseline system library,
+  so the new approach adds no packages to the image.
 
-* expose_port's "only used when `r_mode` is `rstudio`" warning is now based on whether the argument was supplied at all (`missing(expose_port)`), not on whether its value differs from the default. Previously, explicitly passing `expose_port = "8787"` under a non-rstudio `r_mode` produced no warning even though the value is still ignored there.
+* `generate_dockerfile()` now validates the requested R version against the
+  tag repository the resolved `r_mode` will actually build `FROM`, instead
+  of always checking it against `rocker/r-ver`. A version that exists in
+  `rocker/r-ver` but notin, say, `rocker/verse` previously passed
+  validation and only failed later, at the `FROM` instruction itself; the
+  "version does not exist" error now also points at the   rightrepository's
+  page instead of always linking to `rocker/r-ver`'s.
 
-* `generate_dockerfile()` now creates `output`, including any missing parent directories, if it does not already exist. Previously, a nonexistent `output` directory surfaced as a raw file-connection error from `readr::write_lines()` rather than an informative message.
+* expose_port's "only used when `r_mode` is `rstudio`" warning is now based
+  on whether the argument was supplied at all (`missing(expose_port)`), not   on whether its value differs from the default. Previously, explicitly
+  passing `expose_port = "8787"` under a non-rstudio `r_mode` produced no
+  warning even   though the value is still ignored there.
 
-* `generate_dockerfile()`'s output argument now defaults to ".", the current working    directory, instead of `tempdir()`. The old default meant `generate_dockerfile()` and   `build_image()` -- whose dockerfile argument is always resolved against `getwd()` --   pointed at two different places by default, so calling both with no arguments, the    most natural thing a new user does, failed on the second call with a file it could    not find. The two defaults now compose without either argument having to be
+* `generate_dockerfile()` now creates `output`, including any missing 
+  parent directories, if it does not already exist. Previously, a 
+  nonexistent `output` directory surfaced as a raw file-connection error 
+  from `readr::write_lines()` rather than an informative message.
+
+* `generate_dockerfile()`'s output argument now defaults to ".", the 
+  current working directory, instead of `tempdir()`. The old default meant
+  `generate_dockerfile()` and `build_image()` -- whose dockerfile argument
+  is always resolved against `getwd()` -- pointed at two different places 
+  by default, so calling both with no arguments, the most natural thing a 
+  new user does, failed on the second call with a file it could not find.    The two defaults now compose without either argument having to be 
   supplied.
   
 * Fixed a bug where `push_image()`'s pre-push login check always failed
@@ -171,6 +211,14 @@
 ## Testing 
 
 * Added a test that generates a Dockerfile for every r_mode crossed with both           `"/home"` and `"/workspace"` `home_dir` values, parses the actual `WORKDIR` and       `COPY` lines out of the result, and asserts that renv.lock lands under `WORKDIR` and   that project files land under the mode's `copy_root`. Previously each of those facts   was tested in isolation, which is exactly how #C10 stayed invisible: every            individual assertion was true at once.
+
+
+* Added a test asserting the position of instructions relative to each
+  other (`syslibs` before `quarto`, `renv_lock` before the restore step,
+  the restore step before the first `COPY` of project content) rather than
+  comparing against a fixed expected `Dockerfile`, so it survives future
+  additions to the instruction list without needing to be rewritten (#C21).
+
 
 
 # containr 0.1.3.9000
