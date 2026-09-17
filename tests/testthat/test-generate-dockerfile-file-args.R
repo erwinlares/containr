@@ -29,6 +29,46 @@ test_that("Dockerfile is written to the specified output directory", {
     expect_true(file.exists(file.path(tmp, "Dockerfile")))
 })
 
+test_that("output defaults to the current working directory", {
+    # C08: output = tempdir() and build_image()'s dockerfile = "Dockerfile"
+    # (resolved against getwd()) could not be composed, since the two
+    # defaults pointed at different places. output = "." is the fix -- this
+    # test pins the default itself; test-container-workflow.R pins the
+    # composed behavior with build_image() directly.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    generate_dockerfile(r_version = "4.3.0")
+
+    expect_true(file.exists(file.path(tmp, "Dockerfile")))
+})
+
+test_that("output is created when it does not already exist", {
+    # C09: generate_dockerfile() had no dir.create()/fs::dir_create() of its
+    # own anywhere, so a nonexistent output directory failed with a raw
+    # file-connection error from readr::write_lines() rather than a
+    # sentence. output is now created automatically, including any missing
+    # parent directories.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    nested_output <- file.path(tmp, "build", "docker")
+    expect_false(dir.exists(nested_output))
+
+    expect_no_error(
+        generate_dockerfile(r_version = "4.3.0", output = nested_output)
+    )
+    expect_true(file.exists(file.path(nested_output, "Dockerfile")))
+})
+
 test_that("Valid file args are accepted and Dockerfile is written", {
     tmp <- withr::local_tempdir()
     writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))

@@ -1,4 +1,4 @@
-# containr 0.2.0
+# containr 0.2.0.9000
 
 ## Breaking changes
 
@@ -107,6 +107,11 @@
 
 ## Bug fixes
 
+* `generate_dockerfile()` now creates `output`, including any missing parent directories, if it does not already exist. Previously, a nonexistent `output` directory surfaced as a raw file-connection error from `readr::write_lines()` rather than an informative message.
+
+* `generate_dockerfile()`'s output argument now defaults to ".", the current working    directory, instead of `tempdir()`. The old default meant `generate_dockerfile()` and   `build_image()` -- whose dockerfile argument is always resolved against `getwd()` --   pointed at two different places by default, so calling both with no arguments, the    most natural thing a new user does, failed on the second call with a file it could    not find. The two defaults now compose without either argument having to be
+  supplied.
+  
 * Fixed a bug where `push_image()`'s pre-push login check always failed
   under Docker regardless of whether the user was actually logged in.
   `<tool> login --get-login <registry>` is a Podman-only flag; running it

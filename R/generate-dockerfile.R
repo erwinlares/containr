@@ -26,8 +26,15 @@
 #'   libraries to install beyond those auto-detected from `renv.lock`. Each
 #'   element should be a valid `apt` package name, e.g.
 #'   `c("libuv1-dev", "libwebp-dev")`. Defaults to `NULL`.
-#' @param output A character string. Directory path where the `Dockerfile` will
-#'   be written. Defaults to `tempdir()`.
+#' @param output A character string. Directory path where the `Dockerfile`
+#'   will be written. Defaults to `"."`, the current working directory --
+#'   the same directory `build_image()` treats as the build context by
+#'   default, so the two functions' defaults compose without either
+#'   argument having to be supplied. A `Dockerfile` written somewhere else
+#'   (`tempdir()`, say) would have to be moved into the build context before
+#'   `build_image()` could find it, since the build context is always
+#'   `getwd()`. `output` is created automatically, along with any missing
+#'   parent directories, if it does not already exist.
 #' @param data_file A character vector or `NULL`. Path(s) to data file(s)
 #'   and/or directories to copy into the container -- a single path, a
 #'   vector of paths, or a directory (copied whole, with its contents) may
@@ -114,12 +121,13 @@
 #' # Requires renv.lock in the current working directory.
 #' # Run renv::snapshot() first if you don't have one.
 #'
-#' # Generate a minimal Dockerfile using a pinned R version
-#' generate_dockerfile(r_version = "4.4.0", output = tempdir())
+#' # Generate a minimal Dockerfile using a pinned R version. output defaults
+#' # to ".", so this writes to the current working directory -- the same
+#' # place build_image() looks by default.
+#' generate_dockerfile(r_version = "4.4.0")
 #'
 #' # Pin a specific R version with the tidyverse image
-#' generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
-#'                     output = tempdir())
+#' generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse")
 #'
 #' # Add extra system libraries on top of auto-detected ones
 #' generate_dockerfile(
@@ -177,7 +185,7 @@ generate_dockerfile <- function(r_version       = "current",
                                 r_mode          = "base",
                                 auto_syslibs    = TRUE,
                                 install_syslibs = NULL,
-                                output          = tempdir(),
+                                output          = ".",
                                 data_file       = NULL,
                                 code_file       = NULL,
                                 misc_file       = NULL,
@@ -544,6 +552,14 @@ generate_dockerfile <- function(r_version       = "current",
     )
 
     # -- 9. Write Dockerfile ---------------------------------------------------
+    # output may not already exist -- nothing upstream creates it, and
+    # neither file.path() nor readr::write_lines() do either, so a
+    # nonexistent output directory previously surfaced as a raw
+    # file-connection error rather than a sentence naming the problem.
+    # fs::dir_create() is idempotent: it creates output and any missing
+    # parent directories, and does nothing if output is already there.
+    fs::dir_create(output)
+
     dockerfile_path <- file.path(output, "Dockerfile")
     first <- TRUE
 

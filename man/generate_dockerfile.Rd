@@ -9,7 +9,7 @@ generate_dockerfile(
   r_mode = "base",
   auto_syslibs = TRUE,
   install_syslibs = NULL,
-  output = tempdir(),
+  output = ".",
   data_file = NULL,
   code_file = NULL,
   misc_file = NULL,
@@ -47,8 +47,15 @@ libraries to install beyond those auto-detected from \code{renv.lock}. Each
 element should be a valid \code{apt} package name, e.g.
 \code{c("libuv1-dev", "libwebp-dev")}. Defaults to \code{NULL}.}
 
-\item{output}{A character string. Directory path where the \code{Dockerfile} will
-be written. Defaults to \code{tempdir()}.}
+\item{output}{A character string. Directory path where the \code{Dockerfile}
+will be written. Defaults to \code{"."}, the current working directory --
+the same directory \code{build_image()} treats as the build context by
+default, so the two functions' defaults compose without either
+argument having to be supplied. A \code{Dockerfile} written somewhere else
+(\code{tempdir()}, say) would have to be moved into the build context before
+\code{build_image()} could find it, since the build context is always
+\code{getwd()}. \code{output} is created automatically, along with any missing
+parent directories, if it does not already exist.}
 
 \item{data_file}{A character vector or \code{NULL}. Path(s) to data file(s)
 and/or directories to copy into the container -- a single path, a
@@ -70,11 +77,19 @@ see \code{data_file}. Every path must be inside the current working
 directory. Defaults to \code{NULL}.}
 
 \item{misc_file}{A character vector or \code{NULL}. Path(s) to miscellaneous
-file(s) (e.g. images or shell scripts) and/or directories to copy into
-the container -- see \code{data_file} for vector and directory behavior. The
-local directory structure is preserved under the mode's copy root --
-see \code{data_file}. Every path must be inside the current working
-directory. Defaults to \code{NULL}.}
+file(s) (e.g. images, shell scripts, or branding assets) and/or
+directories to copy into the container -- see \code{data_file} for vector
+and directory behavior. The local directory structure is preserved under
+the mode's copy root -- see \code{data_file}. Every path must be inside the
+current working directory. Defaults to \code{NULL}.
+If the project was scaffolded with \code{\link[toolero:init_project]{toolero::init_project()}} using
+\code{branding = TRUE} or \code{branding = "uw-madison"}, the generated \code{.qmd}
+will reference \code{assets/styles.css}, \code{assets/header.html}, and
+\code{assets/footer.html} at render time. Those files must be present inside
+the container or Quarto will error on render. Pass
+\code{misc_file = "assets/"} to copy the entire branding folder in one step.
+Additional files and directories can be combined freely in the same
+vector, e.g. \code{misc_file = c("assets/", "extra-script.sh")}.}
 
 \item{add_user}{A character string. Name of a Linux user to create inside
 the container with sudo access. Defaults to \code{NULL}.}
@@ -129,6 +144,15 @@ inline documentation comments.
 directory. Create one with \code{renv::snapshot()} before calling this function.
 If the lock file is out of sync with your project library, a warning is
 issued -- run \code{renv::snapshot()} to update it before building the image.
+
+If the project uses Quarto with branding assets (i.e. \code{\link[toolero:create_qmd]{toolero::create_qmd()}}
+was called with \code{use_style = TRUE}), the \verb{assets/} folder must be copied
+into the container alongside the \code{.qmd} file or Quarto will be unable to
+resolve the CSS and HTML includes at render time. The simplest way to
+ensure this is to pass \code{misc_file = "assets/"} -- or
+\code{misc_file = c("assets/", other_files)} if additional files are needed --
+when calling \code{generate_dockerfile()}. No code change is required;
+\code{misc_file} already accepts directories and copies them whole.
 }
 
 \examples{
@@ -136,12 +160,13 @@ issued -- run \code{renv::snapshot()} to update it before building the image.
 # Requires renv.lock in the current working directory.
 # Run renv::snapshot() first if you don't have one.
 
-# Generate a minimal Dockerfile using a pinned R version
-generate_dockerfile(r_version = "4.4.0", output = tempdir())
+# Generate a minimal Dockerfile using a pinned R version. output defaults
+# to ".", so this writes to the current working directory -- the same
+# place build_image() looks by default.
+generate_dockerfile(r_version = "4.4.0")
 
 # Pin a specific R version with the tidyverse image
-generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
-                    output = tempdir())
+generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse")
 
 # Add extra system libraries on top of auto-detected ones
 generate_dockerfile(
@@ -159,9 +184,9 @@ generate_dockerfile(
   output    = "."
 )
 
-# Multiple scripts and a whole assets folder, copied in one call --
-# data_file, code_file, and misc_file all accept vectors, and a directory
-# is copied whole
+# Multiple scripts and a whole assets folder -- pass assets/ via misc_file
+# so that branding files (styles.css, header.html, footer.html) are present
+# inside the container when Quarto renders the .qmd
 generate_dockerfile(
   r_version = "4.3.0",
   code_file = c("R/prepare.R", "R/model.R"),

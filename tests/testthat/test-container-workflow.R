@@ -29,6 +29,35 @@
 #   only run when podman is available on the PATH. Never run on CRAN or CI.
 
 # ---------------------------------------------------------------------------
+# generate_dockerfile() + build_image() -- default composability (C08)
+# ---------------------------------------------------------------------------
+#
+# generate_dockerfile()'s default output (previously tempdir()) and
+# build_image()'s default dockerfile ("Dockerfile", resolved against getwd())
+# used to point at different places, so calling both with no arguments -- the
+# most natural thing a new user does -- failed on the second call with a file
+# it could not find. output now defaults to ".", the same build context
+# build_image() already assumes, so the two compose without either argument
+# being supplied.
+
+test_that("generate_dockerfile()'s default output composes with build_image()'s default dockerfile", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    generate_dockerfile(r_version = "4.3.0")
+
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "podman",
+        .package = "containr"
+    )
+    expect_no_error(build_image(dry_run = TRUE))
+})
+
+# ---------------------------------------------------------------------------
 # build_image() -- Layer 1: argument validation
 # ---------------------------------------------------------------------------
 
