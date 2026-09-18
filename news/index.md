@@ -62,6 +62,18 @@
   contract, and a manifest written by hand is as valid an input as one
   `init_project()` created (#C01).
 
+- When `config` is supplied,
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  now also adds a `RUN mkdir -p` instruction, right after `WORKDIR`,
+  creating every folder the manifest’s `folders:` declares under
+  `home_dir`. Previously the generated image had no `output/` directory
+  (or any other project folder) at all: a script calling
+  `toolero::save_output()` was safe, because that function creates
+  parents recursively, but a bare `ggsave("output/figures/x.png")`
+  failed inside the container exactly as it would on an execute node
+  with no `output/` yet created. A call that never passes `config` sees
+  no new instruction (#C07).
+
 - Two new `r_mode` values on
   [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md):
   `"shiny_server"` (`rocker/shiny`) for serving Shiny apps, and
@@ -76,10 +88,11 @@
   which exposes both `8787` and `3838`. `data_file`, `code_file`, and
   `misc_file` are copied to `/srv/shiny-server/` for these two modes,
   matching Shiny Server’s own default app directory – the four existing
-  modes are unaffected, `COPY` destinations for those stay `/home/`
-  exactly as before. `expose_port` remains an override for `"rstudio"`
-  only; the two new modes expose fixed port(s) and ignore it, with a
-  warning if supplied.
+  modes are unaffected, still copying to `home_dir` as before (see the
+  `copy_root`/`home_dir` fix below, \#C24, for a related correction to
+  exactly how that tracking works). `expose_port` remains an override
+  for `"rstudio"` only; the two new modes expose fixed port(s) and
+  ignore it, with a warning if supplied.
 
 - [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
   now works against any OCI-compliant registry, not just the default
@@ -130,19 +143,19 @@
   [`.get_quarto_version()`](https://erwinlares.github.io/containr/reference/dot-get_quarto_version.md)
   in `R/get-quarto-version.R`.
 
-- `data_file`, `code_file`, and `misc_file` on
-  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
-  now accept a character vector of paths, not just a single path, and a
-  path may point to a directory, copied whole rather than one file at a
-  time. `code_file = c("R/prepare.R", "R/model.R")` and
-  `misc_file = "assets/"` both work in a single call now; previously
-  each argument accepted exactly one file path and rejected directories
-  outright. Fully backward-compatible – a length-1 character path
-  behaves exactly as before. The `COPY`-instruction generation already
-  built its output via
-  [`purrr::map_chr()`](https://purrr.tidyverse.org/reference/map.html)
-  over these arguments, so this change is contained to
-  [`.validate_file_arg()`](https://erwinlares.github.io/containr/reference/dot-validate_file_arg.md).
+- New `os_version` argument on
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md),
+  defaulting to `NULL`. When `NULL`, the Ubuntu version queried for
+  system requirements (`auto_syslibs`) is now derived from the resolved
+  `r_version` via the Rocker Project’s own R-version-to-Ubuntu-release
+  mapping (20.04 for R 4.0.0-4.1.3, 22.04 for R 4.2.2-4.3.3, 24.04 for R
+  4.4.2 and later, confirmed directly against rocker-project.org and the
+  rocker-versioned2 wiki) rather than a single hardcoded default.
+  Supplying `os_version` overrides the derivation entirely, for a
+  project that needs to query against a different Ubuntu release than
+  the one its `r_version` would normally resolve to. New internal helper
+  [`.resolve_os_version()`](https://erwinlares.github.io/containr/reference/dot-resolve_os_version.md)
+  in `R/r-mode-registry.R` (#C14).
 
 ### Bug fixes
 
@@ -163,31 +176,47 @@
   hardcoded `/home/renv.lock`. The image’s install script runs
   [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
   with no explicit project, which resolves the project from the working
-  directory – i.e. w`herever WORKDIR (home_dir)` points. The hardcoded
-  destination only worked by coincidence when home_dir was left at its
+  directory – i.e. wherever `WORKDIR` (`home_dir`) points. The hardcoded
+  destination only worked by coincidence when `home_dir` was left at its
   own default of `"/home"`; passing `home_dir = "/workspace"` left the
   lockfile somewhere
   [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
   never looked.
 
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)’s
+  `copy_root` (the destination for `data_file`, `code_file`, and
+  `misc_file`) was hardcoded to the literal `"/home"` for `"base"`,
+  `"tidyverse"`, `"rstudio"`, and `"verse"`, independent of `home_dir` –
+  the same class of bug as the `renv.lock` fix above, in the same corner
+  of the file. That agreed with `home_dir`’s own default and silently
+  disagreed the moment `home_dir` was set to anything else: `COPY`
+  destinations stayed at `/home` while `WORKDIR`, and the script that
+  actually ran, moved to wherever `home_dir` pointed. `copy_root` is now
+  `NULL` in the mode registry for those four modes, meaning “fall back
+  to `home_dir`”, so the two now always agree. `"shiny_server"` and
+  `"rstudio_shiny"` are unaffected – their copy destination is still the
+  fixed `/srv/shiny-server` regardless of `home_dir` (#C24).
+
 - `generate_dockerfile(install_quarto = TRUE)` now fetches and installs
   Quarto with `curl -LO` and `dpkg -i` (falling back to
   `apt-get install -f` to resolve dependencies) instead of `wget` and
-  `gdebi`. Neither `wget` nor `gdebi` is presentin `rocker/r-ver`, so
-  `install_quarto = TRUE previously failed at build time on every`r_mode`unless something in the lockfile happened to pull those two programs in as a side effect.`curl\`
-  is already installed unconditionally as a baseline system library, so
-  the new approach adds no packages to the image.
+  `gdebi`. Neither `wget` nor `gdebi` is present in `rocker/r-ver`, so
+  `install_quarto = TRUE` previously failed at build time on every
+  `r_mode` unless something in the lockfile happened to pull those two
+  programs in as a side effect. `curl` is already installed
+  unconditionally as a baseline system library, so the new approach adds
+  no packages to the image.
 
 - [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
   now validates the requested R version against the tag repository the
   resolved `r_mode` will actually build `FROM`, instead of always
   checking it against `rocker/r-ver`. A version that exists in
-  `rocker/r-ver` but notin, say, `rocker/verse` previously passed
+  `rocker/r-ver` but not in, say, `rocker/verse` previously passed
   validation and only failed later, at the `FROM` instruction itself;
-  the “version does not exist” error now also points at the
-  rightrepository’s page instead of always linking to `rocker/r-ver`’s.
+  the “version does not exist” error now also points at the right
+  repository’s page instead of always linking to `rocker/r-ver`’s.
 
-- expose_port’s “only used when `r_mode` is `rstudio`” warning is now
+- `expose_port`’s “only used when `r_mode` is `rstudio`” warning is now
   based on whether the argument was supplied at all
   (`missing(expose_port)`), not on whether its value differs from the
   default. Previously, explicitly passing `expose_port = "8787"` under a
@@ -202,13 +231,14 @@
   rather than an informative message.
 
 - [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)’s
-  output argument now defaults to “.”, the current working directory,
-  instead of [`tempdir()`](https://rdrr.io/r/base/tempfile.html). The
-  old default meant
+  `output` argument now defaults to `"."`, the current working
+  directory, instead of
+  [`tempdir()`](https://rdrr.io/r/base/tempfile.html). The old default
+  meant
   [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
   and
   [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
-  – whose dockerfile argument is always resolved against
+  – whose `dockerfile` argument is always resolved against
   [`getwd()`](https://rdrr.io/r/base/getwd.html) – pointed at two
   different places by default, so calling both with no arguments, the
   most natural thing a new user does, failed on the second call with a
@@ -228,6 +258,70 @@
   Docker itself has no query subcommand for this. This is a best-effort
   local check either way – it confirms a credential exists, not that
   it’s still valid; an expired token can still fail at push time.
+
+- [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+  called `print(parsed)` unconditionally before returning
+  `invisible(parsed)`, so `imgs <- list_images()` printed a data frame
+  as a side effect of assignment. Printing is now gated behind
+  `verbose`, matching every other user-facing message in the package:
+  `imgs <- list_images()` assigns quietly, and
+  `list_images(verbose = TRUE)` prints (#C17).
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  now warns when `renv.lock` records no packages at all, regardless of
+  `auto_syslibs`. Previously this was silent:
+  [`.fetch_sysreqs()`](https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.md)
+  short-circuits on an empty package vector, the image builds with only
+  the baseline `curl` installed, and the build succeeds while the
+  analysis inside it cannot run (#C04).
+
+### Documentation
+
+- [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
+  `project` argument was documented as “the GitLab project name that
+  hosts the container registry,” with its own examples using
+  `project = "container-registry"` as if that’s a single shared project
+  set up to host the registry generally. The README, and every one of
+  its own examples, use `project = "my-analysis"` and produce
+  `registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0` – the project
+  *is* the image. Fixed the roxygen, the missing-argument error message,
+  and every example in `push-image.R`, plus the
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  example embedded in
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)’s
+  own docs, to say so and use `project = "my-analysis"` throughout
+  (#C18).
+
+- `comments` means something different depending on which function
+  you’re looking at:
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)’s
+  `comments` argument writes annotations into the generated
+  `Dockerfile`, while
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)’s
+  and
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
+  `comments` arguments print explanatory guidance to the console
+  instead, matching how `comments` is used across `submitr`’s own
+  functions. A roxygen note on all three arguments now states this
+  directly rather than renaming anything (#C15).
+
+- “Before you start” in the README now says the lockfile has to record
+  the analysis’s own packages, and `toolero` itself if the containerized
+  script calls `toolero::save_output()` or
+  `toolero::resolve_input_path()` – those functions make `toolero` a
+  runtime dependency of the analysis, not just a development convenience
+  (#C04).
+
+- The README’s
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  section now notes that `embed-resources: true` in `toolero`’s Quarto
+  templates reduces, but does not eliminate, the need to remember
+  `misc_file = "assets/"` – a self-contained `.html` still requires
+  `assets/styles.css`, `assets/header.html`, and `assets/footer.html` to
+  be present at render time (#C06). The same section’s description of
+  where `data_file`, `code_file`, and `misc_file` land was also updated
+  to say `home_dir` rather than a hardcoded `/home/`, reflecting the
+  `copy_root` fix above (#C24).
 
 ### Internal changes
 
@@ -298,13 +392,15 @@
   apart, and skips (rather than fails) when `README.md` isn’t on disk,
   such as from a built tarball (#C20).
 
-- Added a test that generates a Dockerfile for every r_mode crossed with
-  both `"/home"` and `"/workspace"` `home_dir` values, parses the actual
-  `WORKDIR` and `COPY` lines out of the result, and asserts that
-  renv.lock lands under `WORKDIR` and that project files land under the
-  mode’s `copy_root`. Previously each of those facts was tested in
+- Added a test that generates a Dockerfile for every `r_mode` crossed
+  with both `"/home"` and `"/workspace"` `home_dir` values, parses the
+  actual `WORKDIR` and `COPY` lines out of the result, and asserts that
+  `renv.lock` lands under `WORKDIR` and that project files land under
+  the mode’s `copy_root`. Previously each of those facts was tested in
   isolation, which is exactly how \#C10 stayed invisible: every
-  individual assertion was true at once.
+  individual assertion was true at once. Updated for the `copy_root` fix
+  (#C24) to resolve a `NULL` registry value against `home_dir` rather
+  than asserting the old hardcoded behavior.
 
 - Added a test asserting the position of instructions relative to each
   other (`syslibs` before `quarto`, `renv_lock` before the restore step,
@@ -312,6 +408,41 @@
   than comparing against a fixed expected `Dockerfile`, so it survives
   future additions to the instruction list without needing to be
   rewritten (#C21).
+
+- Added tests for the `copy_root`/`home_dir` fix (#C24): `COPY`
+  destinations track a custom `home_dir` for the four Phase 1 modes, and
+  still default to `/home` when `home_dir` is left at its own default.
+
+- Added tests for the `config`-derived `mkdir -p` block (#C07): every
+  declared folder appears in one `RUN mkdir -p` line positioned after
+  `WORKDIR`, the destinations track a custom `home_dir`, the line is
+  absent when `config` is not supplied or declares no folders, and a
+  folder `containr` has no other special meaning for (neither
+  `data-raw`, `script_dir`, nor `assets`) is still included.
+
+- Added
+  [`.resolve_os_version()`](https://erwinlares.github.io/containr/reference/dot-resolve_os_version.md)
+  unit tests covering each Ubuntu-version threshold and its boundary,
+  plus `"latest"`/`"devel"`. Added tests asserting
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  derives `os_version` and passes it to
+  [`.fetch_sysreqs()`](https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.md),
+  that an explicit `os_version` overrides the derivation, and that
+  neither derivation nor the sysreqs call happens when
+  `auto_syslibs = FALSE` (#C14).
+
+- Added tests asserting
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+  does not print when `verbose = FALSE` (the default), does print when
+  `verbose = TRUE`, and returns the correct data frame either way
+  (#C17).
+
+- Added tests asserting the empty-lockfile warning fires (and mentions
+  `toolero`), fires even when `auto_syslibs = FALSE`, and does not fire
+  when `renv.lock` records at least one package (#C04). Every existing
+  test’s `renv.lock` fixture now records a dummy package (previously an
+  empty `"Packages":{}`), so this new warning does not fire incidentally
+  across the rest of the suite.
 
 ## containr 0.1.3.9000
 

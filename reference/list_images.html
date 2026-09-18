@@ -68,7 +68,11 @@ tool rather than auto-detecting.</p></dd>
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, prints a progress message before
-querying the local image store. Defaults to <code>FALSE</code>.</p></dd>
+querying the local image store, and prints the resulting data frame
+(C17) – matching every other user-facing message in the package,
+which is <code>verbose</code>-gated rather than unconditional. Defaults to
+<code>FALSE</code>, so <code>imgs &lt;- list_images()</code> assigns quietly rather than also
+printing as a side effect.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -76,8 +80,8 @@ querying the local image store. Defaults to <code>FALSE</code>.</p></dd>
     <p>A data frame with five columns: <code>repository</code>, <code>tag</code>, <code>image_id</code>,
 <code>created</code>, and <code>size</code>. Rows where both <code>repository</code> and <code>tag</code> are
 <code>&lt;none&gt;</code> correspond to untagged images produced by <code><a href="build_image.html">build_image()</a></code> when
-no <code>tag</code> argument was supplied. The data frame is also printed to the
-console. Returns an empty data frame if no images are found.</p>
+no <code>tag</code> argument was supplied. Returns an empty data frame if no
+images are found.</p>
     </div>
     <div class="section level2">
     <h2 id="finding-your-image-id">Finding your image ID<a class="anchor" aria-label="anchor" href="#finding-your-image-id"></a></h2>
@@ -91,17 +95,17 @@ you need to pass to <code><a href="push_image.html">push_image()</a></code>:</p>
 <span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  namespace <span class="op">=</span> <span class="st">"erwin.lares"</span>,</span>
-<span>  project   <span class="op">=</span> <span class="st">"container-registry"</span></span>
+<span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span></span>
 <span><span class="op">)</span></span></code></pre><p></p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># List all local images</span></span></span>
-<span class="r-in"><span><span class="fu">list_images</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># List all local images and print them (verbose = TRUE)</span></span></span>
+<span class="r-in"><span><span class="fu">list_images</span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Capture the result for programmatic use</span></span></span>
+<span class="r-in"><span><span class="co"># Capture the result for programmatic use, without printing (C17)</span></span></span>
 <span class="r-in"><span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu">list_images</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>

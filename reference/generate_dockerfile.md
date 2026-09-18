@@ -23,6 +23,7 @@ generate_dockerfile(
   expose_port = "8787",
   install_quarto = FALSE,
   quarto_version = "latest",
+  os_version = NULL,
   comments = FALSE,
   verbose = FALSE,
   config = NULL
@@ -87,22 +88,23 @@ generate_dockerfile(
   directories to copy into the container – a single path, a vector of
   paths, or a directory (copied whole, with its contents) may all be
   mixed freely in the same vector. The local directory structure is
-  preserved under `/home/` for `"base"`, `"tidyverse"`, `"rstudio"`, and
-  `"verse"` (e.g. `"data-raw/sample.csv"` becomes
-  `/home/data-raw/sample.csv`, and a directory `"data-raw/"` is copied
-  to `/home/data-raw/` in full), or under `/srv/shiny-server/` for
-  `"shiny_server"` and `"rstudio_shiny"`, matching Shiny Server's own
-  default app directory. Every path must be inside the current working
-  directory (the build context). Defaults to `NULL`.
+  preserved under `home_dir` for `"base"`, `"tidyverse"`, `"rstudio"`,
+  and `"verse"` (e.g. with the default `home_dir = "/home"`,
+  `"data-raw/sample.csv"` becomes `/home/data-raw/sample.csv`, and a
+  directory `"data-raw/"` is copied to `/home/data-raw/` in full), or
+  under `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`,
+  matching Shiny Server's own default app directory regardless of
+  `home_dir`. Every path must be inside the current working directory
+  (the build context). Defaults to `NULL`.
 
 - code_file:
 
   A character vector or `NULL`. Path(s) to script file(s) (e.g. `.R`,
   `.qmd`, `.rmd`) and/or directories to copy into the container – see
   `data_file` for vector and directory behavior. The local directory
-  structure is preserved under the mode's copy root – see `data_file`.
-  Every path must be inside the current working directory. Defaults to
-  `NULL`.
+  structure is preserved under the mode's copy root (`home_dir` for four
+  of the six modes) – see `data_file`. Every path must be inside the
+  current working directory. Defaults to `NULL`.
 
 - misc_file:
 
@@ -110,16 +112,16 @@ generate_dockerfile(
   images, shell scripts, or branding assets) and/or directories to copy
   into the container – see `data_file` for vector and directory
   behavior. The local directory structure is preserved under the mode's
-  copy root – see `data_file`. Every path must be inside the current
-  working directory. Defaults to `NULL`. If the project was scaffolded
-  with `toolero::init_project()` using `branding = TRUE` or
-  `branding = "uw-madison"`, the generated `.qmd` will reference
-  `assets/styles.css`, `assets/header.html`, and `assets/footer.html` at
-  render time. Those files must be present inside the container or
-  Quarto will error on render. Pass `misc_file = "assets/"` to copy the
-  entire branding folder in one step. Additional files and directories
-  can be combined freely in the same vector, e.g.
-  `misc_file = c("assets/", "extra-script.sh")`.
+  copy root (`home_dir` for four of the six modes) – see `data_file`.
+  Every path must be inside the current working directory. Defaults to
+  `NULL`. If the project was scaffolded with `toolero::init_project()`
+  using `branding = TRUE` or `branding = "uw-madison"`, the generated
+  `.qmd` will reference `assets/styles.css`, `assets/header.html`, and
+  `assets/footer.html` at render time. Those files must be present
+  inside the container or Quarto will error on render. Pass
+  `misc_file = "assets/"` to copy the entire branding folder in one
+  step. Additional files and directories can be combined freely in the
+  same vector, e.g. `misc_file = c("assets/", "extra-script.sh")`.
 
 - add_user:
 
@@ -129,8 +131,13 @@ generate_dockerfile(
 - home_dir:
 
   A character string. The working directory set inside the container via
-  `WORKDIR`. Does not affect where `data_file`, `code_file`, or
-  `misc_file` are copied – see `data_file`. Defaults to `"/home"`.
+  `WORKDIR`. For `"base"`, `"tidyverse"`, `"rstudio"`, and `"verse"`,
+  this is also where `data_file`, `code_file`, and `misc_file` are
+  copied (C24) – there is nowhere else a script running from `WORKDIR`
+  could resolve its relative paths against. `"shiny_server"` and
+  `"rstudio_shiny"` are the exception: their copy destination is fixed
+  at `/srv/shiny-server` regardless of `home_dir` – see `data_file`.
+  Defaults to `"/home"`.
 
 - expose_port:
 
@@ -159,11 +166,33 @@ generate_dockerfile(
   image. An explicit version is validated against the Quarto releases
   API and errors if no matching release exists.
 
+- os_version:
+
+  A character string or `NULL`. The Ubuntu version to query against when
+  looking up system requirements for `auto_syslibs` (C14). When `NULL`
+  (the default), it is derived from the resolved `r_version` via the
+  Rocker Project's own R-version-to-Ubuntu-release mapping – see
+  [`.resolve_os_version()`](https://erwinlares.github.io/containr/reference/dot-resolve_os_version.md)
+  – rather than left at a single hardcoded value that only matched the
+  Ubuntu release actually backing some R versions and not others.
+  Supplying a value overrides the derivation entirely, for a project
+  that needs to query against a different Ubuntu release than the one
+  its `r_version` would normally resolve to. Ignored when
+  `auto_syslibs = FALSE`, since no sysreqs lookup happens in that case.
+
 - comments:
 
   Logical. If `TRUE`, annotates each Dockerfile instruction with an
   explanatory comment. Useful for learning or sharing. Defaults to
-  `FALSE`.
+  `FALSE`. Note (C15): this is the one `comments` argument in the family
+  that writes into a generated file rather than printing to the console
+  –
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  and
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  in this same package, and every `comments` argument in `submitr`, use
+  it to print explanatory guidance to the console instead. Keep that
+  distinction in mind when moving between these functions.
 
 - verbose:
 
@@ -194,8 +223,17 @@ generate_dockerfile(
   reproducibility this package exists to support. A `schema_version` the
   file does not declare is treated as schema `1`; any other declared
   value produces a warning, not an abort, and the file is still read on
-  a best-effort basis either way. Defaults to `NULL`, so nothing about
-  this argument changes the behavior of a call that does not use it.
+  a best-effort basis either way. When supplied, `config` also adds a
+  `RUN mkdir -p` instruction, right after `WORKDIR`, creating every
+  folder the manifest's `folders:` declares under `home_dir` (C07) – so
+  a script's first write into one of them (via `toolero::save_output()`,
+  or a bare
+  `ggsave()`/[`write.csv()`](https://rdrr.io/r/utils/write.table.html)
+  call) does not fail the way it would on a fresh checkout with no
+  `config` supplied. This is unconditional on which folders those are; a
+  folder this version of `containr` has no other special meaning for is
+  still created. Defaults to `NULL`, so nothing about this argument
+  changes the behavior of a call that does not use it.
 
 ## Value
 

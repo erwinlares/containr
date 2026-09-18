@@ -69,6 +69,7 @@ inline documentation comments.</p>
 <span>  expose_port <span class="op">=</span> <span class="st">"8787"</span>,</span>
 <span>  install_quarto <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  quarto_version <span class="op">=</span> <span class="st">"latest"</span>,</span>
+<span>  os_version <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  comments <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  config <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -128,31 +129,33 @@ parent directories, if it does not already exist.</p></dd>
 and/or directories to copy into the container – a single path, a
 vector of paths, or a directory (copied whole, with its contents) may
 all be mixed freely in the same vector. The local directory structure
-is preserved under <code>/home/</code> for <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>,
-and <code>"verse"</code> (e.g. <code>"data-raw/sample.csv"</code> becomes
-<code>/home/data-raw/sample.csv</code>, and a directory <code>"data-raw/"</code> is copied to
-<code>/home/data-raw/</code> in full), or under <code>/srv/shiny-server/</code> for
-<code>"shiny_server"</code> and <code>"rstudio_shiny"</code>, matching Shiny Server's own
-default app directory. Every path must be inside the current working
-directory (the build context). Defaults to <code>NULL</code>.</p></dd>
+is preserved under <code>home_dir</code> for <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>,
+and <code>"verse"</code> (e.g. with the default <code>home_dir = "/home"</code>,
+<code>"data-raw/sample.csv"</code> becomes <code>/home/data-raw/sample.csv</code>, and a
+directory <code>"data-raw/"</code> is copied to <code>/home/data-raw/</code> in full), or
+under <code>/srv/shiny-server/</code> for <code>"shiny_server"</code> and <code>"rstudio_shiny"</code>,
+matching Shiny Server's own default app directory regardless of
+<code>home_dir</code>. Every path must be inside the current working directory
+(the build context). Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-code-file">code_file<a class="anchor" aria-label="anchor" href="#arg-code-file"></a></dt>
 <dd><p>A character vector or <code>NULL</code>. Path(s) to script file(s)
 (e.g. <code>.R</code>, <code>.qmd</code>, <code>.rmd</code>) and/or directories to copy into the
 container – see <code>data_file</code> for vector and directory behavior. The
-local directory structure is preserved under the mode's copy root –
-see <code>data_file</code>. Every path must be inside the current working
-directory. Defaults to <code>NULL</code>.</p></dd>
+local directory structure is preserved under the mode's copy root
+(<code>home_dir</code> for four of the six modes) – see <code>data_file</code>. Every path
+must be inside the current working directory. Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-misc-file">misc_file<a class="anchor" aria-label="anchor" href="#arg-misc-file"></a></dt>
 <dd><p>A character vector or <code>NULL</code>. Path(s) to miscellaneous
 file(s) (e.g. images, shell scripts, or branding assets) and/or
 directories to copy into the container – see <code>data_file</code> for vector
-and directory behavior. The local directory structure is preserved under
-the mode's copy root – see <code>data_file</code>. Every path must be inside the
-current working directory. Defaults to <code>NULL</code>.
+and directory behavior. The local directory structure is preserved
+under the mode's copy root (<code>home_dir</code> for four of the six modes) –
+see <code>data_file</code>. Every path must be inside the current working
+directory. Defaults to <code>NULL</code>.
 If the project was scaffolded with <code>toolero::init_project()</code> using
 <code>branding = TRUE</code> or <code>branding = "uw-madison"</code>, the generated <code>.qmd</code>
 will reference <code>assets/styles.css</code>, <code>assets/header.html</code>, and
@@ -170,8 +173,13 @@ the container with sudo access. Defaults to <code>NULL</code>.</p></dd>
 
 <dt id="arg-home-dir">home_dir<a class="anchor" aria-label="anchor" href="#arg-home-dir"></a></dt>
 <dd><p>A character string. The working directory set inside the
-container via <code>WORKDIR</code>. Does not affect where <code>data_file</code>, <code>code_file</code>,
-or <code>misc_file</code> are copied – see <code>data_file</code>. Defaults to <code>"/home"</code>.</p></dd>
+container via <code>WORKDIR</code>. For <code>"base"</code>, <code>"tidyverse"</code>, <code>"rstudio"</code>, and
+<code>"verse"</code>, this is also where <code>data_file</code>, <code>code_file</code>, and <code>misc_file</code>
+are copied (C24) – there is nowhere else a script running from
+<code>WORKDIR</code> could resolve its relative paths against. <code>"shiny_server"</code>
+and <code>"rstudio_shiny"</code> are the exception: their copy destination is
+fixed at <code>/srv/shiny-server</code> regardless of <code>home_dir</code> – see
+<code>data_file</code>. Defaults to <code>"/home"</code>.</p></dd>
 
 
 <dt id="arg-expose-port">expose_port<a class="anchor" aria-label="anchor" href="#arg-expose-port"></a></dt>
@@ -202,10 +210,29 @@ explicit version is validated against the Quarto releases API and
 errors if no matching release exists.</p></dd>
 
 
+<dt id="arg-os-version">os_version<a class="anchor" aria-label="anchor" href="#arg-os-version"></a></dt>
+<dd><p>A character string or <code>NULL</code>. The Ubuntu version to
+query against when looking up system requirements for <code>auto_syslibs</code>
+(C14). When <code>NULL</code> (the default), it is derived from the resolved
+<code>r_version</code> via the Rocker Project's own R-version-to-Ubuntu-release
+mapping – see <code><a href="dot-resolve_os_version.html">.resolve_os_version()</a></code> – rather than left at a single
+hardcoded value that only matched the Ubuntu release actually backing
+some R versions and not others. Supplying a value overrides the
+derivation entirely, for a project that needs to query against a
+different Ubuntu release than the one its <code>r_version</code> would normally
+resolve to. Ignored when <code>auto_syslibs = FALSE</code>, since no sysreqs
+lookup happens in that case.</p></dd>
+
+
 <dt id="arg-comments">comments<a class="anchor" aria-label="anchor" href="#arg-comments"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, annotates each Dockerfile instruction
 with an explanatory comment. Useful for learning or sharing. Defaults to
-<code>FALSE</code>.</p></dd>
+<code>FALSE</code>. Note (C15): this is the one <code>comments</code> argument in the family
+that writes into a generated file rather than printing to the console
+– <code><a href="build_image.html">build_image()</a></code> and <code><a href="push_image.html">push_image()</a></code> in this same package, and every
+<code>comments</code> argument in <code>submitr</code>, use it to print explanatory guidance
+to the console instead. Keep that distinction in mind when moving
+between these functions.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -236,8 +263,16 @@ came from somewhere invisible to the caller undermines the
 reproducibility this package exists to support. A <code>schema_version</code> the
 file does not declare is treated as schema <code>1</code>; any other declared
 value produces a warning, not an abort, and the file is still read on a
-best-effort basis either way. Defaults to <code>NULL</code>, so nothing about this
-argument changes the behavior of a call that does not use it.</p></dd>
+best-effort basis either way. When supplied, <code>config</code> also adds a
+<code>RUN mkdir -p</code> instruction, right after <code>WORKDIR</code>, creating every
+folder the manifest's <code>folders:</code> declares under <code>home_dir</code> (C07) –
+so a script's first write into one of them (via
+<code>toolero::save_output()</code>, or a bare <code>ggsave()</code>/<code><a href="https://rdrr.io/r/utils/write.table.html" class="external-link">write.csv()</a></code> call)
+does not fail the way it would on a fresh checkout with no <code>config</code>
+supplied. This is unconditional on which folders those are; a folder
+this version of <code>containr</code> has no other special meaning for is still
+created. Defaults to <code>NULL</code>, so nothing about this argument changes
+the behavior of a call that does not use it.</p></dd>
 
 </dl></div>
     <div class="section level2">

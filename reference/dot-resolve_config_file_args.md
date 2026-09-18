@@ -26,4 +26,6 @@ here.
 ## Value
 
 A named list with elements `data_file`, `code_file`, and `misc_file`,
-each a single character string or `NULL`.
+each a single character string or `NULL`; and `folders`, a character
+vector of every folder the manifest declares (possibly empty), for
+deriving the `mkdir -p` block (C07).

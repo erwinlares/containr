@@ -102,8 +102,12 @@ the equivalent identifier – your GitHub username or organization for
 
 
 <dt id="arg-project">project<a class="anchor" aria-label="anchor" href="#arg-project"></a></dt>
-<dd><p>A character string. The GitLab project name that hosts the
-container registry, e.g. <code>"container-registry"</code>.</p></dd>
+<dd><p>A character string. The image's name – the third segment
+of the full registry path, e.g. <code>"my-analysis"</code> in
+<code>registry.doit.wisc.edu/erwin.lares/my-analysis</code>. For the default
+DoIT GitLab registry, the project <em>is</em> the image: name it after the
+analysis it holds (C18), rather than after a single shared project set
+up to host the registry generally.</p></dd>
 
 
 <dt id="arg-tag">tag<a class="anchor" aria-label="anchor" href="#arg-tag"></a></dt>
@@ -146,7 +150,11 @@ Defaults to <code>FALSE</code>.</p></dd>
 <dd><p>Logical. If <code>TRUE</code>, prints explanatory context before each
 step – what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container push workflow.
-Defaults to <code>FALSE</code>.</p></dd>
+Defaults to <code>FALSE</code>. This matches how <code>comments</code> is used across
+<code>submitr</code> – printed guidance, nothing written to a file. The one
+exception in this family is <code><a href="generate_dockerfile.html">generate_dockerfile()</a></code>'s own <code>comments</code>
+argument (C15), which writes annotations into the generated
+<code>Dockerfile</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -192,18 +200,20 @@ error mid-push on a large image, re-authenticate and push again.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Tag and push an image to the DoIT GitLab Container Registry</span></span></span>
+<span class="r-in"><span><span class="co"># Tag and push an image to the DoIT GitLab Container Registry --</span></span></span>
+<span class="r-in"><span><span class="co"># project is the image's own name, not a project that merely hosts</span></span></span>
+<span class="r-in"><span><span class="co"># the registry (C18)</span></span></span>
 <span class="r-in"><span><span class="fu">push_image</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  image_id  <span class="op">=</span> <span class="st">"974123909a36"</span>,</span></span>
 <span class="r-in"><span>  namespace <span class="op">=</span> <span class="st">"erwin.lares"</span>,</span></span>
-<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"container-registry"</span></span></span>
+<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Push with an explicit version tag</span></span></span>
 <span class="r-in"><span><span class="fu">push_image</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  image_id  <span class="op">=</span> <span class="st">"974123909a36"</span>,</span></span>
 <span class="r-in"><span>  namespace <span class="op">=</span> <span class="st">"erwin.lares"</span>,</span></span>
-<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"container-registry"</span>,</span></span>
+<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span></span>
 <span class="r-in"><span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
@@ -211,7 +221,7 @@ error mid-push on a large image, re-authenticate and push again.</p>
 <span class="r-in"><span><span class="fu">push_image</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  image_id  <span class="op">=</span> <span class="st">"974123909a36"</span>,</span></span>
 <span class="r-in"><span>  namespace <span class="op">=</span> <span class="st">"erwin.lares"</span>,</span></span>
-<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"container-registry"</span>,</span></span>
+<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span></span>
 <span class="r-in"><span>  dry_run   <span class="op">=</span> <span class="cn">TRUE</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
@@ -219,7 +229,7 @@ error mid-push on a large image, re-authenticate and push again.</p>
 <span class="r-in"><span><span class="fu">push_image</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  image_id  <span class="op">=</span> <span class="st">"974123909a36"</span>,</span></span>
 <span class="r-in"><span>  namespace <span class="op">=</span> <span class="st">"erwin.lares"</span>,</span></span>
-<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"container-registry"</span>,</span></span>
+<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span></span>
 <span class="r-in"><span>  verbose   <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>

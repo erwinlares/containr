@@ -123,13 +123,18 @@ generate_dockerfile(
 If your analysis depends on data files, scripts, or other assets that
 should be available inside the container, pass them via `data_file`,
 `code_file`, and `misc_file`. The generated `COPY` instructions preserve
-your local directory structure under `/home/` – a file at
-`data-raw/sample.csv` locally becomes `/home/data-raw/sample.csv` in the
-container. All files must be inside the current working directory (the
-build context). Each argument accepts a single path, a character vector
-of paths, or a path to a directory – a directory is copied whole rather
-than one file at a time, and files and directories can be mixed freely
-within the same vector.
+your local directory structure under `home_dir` (`/home/` by default) –
+a file at `data-raw/sample.csv` locally becomes
+`/home/data-raw/sample.csv` in the container, and setting
+`home_dir = "/workspace"` moves both `WORKDIR` and these `COPY`
+destinations together. (`"shiny_server"` and `"rstudio_shiny"` are the
+exception: files land under `/srv/shiny-server/` regardless of
+`home_dir`, matching Shiny Server’s own default app directory.) All
+files must be inside the current working directory (the build context).
+Each argument accepts a single path, a character vector of paths, or a
+path to a directory – a directory is copied whole rather than one file
+at a time, and files and directories can be mixed freely within the same
+vector.
 
 ``` r
 
@@ -212,7 +217,7 @@ potential emulation issues.
 
 Docker Desktop handles cross-platform builds more reliably than Podman’s
 QEMU emulation layer. If builds fail with segfaults under Podman, try
-`tool = "docker"` or build on a native x86_64 machine.
+`tool_preference = "docker"` or build on a native x86_64 machine.
 
 ``` r
 
@@ -261,6 +266,8 @@ fails inside the container with a message about a missing header file or
 a failed compilation, add the relevant library to `install_syslibs` in
 [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md),
 regenerate the `Dockerfile`, and rebuild.
+
+------------------------------------------------------------------------
 
 ## Step 3: Inspect local images
 
@@ -418,6 +425,6 @@ before building.
 **The build fails with a QEMU segfault on Apple Silicon.** Building
 `linux/amd64` images on ARM hosts requires emulation, which can crash
 during R package installation. Switch to Docker Desktop
-(`tool = "docker"`), which uses `buildx` and handles cross-platform
-builds more reliably. Alternatively, build on a native x86_64 machine or
-via GitHub Actions.
+(`tool_preference = "docker"`), which uses `buildx` and handles
+cross-platform builds more reliably. Alternatively, build on a native
+x86_64 machine or via GitHub Actions.

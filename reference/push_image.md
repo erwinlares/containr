@@ -47,8 +47,12 @@ push_image(
 
 - project:
 
-  A character string. The GitLab project name that hosts the container
-  registry, e.g. `"container-registry"`.
+  A character string. The image's name – the third segment of the full
+  registry path, e.g. `"my-analysis"` in
+  `registry.doit.wisc.edu/erwin.lares/my-analysis`. For the default DoIT
+  GitLab registry, the project *is* the image: name it after the
+  analysis it holds (C18), rather than after a single shared project set
+  up to host the registry generally.
 
 - tag:
 
@@ -91,7 +95,12 @@ push_image(
   Logical. If `TRUE`, prints explanatory context before each step – what
   the command does, why it is needed, and common pitfalls. Useful for
   first-time users learning the container push workflow. Defaults to
-  `FALSE`.
+  `FALSE`. This matches how `comments` is used across `submitr` –
+  printed guidance, nothing written to a file. The one exception in this
+  family is
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)'s
+  own `comments` argument (C15), which writes annotations into the
+  generated `Dockerfile` instead.
 
 ## Value
 
@@ -140,18 +149,20 @@ re-authenticate and push again.
 
 ``` r
 if (FALSE) { # \dontrun{
-# Tag and push an image to the DoIT GitLab Container Registry
+# Tag and push an image to the DoIT GitLab Container Registry --
+# project is the image's own name, not a project that merely hosts
+# the registry (C18)
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry"
+  project   = "my-analysis"
 )
 
 # Push with an explicit version tag
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry",
+  project   = "my-analysis",
   tag       = "1.0.0"
 )
 
@@ -159,7 +170,7 @@ push_image(
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry",
+  project   = "my-analysis",
   dry_run   = TRUE
 )
 
@@ -167,7 +178,7 @@ push_image(
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry",
+  project   = "my-analysis",
   verbose   = TRUE,
   comments  = TRUE
 )

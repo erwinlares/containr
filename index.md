@@ -83,6 +83,12 @@ will produce the lockfile that `containr` needs. If you did not use
 [`renv::snapshot()`](https://rstudio.github.io/renv/reference/snapshot.html)
 in your project root before proceeding.
 
+The folder names, path conventions, and shared vocabulary used
+consistently across all three packages are collected in one place –
+[CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
+maintained in the `toolero` repository, since that’s where those
+conventions are authored.
+
 ------------------------------------------------------------------------
 
 ## Before you start
@@ -90,7 +96,17 @@ in your project root before proceeding.
 `containr` assumes your project already has enough structure to describe
 its R package environment. Before using it, confirm that:
 
-- your project uses `renv` and `renv.lock` exists in the project root;
+- your project uses `renv` and `renv.lock` exists in the project root,
+  and that it records every package your analysis actually calls – run
+  [`renv::snapshot()`](https://rstudio.github.io/renv/reference/snapshot.html)
+  after loading them, not before, or `renv.lock` will exist but be empty
+  and
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  will build an image with no R packages installed. If your
+  containerized script calls `toolero::save_output()` or
+  `toolero::resolve_input_path()`, `toolero` itself needs to be in
+  `renv.lock` too – it’s a runtime dependency of the analysis at that
+  point, not just a development convenience;
 - Podman or Docker is installed and running;
 - you have access to a container registry if you plan to push the image.
 
@@ -182,15 +198,30 @@ building an image; it is making the container recipe visible.
 When you include files via `data_file`, `code_file`, or `misc_file`, the
 generated `COPY` instructions preserve your local directory structure
 inside the container. For `"base"`, `"tidyverse"`, `"rstudio"`, and
-`"verse"`, that means under `/home/` – a file at `data-raw/sample.csv`
-locally ends up at `/home/data-raw/sample.csv` in the container, not
-flattened into `/home/data/`. For `"shiny_server"` and
-`"rstudio_shiny"`, files land under `/srv/shiny-server/` instead,
+`"verse"`, that means under `home_dir` (`/home/` by default) – a file at
+`data-raw/sample.csv` locally ends up at `/home/data-raw/sample.csv` in
+the container, not flattened into `/home/data/`, and setting
+`home_dir = "/workspace"` moves both `WORKDIR` and these `COPY`
+destinations together. For `"shiny_server"` and `"rstudio_shiny"`, files
+land under `/srv/shiny-server/` instead, regardless of `home_dir` –
 matching Shiny Server’s own default app directory. Either way, your R
 scripts can use the same relative paths inside the container that they
 use on your machine. All files must be inside the current working
 directory (the build context) – files outside it will produce an error,
 since Dockerfile `COPY` cannot reach beyond the build context.
+
+If your project was scaffolded with `toolero::init_project()` using
+`branding = TRUE` or `branding = "uw-madison"`, pass
+`misc_file = "assets/"` to bring the branding folder along – but note
+that `embed-resources: true` in `toolero`’s own Quarto templates already
+reduces how often you need to: a `.qmd` rendered with that option
+produces one self-contained `.html` rather than an `.html` plus a
+separate `_files/` directory, so there is less rendered output depending
+on files staying alongside it inside the container. It does not
+eliminate the need for `assets/` itself, though – the `.qmd` source
+still references `assets/styles.css`, `assets/header.html`, and
+`assets/footer.html` directly, and Quarto will still error on render if
+those aren’t present.
 
 Each of these three arguments accepts a single path, a character vector
 of paths, or a path to a directory – a directory is copied whole,

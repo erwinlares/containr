@@ -109,7 +109,11 @@ Defaults to <code>FALSE</code>.</p></dd>
 <dd><p>Logical. If <code>TRUE</code>, prints explanatory context before each
 step – what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container build workflow.
-Defaults to <code>FALSE</code>.</p></dd>
+Defaults to <code>FALSE</code>. This matches how <code>comments</code> is used across
+<code>submitr</code> – printed guidance, nothing written to a file. The one
+exception in this family is <code><a href="generate_dockerfile.html">generate_dockerfile()</a></code>'s own <code>comments</code>
+argument (C15), which writes annotations into the generated
+<code>Dockerfile</code> instead.</p></dd>
 
 </dl></div>
     <div class="section level2">

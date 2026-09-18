@@ -182,14 +182,20 @@ unusual system library requirements that
 should be available inside the container, pass them via
 <code>data_file</code>, <code>code_file</code>, and
 <code>misc_file</code>. The generated <code>COPY</code> instructions
-preserve your local directory structure under <code>/home/</code> – a
-file at <code>data-raw/sample.csv</code> locally becomes
-<code>/home/data-raw/sample.csv</code> in the container. All files must
-be inside the current working directory (the build context). Each
-argument accepts a single path, a character vector of paths, or a path
-to a directory – a directory is copied whole rather than one file at a
-time, and files and directories can be mixed freely within the same
-vector.</p>
+preserve your local directory structure under <code>home_dir</code>
+(<code>/home/</code> by default) – a file at
+<code>data-raw/sample.csv</code> locally becomes
+<code>/home/data-raw/sample.csv</code> in the container, and setting
+<code>home_dir = "/workspace"</code> moves both <code>WORKDIR</code> and
+these <code>COPY</code> destinations together.
+(<code>"shiny_server"</code> and <code>"rstudio_shiny"</code> are the
+exception: files land under <code>/srv/shiny-server/</code> regardless
+of <code>home_dir</code>, matching Shiny Server’s own default app
+directory.) All files must be inside the current working directory (the
+build context). Each argument accepts a single path, a character vector
+of paths, or a path to a directory – a directory is copied whole rather
+than one file at a time, and files and directories can be mixed freely
+within the same vector.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
@@ -257,8 +263,8 @@ directly. If the target platform differs from the host, a warning is
 emitted about potential emulation issues.</p>
 <p>Docker Desktop handles cross-platform builds more reliably than
 Podman’s QEMU emulation layer. If builds fail with segfaults under
-Podman, try <code>tool = "docker"</code> or build on a native x86_64
-machine.</p>
+Podman, try <code>tool_preference = "docker"</code> or build on a native
+x86_64 machine.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build for the host architecture (e.g. local use on Apple Silicon)</span></span>
 <span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>platform <span class="op">=</span> <span class="cn">NULL</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -294,6 +300,7 @@ about a missing header file or a failed compilation, add the relevant
 library to <code>install_syslibs</code> in
 <code><a href="../reference/generate_dockerfile.html">generate_dockerfile()</a></code>, regenerate the
 <code>Dockerfile</code>, and rebuild.</p>
+<hr>
 </div>
 <div class="section level2">
 <h2 id="step-3-inspect-local-images">Step 3: Inspect local images<a class="anchor" aria-label="anchor" href="#step-3-inspect-local-images"></a>
@@ -423,9 +430,9 @@ unused packages from the lockfile before building.</p>
 <p><strong>The build fails with a QEMU segfault on Apple
 Silicon.</strong> Building <code>linux/amd64</code> images on ARM hosts
 requires emulation, which can crash during R package installation.
-Switch to Docker Desktop (<code>tool = "docker"</code>), which uses
-<code>buildx</code> and handles cross-platform builds more reliably.
-Alternatively, build on a native x86_64 machine or via GitHub
+Switch to Docker Desktop (<code>tool_preference = "docker"</code>),
+which uses <code>buildx</code> and handles cross-platform builds more
+reliably. Alternatively, build on a native x86_64 machine or via GitHub
 Actions.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

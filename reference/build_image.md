@@ -66,7 +66,12 @@ build_image(
   Logical. If `TRUE`, prints explanatory context before each step – what
   the command does, why it is needed, and common pitfalls. Useful for
   first-time users learning the container build workflow. Defaults to
-  `FALSE`.
+  `FALSE`. This matches how `comments` is used across `submitr` –
+  printed guidance, nothing written to a file. The one exception in this
+  family is
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)'s
+  own `comments` argument (C15), which writes annotations into the
+  generated `Dockerfile` instead.
 
 ## Value
 

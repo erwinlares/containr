@@ -67,8 +67,14 @@ lookup fails.</p>
 
 
 <dt id="arg-os-version">os_version<a class="anchor" aria-label="anchor" href="#arg-os-version"></a></dt>
-<dd><p>A character string. The Ubuntu version to query against.
-Defaults to <code>"22.04"</code> to match the Rocker base image.</p></dd>
+<dd><p>A character string. The Ubuntu version to query
+against. Defaults to <code>"22.04"</code> when this function is called directly.
+<code><a href="generate_dockerfile.html">generate_dockerfile()</a></code> never relies on that default (C14): it always
+passes an explicit <code>os_version</code>, derived from the resolved <code>r_version</code>
+via <code><a href="dot-resolve_os_version.html">.resolve_os_version()</a></code> unless its own <code>os_version</code> argument
+overrides that derivation, since a single hardcoded value here only
+matched the Ubuntu release actually backing some R versions and not
+others.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
