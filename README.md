@@ -86,6 +86,12 @@ and `renv::snapshot()` will produce the lockfile that `containr` needs. If you
 did not use `toolero`, run `renv::snapshot()` in your project root before
 proceeding.
 
+The folder names, path conventions, and shared vocabulary used consistently
+across all three packages are collected in one place --
+[CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
+maintained in the `toolero` repository, since that's where those conventions
+are authored.
+
 ---
 
 ## Before you start
