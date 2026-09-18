@@ -19,7 +19,8 @@ generate_dockerfile(
   install_quarto = FALSE,
   quarto_version = "latest",
   comments = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  config = NULL
 )
 }
 \arguments{
@@ -126,6 +127,31 @@ with an explanatory comment. Useful for learning or sharing. Defaults to
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages as each section
 of the Dockerfile is written. Defaults to \code{FALSE}.}
+
+\item{config}{A character string. Path to a \verb{_toolero.yml} project
+manifest, such as the one \code{\link[toolero:init_project]{toolero::init_project()}} writes. When
+supplied, fills in \code{data_file}, \code{code_file}, and \code{misc_file} from the
+manifest's declared \verb{folders:} -- but only an argument left at its own
+\code{NULL} default. An argument you do supply always wins; \code{config} never
+overrides an explicit call. \code{code_file} is derived from the folder
+named by the manifest's \code{script_dir} convention (\code{"R"} by default) when
+that folder is present; \code{misc_file} is derived from \code{"assets"} when
+present, the branding folder \code{init_project(branding = ...)} creates;
+\code{data_file} is derived from \code{"data-raw"} when present, the folder this
+family's own documentation uses as the canonical home for input data --
+there is no dedicated manifest key naming it, so this one is
+\code{containr}'s own convention rather than something the file states
+explicitly. Reading \verb{_toolero.yml} is not a dependency on \code{toolero}: the
+schema is the contract, and a manifest written by hand is as valid an
+input as one \code{init_project()} created. In \code{verbose} mode, reports which
+of \code{data_file}, \code{code_file}, and \code{misc_file} came from \code{config} rather
+than from the call, since a generated \code{Dockerfile} whose \code{COPY} lines
+came from somewhere invisible to the caller undermines the
+reproducibility this package exists to support. A \code{schema_version} the
+file does not declare is treated as schema \code{1}; any other declared
+value produces a warning, not an abort, and the file is still read on a
+best-effort basis either way. Defaults to \code{NULL}, so nothing about this
+argument changes the behavior of a call that does not use it.}
 }
 \value{
 Called for its side effects. Writes a \code{Dockerfile} to \code{output}.
@@ -218,6 +244,14 @@ generate_dockerfile(
   install_quarto = TRUE,
   quarto_version = "1.5.57",
   output         = "."
+)
+
+# Fill in data_file, code_file, and misc_file from a toolero project
+# manifest instead of retyping paths the project already declares
+generate_dockerfile(
+  r_version = "4.3.0",
+  config    = "_toolero.yml",
+  output    = "."
 )
 }
 }
