@@ -24,3 +24,4 @@ diagrams.qmd
 ^diagrams\.html$
 ^diagrams_files$
 containr-alignment-plan.md
+containr-audit.md
