@@ -95,6 +95,30 @@
 #'   `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages as each section
 #'   of the Dockerfile is written. Defaults to `FALSE`.
+#' @param config A character string. Path to a `_toolero.yml` project
+#'   manifest, such as the one [toolero::init_project()] writes. When
+#'   supplied, fills in `data_file`, `code_file`, and `misc_file` from the
+#'   manifest's declared `folders:` -- but only an argument left at its own
+#'   `NULL` default. An argument you do supply always wins; `config` never
+#'   overrides an explicit call. `code_file` is derived from the folder
+#'   named by the manifest's `script_dir` convention (`"R"` by default) when
+#'   that folder is present; `misc_file` is derived from `"assets"` when
+#'   present, the branding folder `init_project(branding = ...)` creates;
+#'   `data_file` is derived from `"data-raw"` when present, the folder this
+#'   family's own documentation uses as the canonical home for input data --
+#'   there is no dedicated manifest key naming it, so this one is
+#'   `containr`'s own convention rather than something the file states
+#'   explicitly. Reading `_toolero.yml` is not a dependency on `toolero`: the
+#'   schema is the contract, and a manifest written by hand is as valid an
+#'   input as one `init_project()` created. In `verbose` mode, reports which
+#'   of `data_file`, `code_file`, and `misc_file` came from `config` rather
+#'   than from the call, since a generated `Dockerfile` whose `COPY` lines
+#'   came from somewhere invisible to the caller undermines the
+#'   reproducibility this package exists to support. A `schema_version` the
+#'   file does not declare is treated as schema `1`; any other declared
+#'   value produces a warning, not an abort, and the file is still read on a
+#'   best-effort basis either way. Defaults to `NULL`, so nothing about this
+#'   argument changes the behavior of a call that does not use it.
 #'
 #' @return Called for its side effects. Writes a `Dockerfile` to `output`.
 #'   Returns `invisible(NULL)`.
@@ -180,6 +204,14 @@
 #'   quarto_version = "1.5.57",
 #'   output         = "."
 #' )
+#'
+#' # Fill in data_file, code_file, and misc_file from a toolero project
+#' # manifest instead of retyping paths the project already declares
+#' generate_dockerfile(
+#'   r_version = "4.3.0",
+#'   config    = "_toolero.yml",
+#'   output    = "."
+#' )
 #' }
 generate_dockerfile <- function(r_version       = "current",
                                 r_mode          = "base",
@@ -195,7 +227,8 @@ generate_dockerfile <- function(r_version       = "current",
                                 install_quarto  = FALSE,
                                 quarto_version  = "latest",
                                 comments        = FALSE,
-                                verbose         = FALSE) {
+                                verbose         = FALSE,
+                                config          = NULL) {
 
     # -- 1. Validate r_mode early ----------------------------------------------
     if (!r_mode %in% names(.r_mode_registry)) {
@@ -219,6 +252,27 @@ generate_dockerfile <- function(r_version       = "current",
             "{.arg expose_port} is only used when {.arg r_mode} is {.val rstudio}.",
             "i" = "The supplied value {.val {expose_port}} will be ignored."
         ))
+    }
+
+    # -- 2b. Fill in file arguments from a toolero project manifest, if -------
+    # config was supplied. Only ever fills an argument the caller left at
+    # its own NULL default -- an explicit data_file/code_file/misc_file
+    # always wins, so config never changes the behavior of a call that
+    # also states its own file arguments. Must run before file argument
+    # validation below, since a config-derived path is validated exactly
+    # like one the caller typed.
+    if (!is.null(config)) {
+        from_config <- .resolve_config_file_args(config)
+
+        data_file <- .apply_config_default(
+            data_file, from_config$data_file, "data_file", config, verbose
+        )
+        code_file <- .apply_config_default(
+            code_file, from_config$code_file, "code_file", config, verbose
+        )
+        misc_file <- .apply_config_default(
+            misc_file, from_config$misc_file, "misc_file", config, verbose
+        )
     }
 
     # -- 3. Validate file arguments --------------------------------------------
@@ -651,4 +705,146 @@ generate_dockerfile <- function(r_version       = "current",
     }
 
     invisible(NULL)
+}
+
+
+# -- Helpers backing the config argument (C01) --------------------------------
+#
+# Reading _toolero.yml is not a dependency on toolero: the schema is the
+# contract (schema_version, folders:, conventions:), and a project that
+# writes the file by hand is as valid an input as one init_project() wrote.
+# containr therefore parses the YAML itself with yaml::read_yaml() rather
+# than calling any toolero-internal function.
+#
+# Deliberately additive only: nothing here ever overrides a file argument
+# the caller supplied, and nothing about generate_dockerfile()'s behavior
+# changes for a call that does not pass config. Silent defaulting based on
+# whether a file happens to exist is how you get bug reports nobody can
+# reproduce.
+
+
+#' Resolve file arguments from a toolero project manifest
+#'
+#' Internal helper backing [generate_dockerfile()]'s `config` argument.
+#' Parses `_toolero.yml` and returns the file arguments it can derive from
+#' the manifest's declared `folders:` -- one element per argument the file
+#' has an opinion about, `NULL` for one it does not. Never validates that
+#' the derived paths actually exist on disk; a stale or hand-edited
+#' manifest surfaces as the same "does not exist" error from
+#' `.validate_file_arg()` that a caller's own typo would, rather than a
+#' separate failure mode here.
+#'
+#' @param config Character. Path to a `_toolero.yml` file.
+#'
+#' @return A named list with elements `data_file`, `code_file`, and
+#'   `misc_file`, each a single character string or `NULL`.
+#'
+#' @keywords internal
+.resolve_config_file_args <- function(config) {
+
+    if (!is.character(config) || length(config) != 1L || is.na(config)) {
+        cli::cli_abort(c(
+            "{.arg config} must be a single character string.",
+            "x" = "Received {.obj_type_friendly {config}} of length {length(config)}."
+        ))
+    }
+
+    if (!fs::file_exists(config)) {
+        cli::cli_abort(c(
+            "{.arg config} file not found at {.file {config}}.",
+            "i" = "Pass the path to a {.file _toolero.yml} written by
+                   {.code toolero::init_project()} or
+                   {.code toolero::generate_project_config()}."
+        ))
+    }
+
+    parsed <- yaml::read_yaml(config)
+
+    # -- schema version --------------------------------------------------
+    # containr currently understands schema 1 only. A file with no
+    # schema_version is treated as schema 1, matching toolero's own
+    # reader, so a manifest written before the field existed still works.
+    # Anything else is read anyway: a config this version of containr
+    # cannot fully understand is still more useful consulted than ignored,
+    # and the file arguments it can derive (plain folder names) are
+    # unlikely to change shape even if the schema grows new keys.
+    supported_schema <- 1L
+    declared_schema  <- parsed[["schema_version"]]
+
+    if (!is.null(declared_schema)) {
+        declared_numeric <- suppressWarnings(as.integer(declared_schema))
+
+        if (is.na(declared_numeric) || declared_numeric != supported_schema) {
+            cli::cli_warn(c(
+                "!" = "{.file {config}} declares {.field schema_version}
+                       {.val {declared_schema}}, which this version of
+                       {.pkg containr} does not recognize.",
+                "i" = "Reading it anyway. This version of {.pkg containr}
+                       understands schema {.val {supported_schema}}."
+            ))
+        }
+    }
+
+    # -- folders and conventions ------------------------------------------
+    # A missing folders: entry is not an error here the way it is for
+    # toolero's own check_project() -- a manifest containr can't derive
+    # anything useful from just means config contributes nothing, and the
+    # call proceeds as if it had not been supplied.
+    folders <- parsed[["folders"]]
+    folders <- if (is.null(folders)) character(0) else as.character(folders)
+
+    conventions <- parsed[["conventions"]]
+    script_dir  <- NULL
+    if (is.list(conventions)) {
+        script_dir <- conventions[["script_dir"]]
+    }
+    if (is.null(script_dir) || !nzchar(script_dir)) {
+        script_dir <- "R"
+    }
+
+    list(
+        # No dedicated conventions: key names the input-data folder, unlike
+        # script_dir -- "data-raw" here is containr's own convention,
+        # matching how this family's own documentation uses it everywhere
+        # else, not something _toolero.yml states explicitly.
+        data_file = if ("data-raw" %in% folders) "data-raw" else NULL,
+        code_file = if (script_dir %in% folders) script_dir else NULL,
+        misc_file = if ("assets" %in% folders) "assets" else NULL
+    )
+}
+
+
+#' Apply one config-derived file argument default
+#'
+#' Internal helper used by [generate_dockerfile()]. Returns `current`
+#' unchanged whenever the caller already supplied it, or whenever `config`
+#' had no opinion about this argument. Only when both are true -- the
+#' caller left it `NULL` and `config` derived a value -- does `derived`
+#' take effect, and, in `verbose` mode, get reported as having come from
+#' `config` rather than from the call.
+#'
+#' @param current The argument's current value (from the call).
+#' @param derived The value [.resolve_config_file_args()] derived for it,
+#'   or `NULL`.
+#' @param arg_name Character. The argument's name, for the `verbose` message.
+#' @param config Character. Path to the config file, for the `verbose`
+#'   message.
+#' @param verbose Logical. Whether to report the substitution.
+#'
+#' @return `current`, or `derived` when it applies.
+#'
+#' @keywords internal
+.apply_config_default <- function(current, derived, arg_name, config, verbose) {
+
+    if (!is.null(current) || is.null(derived)) {
+        return(current)
+    }
+
+    if (verbose) {
+        cli::cli_inform(
+            "{.arg {arg_name}} not supplied -- using {.val {derived}} from {.file {config}}."
+        )
+    }
+
+    derived
 }

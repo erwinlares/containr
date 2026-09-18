@@ -32,6 +32,26 @@
 
 ## New features
 
+* `generate_dockerfile()` gains a `config` argument: the path to a
+  `_toolero.yml` project manifest, such as the one `toolero::init_project()`
+  writes. When supplied, it fills in `data_file`, `code_file`, and
+  `misc_file` from the manifest's declared `folders:` -- but only an
+  argument the call left at its own `NULL` default. An explicit
+  `data_file`/`code_file`/`misc_file` always wins, so passing `config` never
+  changes the behavior of a call that already states its own file
+  arguments. `code_file` is derived from the folder named by the manifest's
+  `script_dir` convention (`"R"` when the manifest does not say otherwise);
+  `misc_file` is derived from `"assets"` when present, the branding folder
+  `init_project(branding = ...)` creates; `data_file` is derived from
+  `"data-raw"` when present. In `verbose` mode, `generate_dockerfile()`
+  reports which of the three arguments came from `config` rather than from
+  the call. A `schema_version` the file does not declare is treated as
+  schema `1`; any other declared value warns rather than aborts, and the
+  file is still read on a best-effort basis either way. Reading
+  `_toolero.yml` is not a dependency on `toolero`: the schema is the
+  contract, and a manifest written by hand is as valid an input as one
+  `init_project()` created (#C01).
+
 * Two new `r_mode` values on `generate_dockerfile()`: `"shiny_server"`
   (`rocker/shiny`) for serving Shiny apps, and `"rstudio_shiny"`
   (`rocker/rstudio` with Shiny Server layered on top via Rocker's own
