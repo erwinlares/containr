@@ -1,6 +1,6 @@
 # Changelog
 
-## containr 0.2.0
+## containr 0.2.0.9000
 
 ### Breaking changes
 
@@ -38,6 +38,29 @@
   `netid = ...` calls to `namespace = ...`.
 
 ### New features
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  gains a `config` argument: the path to a `_toolero.yml` project
+  manifest, such as the one `toolero::init_project()` writes. When
+  supplied, it fills in `data_file`, `code_file`, and `misc_file` from
+  the manifest’s declared `folders:` – but only an argument the call
+  left at its own `NULL` default. An explicit
+  `data_file`/`code_file`/`misc_file` always wins, so passing `config`
+  never changes the behavior of a call that already states its own file
+  arguments. `code_file` is derived from the folder named by the
+  manifest’s `script_dir` convention (`"R"` when the manifest does not
+  say otherwise); `misc_file` is derived from `"assets"` when present,
+  the branding folder `init_project(branding = ...)` creates;
+  `data_file` is derived from `"data-raw"` when present. In `verbose`
+  mode,
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  reports which of the three arguments came from `config` rather than
+  from the call. A `schema_version` the file does not declare is treated
+  as schema `1`; any other declared value warns rather than aborts, and
+  the file is still read on a best-effort basis either way. Reading
+  `_toolero.yml` is not a dependency on `toolero`: the schema is the
+  contract, and a manifest written by hand is as valid an input as one
+  `init_project()` created (#C01).
 
 - Two new `r_mode` values on
   [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md):
@@ -123,6 +146,75 @@
 
 ### Bug fixes
 
+- The generated `Dockerfile` now restores the `renv` project library
+  immediately after copying `renv.lock`, before any of the `data_file`,
+  `code_file`, or `misc_file` content is copied in. Previously the three
+  `COPY` blocks for project content sat above the restore step, so
+  editing a single line of an analysis script invalidated
+  Docker/Podman’s build cache for that `COPY` layer and, because the
+  restore came after it, for the single most expensive layer in the
+  image too – every package reinstalled from source on every rebuild,
+  contrary to what the README says about later builds being faster. The
+  restore only depends on `renv.lock`, already in place earlier in the
+  file, so nothing about moving it changes what gets installed.
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  now copies `renv.lock` to `{home_dir}/renv.lock` instead of a
+  hardcoded `/home/renv.lock`. The image’s install script runs
+  [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
+  with no explicit project, which resolves the project from the working
+  directory – i.e. w`herever WORKDIR (home_dir)` points. The hardcoded
+  destination only worked by coincidence when home_dir was left at its
+  own default of `"/home"`; passing `home_dir = "/workspace"` left the
+  lockfile somewhere
+  [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
+  never looked.
+
+- `generate_dockerfile(install_quarto = TRUE)` now fetches and installs
+  Quarto with `curl -LO` and `dpkg -i` (falling back to
+  `apt-get install -f` to resolve dependencies) instead of `wget` and
+  `gdebi`. Neither `wget` nor `gdebi` is presentin `rocker/r-ver`, so
+  `install_quarto = TRUE previously failed at build time on every`r_mode`unless something in the lockfile happened to pull those two programs in as a side effect.`curl\`
+  is already installed unconditionally as a baseline system library, so
+  the new approach adds no packages to the image.
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  now validates the requested R version against the tag repository the
+  resolved `r_mode` will actually build `FROM`, instead of always
+  checking it against `rocker/r-ver`. A version that exists in
+  `rocker/r-ver` but notin, say, `rocker/verse` previously passed
+  validation and only failed later, at the `FROM` instruction itself;
+  the “version does not exist” error now also points at the
+  rightrepository’s page instead of always linking to `rocker/r-ver`’s.
+
+- expose_port’s “only used when `r_mode` is `rstudio`” warning is now
+  based on whether the argument was supplied at all
+  (`missing(expose_port)`), not on whether its value differs from the
+  default. Previously, explicitly passing `expose_port = "8787"` under a
+  non-rstudio `r_mode` produced no warning even though the value is
+  still ignored there.
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  now creates `output`, including any missing parent directories, if it
+  does not already exist. Previously, a nonexistent `output` directory
+  surfaced as a raw file-connection error from
+  [`readr::write_lines()`](https://readr.tidyverse.org/reference/read_lines.html)
+  rather than an informative message.
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)’s
+  output argument now defaults to “.”, the current working directory,
+  instead of [`tempdir()`](https://rdrr.io/r/base/tempfile.html). The
+  old default meant
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  and
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  – whose dockerfile argument is always resolved against
+  [`getwd()`](https://rdrr.io/r/base/getwd.html) – pointed at two
+  different places by default, so calling both with no arguments, the
+  most natural thing a new user does, failed on the second call with a
+  file it could not find. The two defaults now compose without either
+  argument having to be supplied.
+
 - Fixed a bug where
   [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
   pre-push login check always failed under Docker regardless of whether
@@ -185,6 +277,41 @@
   an unintended destination. These now run automatically in CI on every
   push/PR touching the relevant files, via a new
   `container-integration-tests.yaml` GitHub Actions workflow.
+
+### Testing
+
+- Added `tests/testthat/test-readme-workflow.R`, which extracts the
+  actual
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  call from the README’s “A first workflow” section, runs it exactly as
+  printed, and confirms the resulting `Dockerfile` pins the requested R
+  version and copies in the referenced files. The other three steps in
+  that workflow
+  ([`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md),
+  [`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md),
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md))
+  need a live container engine and registry and can’t run in CI, but
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  needs nothing but a lockfile in a temporary directory, and it’s the
+  step everything else depends on. This test reads the README rather
+  than holding a copy of its example, so the two can’t quietly drift
+  apart, and skips (rather than fails) when `README.md` isn’t on disk,
+  such as from a built tarball (#C20).
+
+- Added a test that generates a Dockerfile for every r_mode crossed with
+  both `"/home"` and `"/workspace"` `home_dir` values, parses the actual
+  `WORKDIR` and `COPY` lines out of the result, and asserts that
+  renv.lock lands under `WORKDIR` and that project files land under the
+  mode’s `copy_root`. Previously each of those facts was tested in
+  isolation, which is exactly how \#C10 stayed invisible: every
+  individual assertion was true at once.
+
+- Added a test asserting the position of instructions relative to each
+  other (`syslibs` before `quarto`, `renv_lock` before the restore step,
+  the restore step before the first `COPY` of project content) rather
+  than comparing against a fixed expected `Dockerfile`, so it survives
+  future additions to the instruction list without needing to be
+  rewritten (#C21).
 
 ## containr 0.1.3.9000
 

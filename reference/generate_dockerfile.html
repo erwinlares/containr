@@ -60,7 +60,7 @@ inline documentation comments.</p>
 <span>  r_mode <span class="op">=</span> <span class="st">"base"</span>,</span>
 <span>  auto_syslibs <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  install_syslibs <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  output <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  data_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  code_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  misc_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -70,7 +70,8 @@ inline documentation comments.</p>
 <span>  install_quarto <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  quarto_version <span class="op">=</span> <span class="st">"latest"</span>,</span>
 <span>  comments <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  config <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -111,8 +112,15 @@ element should be a valid <code>apt</code> package name, e.g.
 
 
 <dt id="arg-output">output<a class="anchor" aria-label="anchor" href="#arg-output"></a></dt>
-<dd><p>A character string. Directory path where the <code>Dockerfile</code> will
-be written. Defaults to <code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>.</p></dd>
+<dd><p>A character string. Directory path where the <code>Dockerfile</code>
+will be written. Defaults to <code>"."</code>, the current working directory –
+the same directory <code><a href="build_image.html">build_image()</a></code> treats as the build context by
+default, so the two functions' defaults compose without either
+argument having to be supplied. A <code>Dockerfile</code> written somewhere else
+(<code><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir()</a></code>, say) would have to be moved into the build context before
+<code><a href="build_image.html">build_image()</a></code> could find it, since the build context is always
+<code><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd()</a></code>. <code>output</code> is created automatically, along with any missing
+parent directories, if it does not already exist.</p></dd>
 
 
 <dt id="arg-data-file">data_file<a class="anchor" aria-label="anchor" href="#arg-data-file"></a></dt>
@@ -140,11 +148,19 @@ directory. Defaults to <code>NULL</code>.</p></dd>
 
 <dt id="arg-misc-file">misc_file<a class="anchor" aria-label="anchor" href="#arg-misc-file"></a></dt>
 <dd><p>A character vector or <code>NULL</code>. Path(s) to miscellaneous
-file(s) (e.g. images or shell scripts) and/or directories to copy into
-the container – see <code>data_file</code> for vector and directory behavior. The
-local directory structure is preserved under the mode's copy root –
-see <code>data_file</code>. Every path must be inside the current working
-directory. Defaults to <code>NULL</code>.</p></dd>
+file(s) (e.g. images, shell scripts, or branding assets) and/or
+directories to copy into the container – see <code>data_file</code> for vector
+and directory behavior. The local directory structure is preserved under
+the mode's copy root – see <code>data_file</code>. Every path must be inside the
+current working directory. Defaults to <code>NULL</code>.
+If the project was scaffolded with <code>toolero::init_project()</code> using
+<code>branding = TRUE</code> or <code>branding = "uw-madison"</code>, the generated <code>.qmd</code>
+will reference <code>assets/styles.css</code>, <code>assets/header.html</code>, and
+<code>assets/footer.html</code> at render time. Those files must be present inside
+the container or Quarto will error on render. Pass
+<code>misc_file = "assets/"</code> to copy the entire branding folder in one step.
+Additional files and directories can be combined freely in the same
+vector, e.g. <code>misc_file = c("assets/", "extra-script.sh")</code>.</p></dd>
 
 
 <dt id="arg-add-user">add_user<a class="anchor" aria-label="anchor" href="#arg-add-user"></a></dt>
@@ -196,6 +212,33 @@ with an explanatory comment. Useful for learning or sharing. Defaults to
 <dd><p>Logical. If <code>TRUE</code>, prints progress messages as each section
 of the Dockerfile is written. Defaults to <code>FALSE</code>.</p></dd>
 
+
+<dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
+<dd><p>A character string. Path to a <code>_toolero.yml</code> project
+manifest, such as the one <code>toolero::init_project()</code> writes. When
+supplied, fills in <code>data_file</code>, <code>code_file</code>, and <code>misc_file</code> from the
+manifest's declared <code>folders:</code> – but only an argument left at its own
+<code>NULL</code> default. An argument you do supply always wins; <code>config</code> never
+overrides an explicit call. <code>code_file</code> is derived from the folder
+named by the manifest's <code>script_dir</code> convention (<code>"R"</code> by default) when
+that folder is present; <code>misc_file</code> is derived from <code>"assets"</code> when
+present, the branding folder <code>init_project(branding = ...)</code> creates;
+<code>data_file</code> is derived from <code>"data-raw"</code> when present, the folder this
+family's own documentation uses as the canonical home for input data –
+there is no dedicated manifest key naming it, so this one is
+<code>containr</code>'s own convention rather than something the file states
+explicitly. Reading <code>_toolero.yml</code> is not a dependency on <code>toolero</code>: the
+schema is the contract, and a manifest written by hand is as valid an
+input as one <code>init_project()</code> created. In <code>verbose</code> mode, reports which
+of <code>data_file</code>, <code>code_file</code>, and <code>misc_file</code> came from <code>config</code> rather
+than from the call, since a generated <code>Dockerfile</code> whose <code>COPY</code> lines
+came from somewhere invisible to the caller undermines the
+reproducibility this package exists to support. A <code>schema_version</code> the
+file does not declare is treated as schema <code>1</code>; any other declared
+value produces a warning, not an abort, and the file is still read on a
+best-effort basis either way. Defaults to <code>NULL</code>, so nothing about this
+argument changes the behavior of a call that does not use it.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -210,6 +253,14 @@ Returns <code>invisible(NULL)</code>.</p>
 directory. Create one with <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> before calling this function.
 If the lock file is out of sync with your project library, a warning is
 issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> to update it before building the image.</p>
+<p>If the project uses Quarto with branding assets (i.e. <code>toolero::create_qmd()</code>
+was called with <code>use_style = TRUE</code>), the <code>assets/</code> folder must be copied
+into the container alongside the <code>.qmd</code> file or Quarto will be unable to
+resolve the CSS and HTML includes at render time. The simplest way to
+ensure this is to pass <code>misc_file = "assets/"</code> – or
+<code>misc_file = c("assets/", other_files)</code> if additional files are needed –
+when calling <code>generate_dockerfile()</code>. No code change is required;
+<code>misc_file</code> already accepts directories and copies them whole.</p>
     </div>
 
     <div class="section level2">
@@ -218,12 +269,13 @@ issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span><span class="co"># Requires renv.lock in the current working directory.</span></span></span>
 <span class="r-in"><span><span class="co"># Run renv::snapshot() first if you don't have one.</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Generate a minimal Dockerfile using a pinned R version</span></span></span>
-<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Generate a minimal Dockerfile using a pinned R version. output defaults</span></span></span>
+<span class="r-in"><span><span class="co"># to ".", so this writes to the current working directory -- the same</span></span></span>
+<span class="r-in"><span><span class="co"># place build_image() looks by default.</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Pin a specific R version with the tidyverse image</span></span></span>
-<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.3.0"</span>, r_mode <span class="op">=</span> <span class="st">"tidyverse"</span>,</span></span>
-<span class="r-in"><span>                    output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.3.0"</span>, r_mode <span class="op">=</span> <span class="st">"tidyverse"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Add extra system libraries on top of auto-detected ones</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
@@ -241,9 +293,9 @@ issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Multiple scripts and a whole assets folder, copied in one call --</span></span></span>
-<span class="r-in"><span><span class="co"># data_file, code_file, and misc_file all accept vectors, and a directory</span></span></span>
-<span class="r-in"><span><span class="co"># is copied whole</span></span></span>
+<span class="r-in"><span><span class="co"># Multiple scripts and a whole assets folder -- pass assets/ via misc_file</span></span></span>
+<span class="r-in"><span><span class="co"># so that branding files (styles.css, header.html, footer.html) are present</span></span></span>
+<span class="r-in"><span><span class="co"># inside the container when Quarto renders the .qmd</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
 <span class="r-in"><span>  code_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R/prepare.R"</span>, <span class="st">"R/model.R"</span><span class="op">)</span>,</span></span>
@@ -275,6 +327,14 @@ issued – run <code><a href="https://rstudio.github.io/renv/reference/snapshot.
 <span class="r-in"><span>  install_quarto <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  quarto_version <span class="op">=</span> <span class="st">"1.5.57"</span>,</span></span>
 <span class="r-in"><span>  output         <span class="op">=</span> <span class="st">"."</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Fill in data_file, code_file, and misc_file from a toolero project</span></span></span>
+<span class="r-in"><span><span class="co"># manifest instead of retyping paths the project already declares</span></span></span>
+<span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
+<span class="r-in"><span>  config    <span class="op">=</span> <span class="st">"_toolero.yml"</span>,</span></span>
+<span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>

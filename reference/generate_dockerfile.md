@@ -14,7 +14,7 @@ generate_dockerfile(
   r_mode = "base",
   auto_syslibs = TRUE,
   install_syslibs = NULL,
-  output = tempdir(),
+  output = ".",
   data_file = NULL,
   code_file = NULL,
   misc_file = NULL,
@@ -24,7 +24,8 @@ generate_dockerfile(
   install_quarto = FALSE,
   quarto_version = "latest",
   comments = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  config = NULL
 )
 ```
 
@@ -66,8 +67,19 @@ generate_dockerfile(
 - output:
 
   A character string. Directory path where the `Dockerfile` will be
-  written. Defaults to
-  [`tempdir()`](https://rdrr.io/r/base/tempfile.html).
+  written. Defaults to `"."`, the current working directory – the same
+  directory
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  treats as the build context by default, so the two functions' defaults
+  compose without either argument having to be supplied. A `Dockerfile`
+  written somewhere else
+  ([`tempdir()`](https://rdrr.io/r/base/tempfile.html), say) would have
+  to be moved into the build context before
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  could find it, since the build context is always
+  [`getwd()`](https://rdrr.io/r/base/getwd.html). `output` is created
+  automatically, along with any missing parent directories, if it does
+  not already exist.
 
 - data_file:
 
@@ -95,11 +107,19 @@ generate_dockerfile(
 - misc_file:
 
   A character vector or `NULL`. Path(s) to miscellaneous file(s) (e.g.
-  images or shell scripts) and/or directories to copy into the container
-  – see `data_file` for vector and directory behavior. The local
-  directory structure is preserved under the mode's copy root – see
-  `data_file`. Every path must be inside the current working directory.
-  Defaults to `NULL`.
+  images, shell scripts, or branding assets) and/or directories to copy
+  into the container – see `data_file` for vector and directory
+  behavior. The local directory structure is preserved under the mode's
+  copy root – see `data_file`. Every path must be inside the current
+  working directory. Defaults to `NULL`. If the project was scaffolded
+  with `toolero::init_project()` using `branding = TRUE` or
+  `branding = "uw-madison"`, the generated `.qmd` will reference
+  `assets/styles.css`, `assets/header.html`, and `assets/footer.html` at
+  render time. Those files must be present inside the container or
+  Quarto will error on render. Pass `misc_file = "assets/"` to copy the
+  entire branding folder in one step. Additional files and directories
+  can be combined freely in the same vector, e.g.
+  `misc_file = c("assets/", "extra-script.sh")`.
 
 - add_user:
 
@@ -150,6 +170,33 @@ generate_dockerfile(
   Logical. If `TRUE`, prints progress messages as each section of the
   Dockerfile is written. Defaults to `FALSE`.
 
+- config:
+
+  A character string. Path to a `_toolero.yml` project manifest, such as
+  the one `toolero::init_project()` writes. When supplied, fills in
+  `data_file`, `code_file`, and `misc_file` from the manifest's declared
+  `folders:` – but only an argument left at its own `NULL` default. An
+  argument you do supply always wins; `config` never overrides an
+  explicit call. `code_file` is derived from the folder named by the
+  manifest's `script_dir` convention (`"R"` by default) when that folder
+  is present; `misc_file` is derived from `"assets"` when present, the
+  branding folder `init_project(branding = ...)` creates; `data_file` is
+  derived from `"data-raw"` when present, the folder this family's own
+  documentation uses as the canonical home for input data – there is no
+  dedicated manifest key naming it, so this one is `containr`'s own
+  convention rather than something the file states explicitly. Reading
+  `_toolero.yml` is not a dependency on `toolero`: the schema is the
+  contract, and a manifest written by hand is as valid an input as one
+  `init_project()` created. In `verbose` mode, reports which of
+  `data_file`, `code_file`, and `misc_file` came from `config` rather
+  than from the call, since a generated `Dockerfile` whose `COPY` lines
+  came from somewhere invisible to the caller undermines the
+  reproducibility this package exists to support. A `schema_version` the
+  file does not declare is treated as schema `1`; any other declared
+  value produces a warning, not an abort, and the file is still read on
+  a best-effort basis either way. Defaults to `NULL`, so nothing about
+  this argument changes the behavior of a call that does not use it.
+
 ## Value
 
 Called for its side effects. Writes a `Dockerfile` to `output`. Returns
@@ -165,6 +212,16 @@ project library, a warning is issued – run
 [`renv::snapshot()`](https://rstudio.github.io/renv/reference/snapshot.html)
 to update it before building the image.
 
+If the project uses Quarto with branding assets (i.e.
+`toolero::create_qmd()` was called with `use_style = TRUE`), the
+`assets/` folder must be copied into the container alongside the `.qmd`
+file or Quarto will be unable to resolve the CSS and HTML includes at
+render time. The simplest way to ensure this is to pass
+`misc_file = "assets/"` – or `misc_file = c("assets/", other_files)` if
+additional files are needed – when calling `generate_dockerfile()`. No
+code change is required; `misc_file` already accepts directories and
+copies them whole.
+
 ## Examples
 
 ``` r
@@ -172,12 +229,13 @@ if (FALSE) { # \dontrun{
 # Requires renv.lock in the current working directory.
 # Run renv::snapshot() first if you don't have one.
 
-# Generate a minimal Dockerfile using a pinned R version
-generate_dockerfile(r_version = "4.4.0", output = tempdir())
+# Generate a minimal Dockerfile using a pinned R version. output defaults
+# to ".", so this writes to the current working directory -- the same
+# place build_image() looks by default.
+generate_dockerfile(r_version = "4.4.0")
 
 # Pin a specific R version with the tidyverse image
-generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse",
-                    output = tempdir())
+generate_dockerfile(r_version = "4.3.0", r_mode = "tidyverse")
 
 # Add extra system libraries on top of auto-detected ones
 generate_dockerfile(
@@ -195,9 +253,9 @@ generate_dockerfile(
   output    = "."
 )
 
-# Multiple scripts and a whole assets folder, copied in one call --
-# data_file, code_file, and misc_file all accept vectors, and a directory
-# is copied whole
+# Multiple scripts and a whole assets folder -- pass assets/ via misc_file
+# so that branding files (styles.css, header.html, footer.html) are present
+# inside the container when Quarto renders the .qmd
 generate_dockerfile(
   r_version = "4.3.0",
   code_file = c("R/prepare.R", "R/model.R"),
@@ -229,6 +287,14 @@ generate_dockerfile(
   install_quarto = TRUE,
   quarto_version = "1.5.57",
   output         = "."
+)
+
+# Fill in data_file, code_file, and misc_file from a toolero project
+# manifest instead of retyping paths the project already declares
+generate_dockerfile(
+  r_version = "4.3.0",
+  config    = "_toolero.yml",
+  output    = "."
 )
 } # }
 ```
