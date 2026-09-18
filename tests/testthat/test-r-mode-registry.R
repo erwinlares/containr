@@ -51,11 +51,19 @@ test_that(".r_mode_registry has no extra_install steps except rstudio_shiny", {
     expect_equal(reg$rstudio_shiny$extra_install, "install_shiny_server.sh")
 })
 
-test_that(".r_mode_registry copy_root is /home for the four Phase 1 modes, /srv/shiny-server for the two Phase 2 modes", {
+test_that(".r_mode_registry copy_root is NULL (tracks home_dir) for the four Phase 1 modes, /srv/shiny-server for the two Phase 2 modes (C24)", {
+    # copy_root used to be the literal "/home" for the four Phase 1 modes,
+    # independent of home_dir -- that only agreed with home_dir's own
+    # default and silently disagreed the moment home_dir was set to
+    # anything else. It's NULL in the registry now, the same "not
+    # applicable here" idiom already used for ports/extra_install on modes
+    # that don't need them; generate_dockerfile() falls back to home_dir
+    # when it reads a NULL copy_root, rather than the registry hardcoding
+    # a value that could disagree with it.
     reg <- containr:::.r_mode_registry
 
     for (mode in c("base", "tidyverse", "rstudio", "verse")) {
-        expect_equal(reg[[mode]]$copy_root, "/home", info = paste("mode =", mode))
+        expect_null(reg[[mode]]$copy_root, info = paste("mode =", mode))
     }
 
     for (mode in c("shiny_server", "rstudio_shiny")) {

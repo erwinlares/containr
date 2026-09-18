@@ -9,8 +9,14 @@
 \arguments{
 \item{packages}{A character vector of R package names.}
 
-\item{os_version}{A character string. The Ubuntu version to query against.
-Defaults to \code{"22.04"} to match the Rocker base image.}
+\item{os_version}{A character string. The Ubuntu version to query
+against. Defaults to \code{"22.04"} when this function is called directly.
+\code{\link[=generate_dockerfile]{generate_dockerfile()}} never relies on that default (C14): it always
+passes an explicit \code{os_version}, derived from the resolved \code{r_version}
+via \code{.resolve_os_version()} unless its own \code{os_version} argument
+overrides that derivation, since a single hardcoded value here only
+matched the Ubuntu release actually backing some R versions and not
+others.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages.}
 }

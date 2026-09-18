@@ -30,8 +30,14 @@
 #' lookup fails.
 #'
 #' @param packages A character vector of R package names.
-#' @param os_version A character string. The Ubuntu version to query against.
-#'   Defaults to `"22.04"` to match the Rocker base image.
+#' @param os_version A character string. The Ubuntu version to query
+#'   against. Defaults to `"22.04"` when this function is called directly.
+#'   [generate_dockerfile()] never relies on that default (C14): it always
+#'   passes an explicit `os_version`, derived from the resolved `r_version`
+#'   via `.resolve_os_version()` unless its own `os_version` argument
+#'   overrides that derivation, since a single hardcoded value here only
+#'   matched the Ubuntu release actually backing some R versions and not
+#'   others.
 #' @param verbose Logical. If `TRUE`, prints progress messages.
 #' @return A deduplicated character vector of `apt` package names.
 #' @keywords internal

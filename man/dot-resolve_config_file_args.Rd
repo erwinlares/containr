@@ -11,7 +11,9 @@
 }
 \value{
 A named list with elements \code{data_file}, \code{code_file}, and
-\code{misc_file}, each a single character string or \code{NULL}.
+\code{misc_file}, each a single character string or \code{NULL}; and \code{folders},
+a character vector of every folder the manifest declares (possibly
+empty), for deriving the \code{mkdir -p} block (C07).
 }
 \description{
 Internal helper backing \code{\link[=generate_dockerfile]{generate_dockerfile()}}'s \code{config} argument.

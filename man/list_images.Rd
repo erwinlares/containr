@@ -13,14 +13,18 @@ Docker. Supply a single value (e.g. \code{"docker"}) to require that specific
 tool rather than auto-detecting.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints a progress message before
-querying the local image store. Defaults to \code{FALSE}.}
+querying the local image store, and prints the resulting data frame
+(C17) -- matching every other user-facing message in the package,
+which is \code{verbose}-gated rather than unconditional. Defaults to
+\code{FALSE}, so \code{imgs <- list_images()} assigns quietly rather than also
+printing as a side effect.}
 }
 \value{
 A data frame with five columns: \code{repository}, \code{tag}, \code{image_id},
 \code{created}, and \code{size}. Rows where both \code{repository} and \code{tag} are
 \verb{<none>} correspond to untagged images produced by \code{\link[=build_image]{build_image()}} when
-no \code{tag} argument was supplied. The data frame is also printed to the
-console. Returns an empty data frame if no images are found.
+no \code{tag} argument was supplied. Returns an empty data frame if no
+images are found.
 }
 \description{
 \code{list_images()} returns a data frame of container images currently stored
@@ -39,17 +43,17 @@ you need to pass to \code{\link[=push_image]{push_image()}}:
 push_image(
   image_id  = imgs$image_id[1],
   namespace = "erwin.lares",
-  project   = "container-registry"
+  project   = "my-analysis"
 )
 }\if{html}{\out{</div>}}
 }
 
 \examples{
 \dontrun{
-# List all local images
-list_images()
+# List all local images and print them (verbose = TRUE)
+list_images(verbose = TRUE)
 
-# Capture the result for programmatic use
+# Capture the result for programmatic use, without printing (C17)
 imgs <- list_images()
 imgs$image_id[1]
 }

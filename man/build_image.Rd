@@ -44,7 +44,11 @@ Defaults to \code{FALSE}.}
 \item{comments}{Logical. If \code{TRUE}, prints explanatory context before each
 step -- what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container build workflow.
-Defaults to \code{FALSE}.}
+Defaults to \code{FALSE}. This matches how \code{comments} is used across
+\code{submitr} -- printed guidance, nothing written to a file. The one
+exception in this family is \code{\link[=generate_dockerfile]{generate_dockerfile()}}'s own \code{comments}
+argument (C15), which writes annotations into the generated
+\code{Dockerfile} instead.}
 }
 \value{
 Called for its side effects. Returns \code{invisible(NULL)}.

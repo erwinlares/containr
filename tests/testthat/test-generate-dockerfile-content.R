@@ -19,7 +19,7 @@ read_dockerfile <- function(dir) {
 
 test_that("Dockerfile starts with FROM rocker/r-ver for r_mode = 'base'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -31,7 +31,7 @@ test_that("Dockerfile starts with FROM rocker/r-ver for r_mode = 'base'", {
 
 test_that("Dockerfile FROM line reflects r_mode = 'tidyverse'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -43,7 +43,7 @@ test_that("Dockerfile FROM line reflects r_mode = 'tidyverse'", {
 
 test_that("Dockerfile FROM line reflects r_mode = 'rstudio'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -55,7 +55,7 @@ test_that("Dockerfile FROM line reflects r_mode = 'rstudio'", {
 
 test_that("Dockerfile FROM line reflects r_mode = 'verse'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -67,7 +67,7 @@ test_that("Dockerfile FROM line reflects r_mode = 'verse'", {
 
 test_that("Dockerfile FROM line reflects r_mode = 'shiny_server'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -79,7 +79,7 @@ test_that("Dockerfile FROM line reflects r_mode = 'shiny_server'", {
 
 test_that("Dockerfile FROM line reflects r_mode = 'rstudio_shiny'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -92,7 +92,7 @@ test_that("Dockerfile FROM line reflects r_mode = 'rstudio_shiny'", {
 
 test_that("Dockerfile FROM line uses resolved current R version", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -111,7 +111,7 @@ test_that("generate_dockerfile() checks the R version against the resolved r_mod
     # that exists in rocker/r-ver but not in, say, rocker/verse would pass
     # validation and only fail later, at the FROM instruction itself.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
@@ -135,7 +135,7 @@ test_that("the R-version-not-found error points at the resolved r_mode's own tag
     # page even when the mode in question was, say, verse -- misleading
     # whenever the two repositories' available tags disagree.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`status`        = function(...) list(synchronized = TRUE), .package = "renv")
     local_mocked_bindings(`.r_ver_exists` = function(...) FALSE, .package = "containr")
@@ -155,7 +155,7 @@ test_that("the R-version-not-found error points at the resolved r_mode's own tag
 
 test_that("Dockerfile contains ENV DEBIAN_FRONTEND=noninteractive", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -167,7 +167,7 @@ test_that("Dockerfile contains ENV DEBIAN_FRONTEND=noninteractive", {
 
 test_that("Dockerfile contains WORKDIR /home by default", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -179,7 +179,7 @@ test_that("Dockerfile contains WORKDIR /home by default", {
 
 test_that("Dockerfile WORKDIR reflects custom home_dir", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -191,7 +191,7 @@ test_that("Dockerfile WORKDIR reflects custom home_dir", {
 
 test_that("Dockerfile contains COPY renv.lock line", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -209,7 +209,7 @@ test_that("COPY renv.lock lands under custom home_dir, not a hardcoded /home (C1
     # passing home_dir = "/workspace" previously left the lockfile in
     # /home while the restore ran in /workspace and found nothing there.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -236,7 +236,7 @@ test_that("renv.lock lands under WORKDIR and project files land under copy_root,
     for (mode in names(containr:::.r_mode_registry)) {
         for (hd in c("/home", "/workspace")) {
             tmp <- withr::local_tempdir()
-            writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+            writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
             withr::local_dir(tmp)
             local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
             local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -264,7 +264,11 @@ test_that("renv.lock lands under WORKDIR and project files land under copy_root,
             renv_dest <- sub("^COPY renv\\.lock ", "", renv_copy_line)
             expect_equal(renv_dest, paste0(workdir, "/renv.lock"), info = info)
 
-            copy_root         <- containr:::.r_mode_registry[[mode]]$copy_root
+            # C24: NULL in the registry means "falls back to home_dir" --
+            # resolve it the same way generate_dockerfile() itself does,
+            # rather than asserting against the raw registry value.
+            copy_root <- containr:::.r_mode_registry[[mode]]$copy_root
+            if (is.null(copy_root)) copy_root <- hd
             script_copy_line  <- lines[grepl("^COPY script\\.R ", lines)]
             expect_length(script_copy_line, 1)
             script_dest <- sub("^COPY script\\.R ", "", script_copy_line)
@@ -279,7 +283,7 @@ test_that("renv.lock lands under WORKDIR and project files land under copy_root,
 
 test_that("Dockerfile contains apt-get install block when install_syslibs is supplied", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -293,7 +297,7 @@ test_that("Dockerfile contains apt-get install block when install_syslibs is sup
 
 test_that("Dockerfile installs only baseline curl when install_syslibs = NULL", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -307,7 +311,7 @@ test_that("Dockerfile installs only baseline curl when install_syslibs = NULL", 
 
 test_that("System lib block includes user-supplied libraries", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -323,12 +327,159 @@ test_that("System lib block includes user-supplied libraries", {
 })
 
 # ---------------------------------------------------------------------------
+# Empty renv.lock warning (C04)
+# ---------------------------------------------------------------------------
+#
+# .read_renv_packages() returns character(0) for a renv.lock with no
+# Packages recorded at all -- previously silent: .fetch_sysreqs()
+# short-circuits on it, the image builds with only the baseline curl
+# installed, and the build succeeds while the analysis inside it cannot
+# run. generate_dockerfile() now warns whenever this happens, regardless
+# of auto_syslibs, since an empty lockfile is a symptom of the project
+# itself, not of skipping auto-detection.
+
+test_that("generate_dockerfile() warns when renv.lock records no packages", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    expect_warning(
+        generate_dockerfile(r_version = "4.3.0", output = tmp),
+        "records no packages"
+    )
+})
+
+test_that("generate_dockerfile() does not warn when renv.lock records packages", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    expect_no_warning(
+        generate_dockerfile(r_version = "4.3.0", output = tmp)
+    )
+})
+
+test_that("the empty-lockfile warning fires even when auto_syslibs = FALSE", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists` = function(...) TRUE, .package = "containr")
+    local_mocked_bindings(`status`        = function(...) list(synchronized = TRUE), .package = "renv")
+
+    expect_warning(
+        generate_dockerfile(r_version = "4.3.0", auto_syslibs = FALSE, output = tmp),
+        "records no packages"
+    )
+})
+
+test_that("the empty-lockfile warning mentions toolero as a runtime dependency", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    expect_warning(
+        generate_dockerfile(r_version = "4.3.0", output = tmp),
+        "toolero"
+    )
+})
+
+# ---------------------------------------------------------------------------
+# os_version derivation for sysreqs lookups (C14)
+# ---------------------------------------------------------------------------
+#
+# .fetch_sysreqs() previously always received a hardcoded "22.04" default,
+# regardless of r_version. generate_dockerfile() now derives os_version
+# from the resolved r_version via the Rocker Project's own
+# R-version-to-Ubuntu-release mapping, and passes it through explicitly,
+# unless the caller overrides it with its own os_version argument.
+
+test_that(".resolve_os_version() implements the Rocker Project's R-to-Ubuntu mapping", {
+    expect_equal(containr:::.resolve_os_version("4.0.0"), "20.04")
+    expect_equal(containr:::.resolve_os_version("4.1.3"), "20.04")
+    expect_equal(containr:::.resolve_os_version("4.2.2"), "22.04")
+    expect_equal(containr:::.resolve_os_version("4.3.3"), "22.04")
+    expect_equal(containr:::.resolve_os_version("4.4.2"), "24.04")
+    expect_equal(containr:::.resolve_os_version("4.4.5"), "24.04")
+    # Just below each threshold still resolves to the previous release
+    expect_equal(containr:::.resolve_os_version("4.2.1"), "20.04")
+    expect_equal(containr:::.resolve_os_version("4.4.1"), "22.04")
+    # latest/devel always track the newest known release
+    expect_equal(containr:::.resolve_os_version("latest"), "24.04")
+    expect_equal(containr:::.resolve_os_version("devel"), "24.04")
+})
+
+test_that("generate_dockerfile() derives os_version from r_version and passes it to .fetch_sysreqs()", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.4.5"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists` = function(...) TRUE, .package = "containr")
+    local_mocked_bindings(`status`        = function(...) list(synchronized = TRUE), .package = "renv")
+
+    captured_os_version <- NULL
+    local_mocked_bindings(
+        `.fetch_sysreqs` = function(packages, os_version = "22.04", ...) {
+            captured_os_version <<- os_version
+            character(0)
+        },
+        .package = "containr"
+    )
+
+    generate_dockerfile(r_version = "4.4.5", output = tmp)
+    expect_equal(captured_os_version, "24.04")
+})
+
+test_that("generate_dockerfile()'s os_version argument overrides the derived value", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.4.5"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists` = function(...) TRUE, .package = "containr")
+    local_mocked_bindings(`status`        = function(...) list(synchronized = TRUE), .package = "renv")
+
+    captured_os_version <- NULL
+    local_mocked_bindings(
+        `.fetch_sysreqs` = function(packages, os_version = "22.04", ...) {
+            captured_os_version <<- os_version
+            character(0)
+        },
+        .package = "containr"
+    )
+
+    generate_dockerfile(r_version = "4.4.5", os_version = "23.10", output = tmp)
+    expect_equal(captured_os_version, "23.10")
+})
+
+test_that("os_version is not derived or passed when auto_syslibs = FALSE", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.4.5"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE, .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    local_mocked_bindings(
+        `.fetch_sysreqs` = function(...) cli::cli_abort("should not be called"),
+        .package = "containr"
+    )
+
+    expect_no_error(
+        generate_dockerfile(r_version = "4.4.5", auto_syslibs = FALSE, output = tmp)
+    )
+})
+
+# ---------------------------------------------------------------------------
 # Quarto installation
 # ---------------------------------------------------------------------------
 
 test_that("Dockerfile contains Quarto install when install_quarto = TRUE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`      = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")
@@ -349,7 +500,7 @@ test_that("Quarto install uses curl and dpkg rather than wget and gdebi (C11)", 
     # with an apt-get install -f fallback to resolve dependencies -- the
     # same two steps gdebi was a convenience wrapper for.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`      = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")
@@ -366,7 +517,7 @@ test_that("Quarto install uses curl and dpkg rather than wget and gdebi (C11)", 
 
 test_that("Dockerfile omits Quarto install when install_quarto = FALSE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -379,7 +530,7 @@ test_that("Dockerfile omits Quarto install when install_quarto = FALSE", {
 
 test_that("generate_dockerfile() passes quarto_version through to .get_quarto_version()", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists` = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -404,7 +555,7 @@ test_that("generate_dockerfile() passes quarto_version through to .get_quarto_ve
 
 test_that(".get_quarto_version() is not called when install_quarto = FALSE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -425,7 +576,7 @@ test_that(".get_quarto_version() is not called when install_quarto = FALSE", {
 
 test_that("Dockerfile contains EXPOSE 8787 when r_mode = 'rstudio'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -437,7 +588,7 @@ test_that("Dockerfile contains EXPOSE 8787 when r_mode = 'rstudio'", {
 
 test_that("Dockerfile omits EXPOSE when r_mode is not 'rstudio'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -449,7 +600,7 @@ test_that("Dockerfile omits EXPOSE when r_mode is not 'rstudio'", {
 
 test_that("Dockerfile EXPOSE line reflects custom expose_port", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -462,7 +613,7 @@ test_that("Dockerfile EXPOSE line reflects custom expose_port", {
 
 test_that("Dockerfile contains EXPOSE 3838 when r_mode = 'shiny_server'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -474,7 +625,7 @@ test_that("Dockerfile contains EXPOSE 3838 when r_mode = 'shiny_server'", {
 
 test_that("Dockerfile contains EXPOSE 8787 3838 when r_mode = 'rstudio_shiny'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -486,7 +637,7 @@ test_that("Dockerfile contains EXPOSE 8787 3838 when r_mode = 'rstudio_shiny'", 
 
 test_that("expose_port override is ignored for shiny_server and rstudio_shiny", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -508,7 +659,7 @@ test_that("expose_port warns even when explicitly set to the default value (C16)
     # the honest test: it warns whenever an override was supplied, whatever
     # value it happens to be.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -522,7 +673,7 @@ test_that("expose_port warns even when explicitly set to the default value (C16)
 
 test_that("expose_port does not warn when left at its default (not supplied)", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -538,7 +689,7 @@ test_that("expose_port does not warn when left at its default (not supplied)", {
 
 test_that("Dockerfile contains the Shiny Server install script for r_mode = 'rstudio_shiny'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -550,7 +701,7 @@ test_that("Dockerfile contains the Shiny Server install script for r_mode = 'rst
 
 test_that("Dockerfile omits the Shiny Server install script for modes other than 'rstudio_shiny'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -566,9 +717,16 @@ test_that("Dockerfile omits the Shiny Server install script for modes other than
 # copy_root routing (shiny_server / rstudio_shiny)
 # ---------------------------------------------------------------------------
 
-test_that("Dockerfile COPY destination stays /home for the four Phase 1 modes even with a custom home_dir", {
+test_that("Dockerfile COPY destination tracks a custom home_dir for the four Phase 1 modes (C24)", {
+    # Before C24, copy_root was hardcoded to the literal "/home" for base/
+    # tidyverse/rstudio/verse, independent of home_dir. That only agreed
+    # with home_dir's own default; passing home_dir = "/workspace"
+    # previously left COPY destinations at /home while WORKDIR (and
+    # therefore the running script) sat at /workspace. copy_root is now
+    # NULL in the registry for these four modes, meaning "fall back to
+    # home_dir", so the two now agree.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     writeLines("a,b", "data.csv")
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
@@ -577,14 +735,28 @@ test_that("Dockerfile COPY destination stays /home for the four Phase 1 modes ev
     generate_dockerfile(r_version = "4.3.0", data_file = "data.csv",
                         home_dir = "/workspace", output = tmp)
     lines <- read_dockerfile(tmp)
-    # home_dir only drives WORKDIR -- COPY destination stays /home/, unchanged
     expect_true(any(grepl("^WORKDIR /workspace$", lines)))
+    expect_true(any(grepl("COPY.*data\\.csv.*/workspace/.*data\\.csv", lines)))
+    expect_false(any(grepl("/home/", lines, fixed = TRUE)))
+})
+
+test_that("Dockerfile COPY destination stays /home for the four Phase 1 modes when home_dir is left at its default", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    writeLines("a,b", "data.csv")
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", data_file = "data.csv", output = tmp)
+    lines <- read_dockerfile(tmp)
+    expect_true(any(grepl("^WORKDIR /home$", lines)))
     expect_true(any(grepl("COPY.*data\\.csv.*/home/.*data\\.csv", lines)))
 })
 
 test_that("Dockerfile COPY destination is /srv/shiny-server for r_mode = 'shiny_server', ignoring home_dir", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     writeLines("shiny::shinyApp(ui = fluidPage(), server = function(input, output) {})", "app.R")
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
@@ -598,7 +770,7 @@ test_that("Dockerfile COPY destination is /srv/shiny-server for r_mode = 'shiny_
 
 test_that("Dockerfile COPY destination is /srv/shiny-server for r_mode = 'rstudio_shiny'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     writeLines("shiny::shinyApp(ui = fluidPage(), server = function(input, output) {})", "app.R")
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
@@ -616,7 +788,7 @@ test_that("Dockerfile COPY destination is /srv/shiny-server for r_mode = 'rstudi
 
 test_that("Dockerfile contains COPY line for data_file", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     writeLines("a,b", "data.csv")
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
@@ -630,7 +802,7 @@ test_that("Dockerfile contains COPY line for data_file", {
 
 test_that("Dockerfile contains COPY line for code_file", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     writeLines("x <- 1", "script.R")
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
@@ -644,7 +816,7 @@ test_that("Dockerfile contains COPY line for code_file", {
 
 test_that("Dockerfile contains COPY line for misc_file", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     writeLines("notes", "notes.txt")
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
@@ -658,7 +830,7 @@ test_that("Dockerfile contains COPY line for misc_file", {
 
 test_that("Dockerfile omits COPY data line when data_file = NULL", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -685,7 +857,7 @@ test_that("validate_file_arg errors when file is outside build context", {
 
 test_that("Dockerfile contains useradd when add_user is supplied", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -697,7 +869,7 @@ test_that("Dockerfile contains useradd when add_user is supplied", {
 
 test_that("Dockerfile omits useradd when add_user = NULL", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -713,7 +885,7 @@ test_that("Dockerfile omits useradd when add_user = NULL", {
 
 test_that("Dockerfile contains comment lines when comments = TRUE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -725,7 +897,7 @@ test_that("Dockerfile contains comment lines when comments = TRUE", {
 
 test_that("Dockerfile omits comment lines when comments = FALSE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -737,7 +909,7 @@ test_that("Dockerfile omits comment lines when comments = FALSE", {
 
 test_that("rstudio comments include docker run instructions when comments = TRUE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -750,7 +922,7 @@ test_that("rstudio comments include docker run instructions when comments = TRUE
 
 test_that("shiny_server comments include docker run instructions when comments = TRUE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -763,7 +935,7 @@ test_that("shiny_server comments include docker run instructions when comments =
 
 test_that("rstudio_shiny comments include both ports in the docker run instructions when comments = TRUE", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -781,7 +953,7 @@ test_that("rstudio_shiny comments include both ports in the docker run instructi
 
 test_that("generate_dockerfile errors for shiny_server/rstudio_shiny below R 4.0.0", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"3.6.3"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"3.6.3"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -798,7 +970,7 @@ test_that("generate_dockerfile errors for shiny_server/rstudio_shiny below R 4.0
 
 test_that("generate_dockerfile succeeds for shiny_server/rstudio_shiny at exactly R 4.0.0", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.0.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.0.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -815,7 +987,7 @@ test_that("generate_dockerfile succeeds for shiny_server/rstudio_shiny at exactl
 
 test_that("generate_dockerfile succeeds for shiny_server/rstudio_shiny with r_version = 'devel'", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.4.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.4.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -832,7 +1004,7 @@ test_that("generate_dockerfile succeeds for shiny_server/rstudio_shiny with r_ve
 
 test_that("min_r_version does not affect the four Phase 1 modes at R 3.6.3", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"3.6.3"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"3.6.3"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -853,7 +1025,7 @@ test_that("min_r_version does not affect the four Phase 1 modes at R 3.6.3", {
 
 test_that("verbose = TRUE produces messages", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -865,7 +1037,7 @@ test_that("verbose = TRUE produces messages", {
 
 test_that("verbose = FALSE produces no messages", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -891,7 +1063,7 @@ test_that("verbose = FALSE produces no messages", {
 
 test_that("renv_restore runs right after renv_lock and before any project-content COPY, and syslibs before quarto", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`       = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")

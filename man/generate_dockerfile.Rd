@@ -18,6 +18,7 @@ generate_dockerfile(
   expose_port = "8787",
   install_quarto = FALSE,
   quarto_version = "latest",
+  os_version = NULL,
   comments = FALSE,
   verbose = FALSE,
   config = NULL
@@ -62,27 +63,29 @@ parent directories, if it does not already exist.}
 and/or directories to copy into the container -- a single path, a
 vector of paths, or a directory (copied whole, with its contents) may
 all be mixed freely in the same vector. The local directory structure
-is preserved under \verb{/home/} for \code{"base"}, \code{"tidyverse"}, \code{"rstudio"},
-and \code{"verse"} (e.g. \code{"data-raw/sample.csv"} becomes
-\verb{/home/data-raw/sample.csv}, and a directory \code{"data-raw/"} is copied to
-\verb{/home/data-raw/} in full), or under \verb{/srv/shiny-server/} for
-\code{"shiny_server"} and \code{"rstudio_shiny"}, matching Shiny Server's own
-default app directory. Every path must be inside the current working
-directory (the build context). Defaults to \code{NULL}.}
+is preserved under \code{home_dir} for \code{"base"}, \code{"tidyverse"}, \code{"rstudio"},
+and \code{"verse"} (e.g. with the default \code{home_dir = "/home"},
+\code{"data-raw/sample.csv"} becomes \verb{/home/data-raw/sample.csv}, and a
+directory \code{"data-raw/"} is copied to \verb{/home/data-raw/} in full), or
+under \verb{/srv/shiny-server/} for \code{"shiny_server"} and \code{"rstudio_shiny"},
+matching Shiny Server's own default app directory regardless of
+\code{home_dir}. Every path must be inside the current working directory
+(the build context). Defaults to \code{NULL}.}
 
 \item{code_file}{A character vector or \code{NULL}. Path(s) to script file(s)
 (e.g. \code{.R}, \code{.qmd}, \code{.rmd}) and/or directories to copy into the
 container -- see \code{data_file} for vector and directory behavior. The
-local directory structure is preserved under the mode's copy root --
-see \code{data_file}. Every path must be inside the current working
-directory. Defaults to \code{NULL}.}
+local directory structure is preserved under the mode's copy root
+(\code{home_dir} for four of the six modes) -- see \code{data_file}. Every path
+must be inside the current working directory. Defaults to \code{NULL}.}
 
 \item{misc_file}{A character vector or \code{NULL}. Path(s) to miscellaneous
 file(s) (e.g. images, shell scripts, or branding assets) and/or
 directories to copy into the container -- see \code{data_file} for vector
-and directory behavior. The local directory structure is preserved under
-the mode's copy root -- see \code{data_file}. Every path must be inside the
-current working directory. Defaults to \code{NULL}.
+and directory behavior. The local directory structure is preserved
+under the mode's copy root (\code{home_dir} for four of the six modes) --
+see \code{data_file}. Every path must be inside the current working
+directory. Defaults to \code{NULL}.
 If the project was scaffolded with \code{\link[toolero:init_project]{toolero::init_project()}} using
 \code{branding = TRUE} or \code{branding = "uw-madison"}, the generated \code{.qmd}
 will reference \code{assets/styles.css}, \code{assets/header.html}, and
@@ -96,8 +99,13 @@ vector, e.g. \code{misc_file = c("assets/", "extra-script.sh")}.}
 the container with sudo access. Defaults to \code{NULL}.}
 
 \item{home_dir}{A character string. The working directory set inside the
-container via \code{WORKDIR}. Does not affect where \code{data_file}, \code{code_file},
-or \code{misc_file} are copied -- see \code{data_file}. Defaults to \code{"/home"}.}
+container via \code{WORKDIR}. For \code{"base"}, \code{"tidyverse"}, \code{"rstudio"}, and
+\code{"verse"}, this is also where \code{data_file}, \code{code_file}, and \code{misc_file}
+are copied (C24) -- there is nowhere else a script running from
+\code{WORKDIR} could resolve its relative paths against. \code{"shiny_server"}
+and \code{"rstudio_shiny"} are the exception: their copy destination is
+fixed at \verb{/srv/shiny-server} regardless of \code{home_dir} -- see
+\code{data_file}. Defaults to \code{"/home"}.}
 
 \item{expose_port}{A character string. Overrides the port exposed when
 \code{r_mode} is \code{"rstudio"}. Defaults to \code{"8787"}. Ignored for every other
@@ -121,9 +129,26 @@ how \code{r_version} and \code{renv.lock} are pinned elsewhere in the image. An
 explicit version is validated against the Quarto releases API and
 errors if no matching release exists.}
 
+\item{os_version}{A character string or \code{NULL}. The Ubuntu version to
+query against when looking up system requirements for \code{auto_syslibs}
+(C14). When \code{NULL} (the default), it is derived from the resolved
+\code{r_version} via the Rocker Project's own R-version-to-Ubuntu-release
+mapping -- see \code{.resolve_os_version()} -- rather than left at a single
+hardcoded value that only matched the Ubuntu release actually backing
+some R versions and not others. Supplying a value overrides the
+derivation entirely, for a project that needs to query against a
+different Ubuntu release than the one its \code{r_version} would normally
+resolve to. Ignored when \code{auto_syslibs = FALSE}, since no sysreqs
+lookup happens in that case.}
+
 \item{comments}{Logical. If \code{TRUE}, annotates each Dockerfile instruction
 with an explanatory comment. Useful for learning or sharing. Defaults to
-\code{FALSE}.}
+\code{FALSE}. Note (C15): this is the one \code{comments} argument in the family
+that writes into a generated file rather than printing to the console
+-- \code{\link[=build_image]{build_image()}} and \code{\link[=push_image]{push_image()}} in this same package, and every
+\code{comments} argument in \code{submitr}, use it to print explanatory guidance
+to the console instead. Keep that distinction in mind when moving
+between these functions.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages as each section
 of the Dockerfile is written. Defaults to \code{FALSE}.}
@@ -150,8 +175,16 @@ came from somewhere invisible to the caller undermines the
 reproducibility this package exists to support. A \code{schema_version} the
 file does not declare is treated as schema \code{1}; any other declared
 value produces a warning, not an abort, and the file is still read on a
-best-effort basis either way. Defaults to \code{NULL}, so nothing about this
-argument changes the behavior of a call that does not use it.}
+best-effort basis either way. When supplied, \code{config} also adds a
+\verb{RUN mkdir -p} instruction, right after \code{WORKDIR}, creating every
+folder the manifest's \verb{folders:} declares under \code{home_dir} (C07) --
+so a script's first write into one of them (via
+\code{toolero::save_output()}, or a bare \code{ggsave()}/\code{write.csv()} call)
+does not fail the way it would on a fresh checkout with no \code{config}
+supplied. This is unconditional on which folders those are; a folder
+this version of \code{containr} has no other special meaning for is still
+created. Defaults to \code{NULL}, so nothing about this argument changes
+the behavior of a call that does not use it.}
 }
 \value{
 Called for its side effects. Writes a \code{Dockerfile} to \code{output}.

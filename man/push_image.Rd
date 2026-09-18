@@ -30,8 +30,12 @@ UW-Madison NetID (e.g. \code{"erwin.lares"}). For other registries, it's
 the equivalent identifier -- your GitHub username or organization for
 \code{ghcr.io}, or your Quay namespace for \code{quay.io}.}
 
-\item{project}{A character string. The GitLab project name that hosts the
-container registry, e.g. \code{"container-registry"}.}
+\item{project}{A character string. The image's name -- the third segment
+of the full registry path, e.g. \code{"my-analysis"} in
+\code{registry.doit.wisc.edu/erwin.lares/my-analysis}. For the default
+DoIT GitLab registry, the project \emph{is} the image: name it after the
+analysis it holds (C18), rather than after a single shared project set
+up to host the registry generally.}
 
 \item{tag}{A character string. The version tag to assign to the image.
 Defaults to \code{"latest"}. Using explicit version tags (e.g. \code{"1.0.0"})
@@ -60,7 +64,11 @@ Defaults to \code{FALSE}.}
 \item{comments}{Logical. If \code{TRUE}, prints explanatory context before each
 step -- what the command does, why it is needed, and common pitfalls.
 Useful for first-time users learning the container push workflow.
-Defaults to \code{FALSE}.}
+Defaults to \code{FALSE}. This matches how \code{comments} is used across
+\code{submitr} -- printed guidance, nothing written to a file. The one
+exception in this family is \code{\link[=generate_dockerfile]{generate_dockerfile()}}'s own \code{comments}
+argument (C15), which writes annotations into the generated
+\code{Dockerfile} instead.}
 }
 \value{
 Called for its side effects. Returns \code{invisible(NULL)}.
@@ -115,18 +123,20 @@ error mid-push on a large image, re-authenticate and push again.
 
 \examples{
 \dontrun{
-# Tag and push an image to the DoIT GitLab Container Registry
+# Tag and push an image to the DoIT GitLab Container Registry --
+# project is the image's own name, not a project that merely hosts
+# the registry (C18)
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry"
+  project   = "my-analysis"
 )
 
 # Push with an explicit version tag
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry",
+  project   = "my-analysis",
   tag       = "1.0.0"
 )
 
@@ -134,7 +144,7 @@ push_image(
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry",
+  project   = "my-analysis",
   dry_run   = TRUE
 )
 
@@ -142,7 +152,7 @@ push_image(
 push_image(
   image_id  = "974123909a36",
   namespace = "erwin.lares",
-  project   = "container-registry",
+  project   = "my-analysis",
   verbose   = TRUE,
   comments  = TRUE
 )

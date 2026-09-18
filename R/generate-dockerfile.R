@@ -39,25 +39,27 @@
 #'   and/or directories to copy into the container -- a single path, a
 #'   vector of paths, or a directory (copied whole, with its contents) may
 #'   all be mixed freely in the same vector. The local directory structure
-#'   is preserved under `/home/` for `"base"`, `"tidyverse"`, `"rstudio"`,
-#'   and `"verse"` (e.g. `"data-raw/sample.csv"` becomes
-#'   `/home/data-raw/sample.csv`, and a directory `"data-raw/"` is copied to
-#'   `/home/data-raw/` in full), or under `/srv/shiny-server/` for
-#'   `"shiny_server"` and `"rstudio_shiny"`, matching Shiny Server's own
-#'   default app directory. Every path must be inside the current working
-#'   directory (the build context). Defaults to `NULL`.
+#'   is preserved under `home_dir` for `"base"`, `"tidyverse"`, `"rstudio"`,
+#'   and `"verse"` (e.g. with the default `home_dir = "/home"`,
+#'   `"data-raw/sample.csv"` becomes `/home/data-raw/sample.csv`, and a
+#'   directory `"data-raw/"` is copied to `/home/data-raw/` in full), or
+#'   under `/srv/shiny-server/` for `"shiny_server"` and `"rstudio_shiny"`,
+#'   matching Shiny Server's own default app directory regardless of
+#'   `home_dir`. Every path must be inside the current working directory
+#'   (the build context). Defaults to `NULL`.
 #' @param code_file A character vector or `NULL`. Path(s) to script file(s)
 #'   (e.g. `.R`, `.qmd`, `.rmd`) and/or directories to copy into the
 #'   container -- see `data_file` for vector and directory behavior. The
-#'   local directory structure is preserved under the mode's copy root --
-#'   see `data_file`. Every path must be inside the current working
-#'   directory. Defaults to `NULL`.
+#'   local directory structure is preserved under the mode's copy root
+#'   (`home_dir` for four of the six modes) -- see `data_file`. Every path
+#'   must be inside the current working directory. Defaults to `NULL`.
 #' @param misc_file A character vector or `NULL`. Path(s) to miscellaneous
 #'   file(s) (e.g. images, shell scripts, or branding assets) and/or
 #'   directories to copy into the container -- see `data_file` for vector
-#'   and directory behavior. The local directory structure is preserved under
-#'   the mode's copy root -- see `data_file`. Every path must be inside the
-#'   current working directory. Defaults to `NULL`.
+#'   and directory behavior. The local directory structure is preserved
+#'   under the mode's copy root (`home_dir` for four of the six modes) --
+#'   see `data_file`. Every path must be inside the current working
+#'   directory. Defaults to `NULL`.
 #'   If the project was scaffolded with [toolero::init_project()] using
 #'   `branding = TRUE` or `branding = "uw-madison"`, the generated `.qmd`
 #'   will reference `assets/styles.css`, `assets/header.html`, and
@@ -69,8 +71,13 @@
 #' @param add_user A character string. Name of a Linux user to create inside
 #'   the container with sudo access. Defaults to `NULL`.
 #' @param home_dir A character string. The working directory set inside the
-#'   container via `WORKDIR`. Does not affect where `data_file`, `code_file`,
-#'   or `misc_file` are copied -- see `data_file`. Defaults to `"/home"`.
+#'   container via `WORKDIR`. For `"base"`, `"tidyverse"`, `"rstudio"`, and
+#'   `"verse"`, this is also where `data_file`, `code_file`, and `misc_file`
+#'   are copied (C24) -- there is nowhere else a script running from
+#'   `WORKDIR` could resolve its relative paths against. `"shiny_server"`
+#'   and `"rstudio_shiny"` are the exception: their copy destination is
+#'   fixed at `/srv/shiny-server` regardless of `home_dir` -- see
+#'   `data_file`. Defaults to `"/home"`.
 #' @param expose_port A character string. Overrides the port exposed when
 #'   `r_mode` is `"rstudio"`. Defaults to `"8787"`. Ignored for every other
 #'   `r_mode` -- `"shiny_server"` and `"rstudio_shiny"` expose their own
@@ -90,9 +97,25 @@
 #'   how `r_version` and `renv.lock` are pinned elsewhere in the image. An
 #'   explicit version is validated against the Quarto releases API and
 #'   errors if no matching release exists.
+#' @param os_version A character string or `NULL`. The Ubuntu version to
+#'   query against when looking up system requirements for `auto_syslibs`
+#'   (C14). When `NULL` (the default), it is derived from the resolved
+#'   `r_version` via the Rocker Project's own R-version-to-Ubuntu-release
+#'   mapping -- see `.resolve_os_version()` -- rather than left at a single
+#'   hardcoded value that only matched the Ubuntu release actually backing
+#'   some R versions and not others. Supplying a value overrides the
+#'   derivation entirely, for a project that needs to query against a
+#'   different Ubuntu release than the one its `r_version` would normally
+#'   resolve to. Ignored when `auto_syslibs = FALSE`, since no sysreqs
+#'   lookup happens in that case.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
 #'   with an explanatory comment. Useful for learning or sharing. Defaults to
-#'   `FALSE`.
+#'   `FALSE`. Note (C15): this is the one `comments` argument in the family
+#'   that writes into a generated file rather than printing to the console
+#'   -- [build_image()] and [push_image()] in this same package, and every
+#'   `comments` argument in `submitr`, use it to print explanatory guidance
+#'   to the console instead. Keep that distinction in mind when moving
+#'   between these functions.
 #' @param verbose Logical. If `TRUE`, prints progress messages as each section
 #'   of the Dockerfile is written. Defaults to `FALSE`.
 #' @param config A character string. Path to a `_toolero.yml` project
@@ -117,8 +140,16 @@
 #'   reproducibility this package exists to support. A `schema_version` the
 #'   file does not declare is treated as schema `1`; any other declared
 #'   value produces a warning, not an abort, and the file is still read on a
-#'   best-effort basis either way. Defaults to `NULL`, so nothing about this
-#'   argument changes the behavior of a call that does not use it.
+#'   best-effort basis either way. When supplied, `config` also adds a
+#'   `RUN mkdir -p` instruction, right after `WORKDIR`, creating every
+#'   folder the manifest's `folders:` declares under `home_dir` (C07) --
+#'   so a script's first write into one of them (via
+#'   `toolero::save_output()`, or a bare `ggsave()`/`write.csv()` call)
+#'   does not fail the way it would on a fresh checkout with no `config`
+#'   supplied. This is unconditional on which folders those are; a folder
+#'   this version of `containr` has no other special meaning for is still
+#'   created. Defaults to `NULL`, so nothing about this argument changes
+#'   the behavior of a call that does not use it.
 #'
 #' @return Called for its side effects. Writes a `Dockerfile` to `output`.
 #'   Returns `invisible(NULL)`.
@@ -226,6 +257,7 @@ generate_dockerfile <- function(r_version       = "current",
                                 expose_port     = "8787",
                                 install_quarto  = FALSE,
                                 quarto_version  = "latest",
+                                os_version      = NULL,
                                 comments        = FALSE,
                                 verbose         = FALSE,
                                 config          = NULL) {
@@ -261,6 +293,12 @@ generate_dockerfile <- function(r_version       = "current",
     # also states its own file arguments. Must run before file argument
     # validation below, since a config-derived path is validated exactly
     # like one the caller typed.
+    # config_folders backs the C07 mkdir block below: every folder in
+    # _toolero.yml, verbatim, only when config was actually supplied. Left
+    # empty otherwise, matching the audit's "do nothing" answer for a call
+    # that has not asked for the config-derived behavior.
+    config_folders <- character(0)
+
     if (!is.null(config)) {
         from_config <- .resolve_config_file_args(config)
 
@@ -273,6 +311,7 @@ generate_dockerfile <- function(r_version       = "current",
         misc_file <- .apply_config_default(
             misc_file, from_config$misc_file, "misc_file", config, verbose
         )
+        config_folders <- from_config$folders
     }
 
     # -- 3. Validate file arguments --------------------------------------------
@@ -290,6 +329,32 @@ generate_dockerfile <- function(r_version       = "current",
             "{.file renv.lock} not found in {.path {getwd()}}.",
             "i" = "Run {.code renv::snapshot()} to generate one before",
             " " = "  calling {.fn generate_dockerfile}."
+        ))
+    }
+
+    # -- 4b. Warn on an empty lockfile (C04) ------------------------------------
+    # .read_renv_packages() returns character(0) for a renv.lock with no
+    # Packages recorded at all -- previously silent: .fetch_sysreqs()
+    # short-circuits on an empty package vector, the image builds with only
+    # the baseline curl installed, and the build succeeds while the
+    # analysis inside it cannot run. Checked here regardless of
+    # auto_syslibs, since an empty lockfile is a symptom of the project
+    # itself (renv::snapshot() never run, or run before any packages were
+    # loaded), not something skipping auto-detection should hide.
+    lockfile_packages <- .read_renv_packages(lockfile)
+
+    if (length(lockfile_packages) == 0L) {
+        cli::cli_warn(c(
+            "{.file renv.lock} records no packages.",
+            "i" = "The generated image will have no R packages installed",
+            " " = "  beyond what the base image already provides.",
+            "i" = "Run {.code renv::snapshot()} after loading the packages",
+            " " = "  your analysis uses -- including {.pkg toolero} itself",
+            " " = "  if the containerized script calls",
+            " " = "  {.code toolero::save_output()} or",
+            " " = "  {.code toolero::resolve_input_path()}, since those make",
+            " " = "  toolero a runtime dependency of the analysis, not just",
+            " " = "  a development convenience."
         ))
     }
 
@@ -379,9 +444,21 @@ generate_dockerfile <- function(r_version       = "current",
 
     auto_detected <- character(0)
 
+    # os_version (C14): derived from the resolved R version via the Rocker
+    # Project's own R-version-to-Ubuntu-release mapping unless the caller
+    # overrides it. .fetch_sysreqs() previously defaulted to a hardcoded
+    # "22.04" regardless of r_version, which only matched the Ubuntu
+    # release actually backing R 4.2.2-4.3.3.
+    resolved_os_version <- if (!is.null(os_version)) {
+        os_version
+    } else {
+        .resolve_os_version(resolved_version)
+    }
+
     if (auto_syslibs) {
-        if (verbose) cli::cli_inform("Reading packages from {.file renv.lock}...")
-        packages <- .read_renv_packages(lockfile)
+        # Already read above (C04), so this reuses lockfile_packages rather
+        # than parsing renv.lock a second time.
+        packages <- lockfile_packages
 
         if (verbose) {
             cli::cli_inform(
@@ -389,7 +466,13 @@ generate_dockerfile <- function(r_version       = "current",
             )
         }
 
-        auto_detected <- .fetch_sysreqs(packages, verbose = verbose)
+        if (verbose) {
+            cli::cli_inform(
+                "Querying system requirements against Ubuntu {resolved_os_version}..."
+            )
+        }
+
+        auto_detected <- .fetch_sysreqs(packages, os_version = resolved_os_version, verbose = verbose)
     }
 
     all_syslibs <- unique(c(baseline_syslibs, auto_detected, install_syslibs))
@@ -403,12 +486,19 @@ generate_dockerfile <- function(r_version       = "current",
     # -- 8. Build Dockerfile instruction strings -------------------------------
     image_prefix <- .r_mode_registry[[r_mode]]$image
 
-    # copy_root: comes straight from the registry. "/home" for the four
-    # Phase 1 modes (unrelated to home_dir -- COPY destinations for those
-    # modes have always been the literal /home/, independent of WORKDIR,
-    # and stay that way here). "/srv/shiny-server" for shiny_server and
-    # rstudio_shiny, matching Shiny Server's own default app directory.
+    # copy_root (C24): NULL in the registry for the four Phase 1 modes,
+    # meaning "track home_dir" -- those modes copy data_file/code_file/
+    # misc_file to wherever WORKDIR points, since that's where a script
+    # actually runs and where its relative paths resolve. Falling back to
+    # home_dir here, rather than hardcoding "/home" as before, is what
+    # makes home_dir = "/workspace" actually relocate the COPY
+    # destinations along with WORKDIR instead of splitting them across two
+    # different directories. "/srv/shiny-server" for shiny_server and
+    # rstudio_shiny is left untouched -- Shiny Server's app directory is a
+    # fixed system location, not something that should ever track
+    # home_dir.
     copy_root <- .r_mode_registry[[r_mode]]$copy_root
+    if (is.null(copy_root)) copy_root <- home_dir
 
     # ports: rstudio keeps the user-overridable expose_port for backward
     # compatibility. Every other mode with ports uses the registry's fixed
@@ -519,6 +609,37 @@ generate_dockerfile <- function(r_version       = "current",
             instruction = glue::glue("WORKDIR {home_dir}"),
             verbose_msg = glue::glue("Set working directory to {home_dir}"),
             comment     = "Set the working directory inside the container"
+        ),
+        # mkdir (C07): the third of three answers the audit considered --
+        # do nothing (safe but silent), unconditionally mkdir a toolero-
+        # specific output/figures + output/tables (cheap but bakes in a
+        # convention containr does not own), or derive it from folders: in
+        # _toolero.yml only when config was actually supplied. This is
+        # that third answer: every folder the manifest declares is created
+        # under home_dir, right after WORKDIR, so a script's first write
+        # into any of them -- via toolero::save_output() or a bare
+        # ggsave()/write.csv() call -- lands somewhere that already
+        # exists, the same way it does on the laptop where those folders
+        # were created by toolero::init_project(). A call that never
+        # passes config sees no new instruction here at all.
+        mkdir = list(
+            instruction = if (length(config_folders) > 0) {
+                glue::glue(
+                    "RUN mkdir -p {paste(file.path(home_dir, config_folders), collapse = ' ')}"
+                )
+            } else {
+                NULL
+            },
+            verbose_msg = if (length(config_folders) > 0) {
+                "Create project folders declared in config"
+            } else {
+                NULL
+            },
+            comment     = if (length(config_folders) > 0) {
+                "Create the folders config declares, so a script's first write into any of them does not fail"
+            } else {
+                NULL
+            }
         ),
         renv_lock = list(
             # home_dir, not copy_root: the lockfile isn't project content
@@ -737,7 +858,9 @@ generate_dockerfile <- function(r_version       = "current",
 #' @param config Character. Path to a `_toolero.yml` file.
 #'
 #' @return A named list with elements `data_file`, `code_file`, and
-#'   `misc_file`, each a single character string or `NULL`.
+#'   `misc_file`, each a single character string or `NULL`; and `folders`,
+#'   a character vector of every folder the manifest declares (possibly
+#'   empty), for deriving the `mkdir -p` block (C07).
 #'
 #' @keywords internal
 .resolve_config_file_args <- function(config) {
@@ -809,7 +932,14 @@ generate_dockerfile <- function(r_version       = "current",
         # else, not something _toolero.yml states explicitly.
         data_file = if ("data-raw" %in% folders) "data-raw" else NULL,
         code_file = if (script_dir %in% folders) script_dir else NULL,
-        misc_file = if ("assets" %in% folders) "assets" else NULL
+        misc_file = if ("assets" %in% folders) "assets" else NULL,
+        # C07: every folder the manifest declares, verbatim, regardless of
+        # whether containr recognizes it as data-raw/script_dir/assets --
+        # used to derive the mkdir -p block below, so a folder this version
+        # of containr has no special meaning for (a future convention, or a
+        # user's own addition to folders:) still gets created instead of
+        # silently failing the first time a script writes into it.
+        folders = folders
     )
 }
 

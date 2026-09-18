@@ -1,6 +1,6 @@
 test_that("NULL file args are accepted and Dockerfile is written", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -18,7 +18,7 @@ test_that("NULL file args are accepted and Dockerfile is written", {
 
 test_that("Dockerfile is written to the specified output directory", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -36,7 +36,7 @@ test_that("output defaults to the current working directory", {
     # test pins the default itself; test-container-workflow.R pins the
     # composed behavior with build_image() directly.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -54,7 +54,7 @@ test_that("output is created when it does not already exist", {
     # sentence. output is now created automatically, including any missing
     # parent directories.
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -71,7 +71,7 @@ test_that("output is created when it does not already exist", {
 
 test_that("Valid file args are accepted and Dockerfile is written", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -94,7 +94,7 @@ test_that("Valid file args are accepted and Dockerfile is written", {
 
 test_that("comments = TRUE and verbose = TRUE produce no errors", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -127,7 +127,7 @@ test_that("Nonexistent file args error with the argument name and 'does not exis
 
 test_that("A directory supplied as a file arg is accepted and copied whole", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -145,7 +145,7 @@ test_that("A directory supplied as a file arg is accepted and copied whole", {
 
 test_that("A character vector of file args is accepted and every path is copied", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -164,7 +164,7 @@ test_that("A character vector of file args is accepted and every path is copied"
 
 test_that("A vector mixing files and a directory is accepted in a single argument", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -202,7 +202,7 @@ test_that("Invalid r_mode errors before any file or network operations", {
 test_that("All valid r_mode values are accepted", {
     for (mode in names(containr:::.r_mode_registry)) {
         tmp <- withr::local_tempdir()
-        writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+        writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
         withr::local_dir(tmp)
         local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
         local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")

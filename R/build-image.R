@@ -34,7 +34,11 @@
 #' @param comments Logical. If `TRUE`, prints explanatory context before each
 #'   step -- what the command does, why it is needed, and common pitfalls.
 #'   Useful for first-time users learning the container build workflow.
-#'   Defaults to `FALSE`.
+#'   Defaults to `FALSE`. This matches how `comments` is used across
+#'   `submitr` -- printed guidance, nothing written to a file. The one
+#'   exception in this family is [generate_dockerfile()]'s own `comments`
+#'   argument (C15), which writes annotations into the generated
+#'   `Dockerfile` instead.
 #'
 #' @return Called for its side effects. Returns `invisible(NULL)`.
 #'

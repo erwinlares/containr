@@ -42,7 +42,7 @@
 
 test_that("generate_dockerfile()'s default output composes with build_image()'s default dockerfile", {
     tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{}}', file.path(tmp, "renv.lock"))
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
     local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
@@ -54,7 +54,7 @@ test_that("generate_dockerfile()'s default output composes with build_image()'s 
         `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
-    expect_no_error(build_image(dry_run = TRUE))
+    expect_no_error(build_image(dry_run = TRUE, , platform = NULL))
 })
 
 # ---------------------------------------------------------------------------
@@ -672,6 +672,44 @@ test_that("list_images() errors when tool_preference names a tool that isn't ins
         list_images(tool_preference = "singularity"),
         regexp = "not installed"
     )
+})
+
+# ---------------------------------------------------------------------------
+# list_images() -- printing is verbose-gated (C17)
+# ---------------------------------------------------------------------------
+#
+# print(parsed) used to run unconditionally, so `imgs <- list_images()`
+# printed a data frame as a side effect of assignment -- unlike every other
+# user-facing message in the package, which goes through cli and is
+# verbose-gated. Fully mocked, so these don't need podman on the PATH.
+
+test_that("list_images() does not print when verbose = FALSE (the default)", {
+    local_mocked_bindings(`.resolve_tool` = function(...) "podman", .package = "containr")
+    local_mocked_bindings(
+        `system2` = function(...) "myrepo\tlatest\tabc123\t2 days ago\t120MB",
+        .package = "base"
+    )
+    expect_silent(list_images())
+})
+
+test_that("list_images() prints the data frame when verbose = TRUE", {
+    local_mocked_bindings(`.resolve_tool` = function(...) "podman", .package = "containr")
+    local_mocked_bindings(
+        `system2` = function(...) "myrepo\tlatest\tabc123\t2 days ago\t120MB",
+        .package = "base"
+    )
+    expect_output(list_images(verbose = TRUE), "myrepo")
+})
+
+test_that("list_images() still returns the data frame invisibly when verbose = FALSE", {
+    local_mocked_bindings(`.resolve_tool` = function(...) "podman", .package = "containr")
+    local_mocked_bindings(
+        `system2` = function(...) "myrepo\tlatest\tabc123\t2 days ago\t120MB",
+        .package = "base"
+    )
+    result <- list_images(verbose = FALSE)
+    expect_s3_class(result, "data.frame")
+    expect_equal(result$repository, "myrepo")
 })
 
 # ---------------------------------------------------------------------------

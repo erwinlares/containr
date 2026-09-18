@@ -10,13 +10,17 @@
 #'   Docker. Supply a single value (e.g. `"docker"`) to require that specific
 #'   tool rather than auto-detecting.
 #' @param verbose Logical. If `TRUE`, prints a progress message before
-#'   querying the local image store. Defaults to `FALSE`.
+#'   querying the local image store, and prints the resulting data frame
+#'   (C17) -- matching every other user-facing message in the package,
+#'   which is `verbose`-gated rather than unconditional. Defaults to
+#'   `FALSE`, so `imgs <- list_images()` assigns quietly rather than also
+#'   printing as a side effect.
 #'
 #' @return A data frame with five columns: `repository`, `tag`, `image_id`,
 #'   `created`, and `size`. Rows where both `repository` and `tag` are
 #'   `<none>` correspond to untagged images produced by [build_image()] when
-#'   no `tag` argument was supplied. The data frame is also printed to the
-#'   console. Returns an empty data frame if no images are found.
+#'   no `tag` argument was supplied. Returns an empty data frame if no
+#'   images are found.
 #'
 #' @section Finding your image ID:
 #' After calling [build_image()], run `list_images()` to find the image ID
@@ -29,7 +33,7 @@
 #' push_image(
 #'   image_id  = imgs$image_id[1],
 #'   namespace = "erwin.lares",
-#'   project   = "container-registry"
+#'   project   = "my-analysis"
 #' )
 #' ```
 #'
@@ -37,10 +41,10 @@
 #'
 #' @examples
 #' \dontrun{
-#' # List all local images
-#' list_images()
+#' # List all local images and print them (verbose = TRUE)
+#' list_images(verbose = TRUE)
 #'
-#' # Capture the result for programmatic use
+#' # Capture the result for programmatic use, without printing (C17)
 #' imgs <- list_images()
 #' imgs$image_id[1]
 #' }
@@ -96,7 +100,10 @@ list_images <- function(tool_preference = c("podman", "docker"),
     colnames(parsed) <- c("repository", "tag", "image_id", "created", "size")
     rownames(parsed) <- NULL
 
-    # -- 5. Print and return ---------------------------------------------------
-    print(parsed)
+    # -- 5. Print (if verbose) and return ---------------------------------------
+    # C17: previously unconditional, so `imgs <- list_images()` printed a
+    # data frame while assigning it -- every other user-facing message in
+    # the package goes through cli and is verbose-gated; this now matches.
+    if (verbose) print(parsed)
     invisible(parsed)
 }
