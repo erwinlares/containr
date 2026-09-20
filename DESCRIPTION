@@ -1,6 +1,6 @@
 Package: containr
 Title: Containerize Your 'R' Project
-Version: 0.2.0
+Version: 0.2.0.9000
 Authors@R: 
     person("Erwin", "Lares", 
            email = "erwin.lares@wisc.edu", 
