@@ -183,16 +183,20 @@ generate_dockerfile(
 - comments:
 
   Logical. If `TRUE`, annotates each Dockerfile instruction with an
-  explanatory comment. Useful for learning or sharing. Defaults to
-  `FALSE`. Note (C15): this is the one `comments` argument in the family
-  that writes into a generated file rather than printing to the console
-  –
+  explanatory comment, written on the line above the instruction it
+  describes. Useful for learning or sharing. Defaults to `FALSE`. Note
+  (C15): this is the one `comments` argument in the family that writes
+  into a generated file rather than printing to the console –
   [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
   and
   [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
   in this same package, and every `comments` argument in `submitr`, use
   it to print explanatory guidance to the console instead. Keep that
-  distinction in mind when moving between these functions.
+  distinction in mind when moving between these functions. The
+  comment-then-instruction ordering matches `submitr`'s own generated
+  `.sh` and `.sub` files (S09), so a reader moving between a generated
+  Dockerfile and a submitr-generated script reads both the same way
+  round: explanation first, instruction second.
 
 - verbose:
 

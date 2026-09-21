@@ -226,13 +226,17 @@ lookup happens in that case.</p></dd>
 
 <dt id="arg-comments">comments<a class="anchor" aria-label="anchor" href="#arg-comments"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, annotates each Dockerfile instruction
-with an explanatory comment. Useful for learning or sharing. Defaults to
-<code>FALSE</code>. Note (C15): this is the one <code>comments</code> argument in the family
-that writes into a generated file rather than printing to the console
-– <code><a href="build_image.html">build_image()</a></code> and <code><a href="push_image.html">push_image()</a></code> in this same package, and every
+with an explanatory comment, written on the line above the instruction
+it describes. Useful for learning or sharing. Defaults to <code>FALSE</code>.
+Note (C15): this is the one <code>comments</code> argument in the family that
+writes into a generated file rather than printing to the console –
+<code><a href="build_image.html">build_image()</a></code> and <code><a href="push_image.html">push_image()</a></code> in this same package, and every
 <code>comments</code> argument in <code>submitr</code>, use it to print explanatory guidance
 to the console instead. Keep that distinction in mind when moving
-between these functions.</p></dd>
+between these functions. The comment-then-instruction ordering matches
+<code>submitr</code>'s own generated <code>.sh</code> and <code>.sub</code> files (S09), so a reader
+moving between a generated Dockerfile and a submitr-generated script
+reads both the same way round: explanation first, instruction second.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>

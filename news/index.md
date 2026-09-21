@@ -275,6 +275,15 @@
   the baseline `curl` installed, and the build succeeds while the
   analysis inside it cannot run (#C04).
 
+- `generate_dockerfile(comments = TRUE)` now writes each instruction’s
+  explanatory comment on the line above it, rather than below. This
+  matches the ordering `submitr`’s own `htc_gen_submit()` and
+  `htc_gen_executable()` have always used, so a generated Dockerfile and
+  a submitr-generated `.sh`/`.sub` file now read the same way round –
+  explanation first, instruction second. Previously the two packages
+  disagreed silently: `submitr`’s README already promised this ordering
+  before `containr` actually matched it (#C15, \#S09).
+
 ### Documentation
 
 - [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)’s
