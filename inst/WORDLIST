@@ -12,6 +12,7 @@ Graviton
 HPC
 HTC
 HTCondor
+LTS
 Lifecycle
 NetID
 OCI
@@ -21,6 +22,7 @@ Podman
 Podman's
 QEMU
 README
+README's
 RStudio
 Sys
 UW
@@ -42,11 +44,15 @@ json
 lifecycle
 linux
 lockfile
+md
 natively
 pre
 renv
 reviewable
 rhub
+roxygen
+rstudio
+scaffolded
 subcommand
 submitr
 sudo

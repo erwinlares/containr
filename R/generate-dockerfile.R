@@ -109,13 +109,17 @@
 #'   resolve to. Ignored when `auto_syslibs = FALSE`, since no sysreqs
 #'   lookup happens in that case.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
-#'   with an explanatory comment. Useful for learning or sharing. Defaults to
-#'   `FALSE`. Note (C15): this is the one `comments` argument in the family
-#'   that writes into a generated file rather than printing to the console
-#'   -- [build_image()] and [push_image()] in this same package, and every
+#'   with an explanatory comment, written on the line above the instruction
+#'   it describes. Useful for learning or sharing. Defaults to `FALSE`.
+#'   Note (C15): this is the one `comments` argument in the family that
+#'   writes into a generated file rather than printing to the console --
+#'   [build_image()] and [push_image()] in this same package, and every
 #'   `comments` argument in `submitr`, use it to print explanatory guidance
 #'   to the console instead. Keep that distinction in mind when moving
-#'   between these functions.
+#'   between these functions. The comment-then-instruction ordering matches
+#'   `submitr`'s own generated `.sh` and `.sub` files (S09), so a reader
+#'   moving between a generated Dockerfile and a submitr-generated script
+#'   reads both the same way round: explanation first, instruction second.
 #' @param verbose Logical. If `TRUE`, prints progress messages as each section
 #'   of the Dockerfile is written. Defaults to `FALSE`.
 #' @param config A character string. Path to a `_toolero.yml` project
@@ -807,16 +811,22 @@ generate_dockerfile <- function(r_version       = "current",
             cli::cli_inform(block$verbose_msg)
         }
 
+        # Comment before instruction (S09): matches submitr's own write
+        # loops in htc_gen_submit() and htc_gen_executable(), so a reader
+        # moving between a generated Dockerfile and a submitr-generated
+        # script reads both the same way round -- explanation first,
+        # instruction second.
+        if (!is.null(block$comment) && comments) {
+            readr::write_lines(paste0("# ", block$comment),
+                               file   = dockerfile_path,
+                               append = !first)
+            first <- FALSE
+        }
+
         readr::write_lines(block$instruction,
                            file   = dockerfile_path,
                            append = !first)
         first <- FALSE
-
-        if (!is.null(block$comment) && comments) {
-            readr::write_lines(paste0("# ", block$comment),
-                               file   = dockerfile_path,
-                               append = TRUE)
-        }
     }
 
     if (verbose) {

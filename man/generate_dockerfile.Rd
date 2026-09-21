@@ -142,13 +142,17 @@ resolve to. Ignored when \code{auto_syslibs = FALSE}, since no sysreqs
 lookup happens in that case.}
 
 \item{comments}{Logical. If \code{TRUE}, annotates each Dockerfile instruction
-with an explanatory comment. Useful for learning or sharing. Defaults to
-\code{FALSE}. Note (C15): this is the one \code{comments} argument in the family
-that writes into a generated file rather than printing to the console
--- \code{\link[=build_image]{build_image()}} and \code{\link[=push_image]{push_image()}} in this same package, and every
+with an explanatory comment, written on the line above the instruction
+it describes. Useful for learning or sharing. Defaults to \code{FALSE}.
+Note (C15): this is the one \code{comments} argument in the family that
+writes into a generated file rather than printing to the console --
+\code{\link[=build_image]{build_image()}} and \code{\link[=push_image]{push_image()}} in this same package, and every
 \code{comments} argument in \code{submitr}, use it to print explanatory guidance
 to the console instead. Keep that distinction in mind when moving
-between these functions.}
+between these functions. The comment-then-instruction ordering matches
+\code{submitr}'s own generated \code{.sh} and \code{.sub} files (S09), so a reader
+moving between a generated Dockerfile and a submitr-generated script
+reads both the same way round: explanation first, instruction second.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages as each section
 of the Dockerfile is written. Defaults to \code{FALSE}.}

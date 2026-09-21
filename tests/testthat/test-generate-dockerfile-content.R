@@ -948,6 +948,69 @@ test_that("rstudio_shiny comments include both ports in the docker run instructi
 })
 
 # ---------------------------------------------------------------------------
+# Comment ordering (S09) -- a comment sits on the line above the instruction
+# it describes, matching submitr's own generated .sh/.sub files. C15's own
+# roxygen note, and submitr's README, both promise this ordering; these
+# tests are the regression guard behind that promise, not just behind the
+# function's own behavior.
+# ---------------------------------------------------------------------------
+
+test_that("with comments = TRUE, the Dockerfile's first line is a comment, not FROM", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", comments = TRUE, output = tmp)
+    lines <- read_dockerfile(tmp)
+
+    expect_true(grepl("^#", lines[[1]]))
+    expect_equal(lines[[2]], "FROM rocker/r-ver:4.3.0")
+})
+
+test_that("each comment immediately precedes the instruction it describes", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", comments = TRUE, output = tmp)
+    lines <- read_dockerfile(tmp)
+
+    from_line    <- grep("^FROM rocker/r-ver", lines)
+    from_comment <- grep("^# Use the base image maintained by the Rocker project", lines)
+    expect_equal(from_comment + 1L, from_line)
+
+    env_line    <- grep("^ENV DEBIAN_FRONTEND=noninteractive", lines)
+    env_comment <- grep("^# Suppress interactive prompts during package installation", lines)
+    expect_equal(env_comment + 1L, env_line)
+
+    workdir_line    <- grep("^WORKDIR /home$", lines)
+    workdir_comment <- grep("^# Set the working directory inside the container", lines)
+    expect_equal(workdir_comment + 1L, workdir_line)
+})
+
+test_that("comments = FALSE still writes instructions in the same order regardless of ordering logic", {
+    # Guards against a fix to the comment/instruction ordering accidentally
+    # coupling to the comments flag itself -- instructions must appear in
+    # the same relative order whether or not comments are interleaved.
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+    generate_dockerfile(r_version = "4.3.0", comments = FALSE, output = tmp)
+    lines <- read_dockerfile(tmp)
+
+    expect_equal(lines[[1]], "FROM rocker/r-ver:4.3.0")
+    expect_true(which(lines == "ENV DEBIAN_FRONTEND=noninteractive") >
+                    which(lines == "FROM rocker/r-ver:4.3.0"))
+})
+
+# ---------------------------------------------------------------------------
 # Minimum R version for shiny_server / rstudio_shiny
 # ---------------------------------------------------------------------------
 
