@@ -159,7 +159,12 @@ argument (C15), which writes annotations into the generated
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Called for its side effects. Returns <code>invisible(NULL)</code>.</p>
+    <p>The full registry URI the image was tagged and pushed as (or
+would be, under <code>dry_run = TRUE</code>) – <code>"{registry}/{namespace}/{project}:{tag}"</code>,
+e.g. <code>"registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"</code> – as a
+character string, returned invisibly. Capture it to hand off to
+<code>submitr::htc_gen_submit(container_image = )</code> without reassembling
+or retyping the URI by hand (C-G1).</p>
     </div>
     <div class="section level2">
     <h2 id="prerequisites">Prerequisites<a class="anchor" aria-label="anchor" href="#prerequisites"></a></h2>
@@ -241,6 +246,18 @@ error mid-push on a large image, re-authenticate and push again.</p>
 <span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span></span>
 <span class="r-in"><span>  registry  <span class="op">=</span> <span class="st">"ghcr.io"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Capture the full registry URI to hand off to submitr -- e.g.</span></span></span>
+<span class="r-in"><span><span class="co"># submitr::htc_gen_submit(container_image = uri) -- instead of</span></span></span>
+<span class="r-in"><span><span class="co"># reassembling it by hand from registry/namespace/project/tag (C-G1)</span></span></span>
+<span class="r-in"><span><span class="va">uri</span> <span class="op">&lt;-</span> <span class="fu">push_image</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  image_id  <span class="op">=</span> <span class="st">"974123909a36"</span>,</span></span>
+<span class="r-in"><span>  namespace <span class="op">=</span> <span class="st">"erwin.lares"</span>,</span></span>
+<span class="r-in"><span>  project   <span class="op">=</span> <span class="st">"my-analysis"</span>,</span></span>
+<span class="r-in"><span>  tag       <span class="op">=</span> <span class="st">"1.0.0"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">uri</span></span></span>
+<span class="r-in"><span><span class="co">#&gt; [1] "registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

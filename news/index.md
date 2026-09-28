@@ -157,6 +157,34 @@
   [`.resolve_os_version()`](https://erwinlares.github.io/containr/reference/dot-resolve_os_version.md)
   in `R/r-mode-registry.R` (#C14).
 
+### Improvements
+
+- [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  and
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  no longer return `invisible(NULL)`.
+  [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md)
+  now returns the full registry URI it tagged and pushed
+  (e.g. `"registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"`),
+  invisibly, so it can be captured and handed straight to
+  `submitr::htc_gen_submit(container_image = )` instead of being
+  reassembled by hand from `registry`/`namespace`/`project`/`tag`.
+  [`build_image()`](https://erwinlares.github.io/containr/reference/build_image.md)
+  returns its own `tag` argument invisibly when one was supplied (or
+  `invisible(NULL)` when it wasn’t, exactly as before), so it chains
+  directly into `push_image(image_id = )` – including through the native
+  pipe, with nothing captured in an intermediate variable:
+
+  ``` r
+
+  build_image(tag = "my-analysis:dev") |>
+    push_image(namespace = "erwin.lares", project = "my-analysis", tag = "1.0.0")
+  ```
+
+  Both dry runs return the same value a real run would, since the tag
+  and the destination URI are already known before either function’s
+  `dry_run` check.
+
 ### Bug fixes
 
 - The generated `Dockerfile` now restores the `renv` project library
@@ -331,6 +359,19 @@
   where `data_file`, `code_file`, and `misc_file` land was also updated
   to say `home_dir` rather than a hardcoded `/home/`, reflecting the
   `copy_root` fix above (#C24).
+
+- The canonical
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  examples in the README and in the `containr-workflow` vignette passed
+  `code_file = "analysis.R"` (`c("analysis.R", "helpers.R")` in the
+  vignette), copying the script to the image root. `toolero` settled
+  `R/` as the home for a derived analysis script; both examples now pass
+  `code_file = "R/analysis.R"` (`c("R/analysis.R", "R/helpers.R")` in
+  the vignette) to match. This was previously blocked on `submitr`‘s own
+  tarball-naming fix, since `htc_gen_executable()` derived its
+  results-tarball name in a way that broke on a `code_file` under a
+  subdirectory; that landed in `submitr` first, so the two packages’
+  documented conventions now agree (#C02).
 
 ### Internal changes
 

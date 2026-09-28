@@ -75,7 +75,12 @@ build_image(
 
 ## Value
 
-Called for its side effects. Returns `invisible(NULL)`.
+If `tag` was supplied, the same character string, returned invisibly –
+so it can be captured or piped straight into `push_image(image_id = )`
+without retyping it (C-G1). If `tag` is `NULL` (the default), there is
+no name to hand back yet; returns `invisible(NULL)`, and
+[`list_images()`](https://erwinlares.github.io/containr/reference/list_images.md)
+is how you find the built image's ID.
 
 ## Details
 
@@ -158,5 +163,13 @@ build_image(
   verbose  = TRUE,
   comments = TRUE
 )
+
+# Chain straight into push_image() -- build_image() returns its own
+# tag argument invisibly, and push_image()'s first parameter is
+# image_id, so a simple local tag flows through the pipe into the
+# full registry destination with nothing retyped or captured in an
+# intermediate variable (C-G1)
+build_image(tag = "my-analysis:dev") |>
+  push_image(namespace = "erwin.lares", project = "my-analysis", tag = "1.0.0")
 } # }
 ```

@@ -141,7 +141,7 @@ vector.
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/sample.csv",
-  code_file = c("analysis.R", "helpers.R"),
+  code_file = c("R/analysis.R", "R/helpers.R"),
   misc_file = "assets/",
   output    = ".",
   comments  = TRUE

@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>A first containerization workflow with containr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-09-21</h4>
+updated 2026-09-28</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/containr/blob/main/vignettes/containr-workflow.Rmd" class="external-link"><code>vignettes/containr-workflow.Rmd</code></a></small>
       <div class="d-none name"><code>containr-workflow.Rmd</code></div>
@@ -200,7 +200,7 @@ within the same vector.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  data_file <span class="op">=</span> <span class="st">"data-raw/sample.csv"</span>,</span>
-<span>  code_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.R"</span>, <span class="st">"helpers.R"</span><span class="op">)</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R/analysis.R"</span>, <span class="st">"R/helpers.R"</span><span class="op">)</span>,</span>
 <span>  misc_file <span class="op">=</span> <span class="st">"assets/"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>

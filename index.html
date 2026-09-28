@@ -101,7 +101,6 @@
        └─ submitr    send the analysis to CHTC and retrieve results</code></pre>
 <p>Each package is useful on its own. Together, they form a path from a new local R project to a containerized analysis that can run on high-throughput computing infrastructure.</p>
 <p>You can adopt these packages one at a time. <code>containr</code> does not require <code>toolero</code>, and it does not require <code>submitr</code>. If you used <code>toolero::init_project()</code> to start your project, <code>renv</code> is already initialized and <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> will produce the lockfile that <code>containr</code> needs. If you did not use <code>toolero</code>, run <code><a href="https://rstudio.github.io/renv/reference/snapshot.html" class="external-link">renv::snapshot()</a></code> in your project root before proceeding.</p>
-<p>The folder names, path conventions, and shared vocabulary used consistently across all three packages are collected in one place – <a href="https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md" class="external-link">CONVENTIONS.md</a>, maintained in the <code>toolero</code> repository, since that’s where those conventions are authored.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -139,7 +138,7 @@
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  data_file <span class="op">=</span> <span class="st">"data-raw/sample.csv"</span>,</span>
-<span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
@@ -180,7 +179,7 @@
 <span><span class="fu"><a href="reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  data_file <span class="op">=</span> <span class="st">"data-raw/penguins.csv"</span>,</span>
-<span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -252,6 +251,7 @@
 <p>If the target platform differs from the host, a warning is emitted about potential QEMU emulation issues. Docker Desktop handles cross-platform builds more reliably than Podman’s QEMU layer. If builds fail with segfaults under Podman, try <code>tool_preference = "docker"</code> or build on a native x86_64 machine.</p>
 <p>That last option – a native <code>x86_64</code> machine – doesn’t have to be your own. <code>containr</code> ships a GitHub Actions template (<code>inst/templates/build-and-push.yaml</code>) that builds and pushes your image on a GitHub-hosted runner, which is natively <code>x86_64</code>. This sidesteps QEMU entirely rather than working around it, since there’s no architecture mismatch to emulate when the runner and the target platform already match. See “Building in CI” below.</p>
 <p>The first build can take time because the container engine must download the base image and install the R package environment from scratch. Later builds are usually faster because Podman and Docker reuse cached layers when the earlier parts of the <code>Dockerfile</code> have not changed.</p>
+<p>When you supply a <code>tag</code>, <code><a href="reference/build_image.html">build_image()</a></code> returns that same string invisibly, so it can be captured or piped straight into <code>push_image(image_id = )</code> – see the <code><a href="reference/push_image.html">push_image()</a></code> section below for the piped example. Without a tag, there’s nothing reliable to hand back yet; <code><a href="reference/list_images.html">list_images()</a></code> remains the way to find the built image’s ID, exactly as in “A first workflow” above.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build for linux/amd64 (default) -- suitable for CHTC and most clusters</span></span>
 <span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -320,6 +320,11 @@
 <span>  dry_run   <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Use explicit version tags such as <code>"1.0.0"</code> rather than <code>"latest"</code>. The <code>"latest"</code> tag is overwritten on every push, which makes it harder to reconstruct which image was used for a specific result.</p>
+<p><code><a href="reference/push_image.html">push_image()</a></code> returns the full registry destination URI it just tagged and pushed, invisibly – <code>dry_run</code> returns the same value a real push would, so the two are interchangeable as far as what comes back. That makes it possible to chain a build directly into a push, with nothing captured in an intermediate variable and nothing retyped between the two calls:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/build_image.html">build_image</a></span><span class="op">(</span>tag <span class="op">=</span> <span class="st">"my-analysis:dev"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="reference/push_image.html">push_image</a></span><span class="op">(</span>namespace <span class="op">=</span> <span class="st">"your.netid"</span>, project <span class="op">=</span> <span class="st">"my-analysis"</span>, tag <span class="op">=</span> <span class="st">"1.0.0"</span><span class="op">)</span></span></code></pre></div>
+<p>The returned URI can also be captured for later use – passed directly to <code>submitr::htc_gen_submit(container_image = )</code>, for example, without reassembling it by hand from <code>registry/namespace/project/tag</code>.</p>
 <hr>
 </div>
 </div>
@@ -332,7 +337,7 @@
 <ol style="list-style-type: decimal">
 <li>
 <p>Copy <code>inst/templates/build-and-push.yaml</code> into your own project’s <code>.github/workflows/</code> directory. You can find the installed path with:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"templates"</span>, <span class="st">"build-and-push.yaml"</span>, package <span class="op">=</span> <span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
 </li>
 <li><p>Add two repository secrets in your project’s GitHub settings (<strong>Settings &gt; Secrets and variables &gt; Actions</strong>): <code>REGISTRY_USERNAME</code> and <code>REGISTRY_PASSWORD</code>, matching whichever registry you push to.</p></li>
@@ -379,12 +384,13 @@
 <li>
 <a href="https://github.com/erwinlares/submitr" class="external-link">submitr</a> – submit containerized R jobs to CHTC and retrieve results</li>
 </ul>
+<p>The folder names, path conventions, and shared vocabulary used consistently across all three packages are collected in one place, <a href="https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md" class="external-link">CONVENTIONS.md</a>, maintained in the <code>toolero</code> repository, since that is where those conventions are authored.</p>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"containr"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
