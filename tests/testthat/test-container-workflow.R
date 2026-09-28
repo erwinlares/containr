@@ -54,7 +54,7 @@ test_that("generate_dockerfile()'s default output composes with build_image()'s 
         `.resolve_tool` = function(...) "podman",
         .package = "containr"
     )
-    expect_no_error(build_image(dry_run = TRUE, , platform = NULL))
+    expect_no_error(build_image(dry_run = TRUE))
 })
 
 # ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ test_that("build_image() accepts NULL platform without error", {
     )
 })
 
-test_that("build_image() returns invisible NULL", {
+test_that("build_image() returns invisible NULL when no tag is supplied", {
     tmp <- withr::local_tempdir()
     writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
     withr::local_dir(tmp)
@@ -119,6 +119,24 @@ test_that("build_image() returns invisible NULL", {
     )
     result <- suppressWarnings(build_image(dry_run = TRUE))
     expect_null(result)
+})
+
+test_that("build_image() returns its own tag invisibly when tag is supplied (C-G1)", {
+    # build_image() hands its tag argument back invisibly so it can be
+    # captured or piped straight into push_image(image_id = ) without
+    # retyping it. This holds under dry_run, where nothing is actually
+    # built, since the tag is already known from the argument.
+    tmp <- withr::local_tempdir()
+    writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "podman",
+        .package = "containr"
+    )
+    result <- suppressWarnings(suppressMessages(
+        build_image(tag = "my-analysis:dev", dry_run = TRUE)
+    ))
+    expect_identical(result, "my-analysis:dev")
 })
 
 # ---------------------------------------------------------------------------
@@ -366,9 +384,12 @@ test_that("build_image() successfully builds a real image", {
     test_tag <- paste0("containr-test-build-image:", as.integer(Sys.time()))
     on.exit(system2("podman", args = c("rmi", "-f", test_tag), stdout = FALSE, stderr = FALSE), add = TRUE)
 
-    expect_no_error(
-        build_image(tag = test_tag, platform = NULL)
-    )
+    # A plain call rather than expect_no_error() wrapping it -- an error
+    # here still fails the test, and this way the returned value (C-G1) is
+    # captured directly rather than depending on whether expect_no_error()
+    # passes its expression's value through.
+    result <- build_image(tag = test_tag, platform = NULL)
+    expect_identical(result, test_tag)
 
     inspect_exit <- system2("podman", args = c("image", "inspect", test_tag), stdout = FALSE, stderr = FALSE)
     expect_equal(inspect_exit, 0L)
@@ -439,7 +460,12 @@ test_that("push_image() warns when tag is 'latest'", {
     )
 })
 
-test_that("push_image() returns invisible NULL on dry_run", {
+test_that("push_image() returns the full registry URI invisibly, even on dry_run (C-G1)", {
+    # The destination string is assembled before the dry_run check, so
+    # push_image() hands it back on both the dry_run and the real path --
+    # the value a caller would otherwise have to reassemble by hand from
+    # registry/namespace/project/tag before passing it on to
+    # submitr::htc_gen_submit(container_image = ).
     local_mocked_bindings(
         `.resolve_tool` = function(...) "podman",
         .package = "containr"
@@ -448,10 +474,13 @@ test_that("push_image() returns invisible NULL on dry_run", {
         image_id    = "abc123",
         namespace   = "erwin.lares",
         project     = "container-registry",
+        tag         = "1.0.0",
         check_login = FALSE,
         dry_run     = TRUE
     ))
-    expect_null(result)
+    expect_identical(result, "registry.doit.wisc.edu/erwin.lares/container-registry:1.0.0")
+    expect_type(result, "character")
+    expect_false(inherits(result, "glue"))
 })
 
 # ---------------------------------------------------------------------------
@@ -517,6 +546,32 @@ test_that("push_image() assembles correct destination tag", {
         "registry.doit.wisc.edu/erwin.lares/container-registry:1.0.0",
         msgs, fixed = TRUE
     )))
+})
+
+test_that("build_image() |> push_image() chains without an intermediate variable (C-G1)", {
+    # The whole point of C-G1: build_image()'s returned tag flows straight
+    # into push_image()'s first positional argument (image_id) through the
+    # native pipe, and push_image() in turn hands back the full registry
+    # URI -- the containr-to-submitr handoff without a string retyped or
+    # reassembled by hand anywhere in between.
+    tmp <- withr::local_tempdir()
+    writeLines("FROM rocker/r-ver:4.4.0", file.path(tmp, "Dockerfile"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(
+        `.resolve_tool` = function(...) "podman",
+        .package = "containr"
+    )
+    uri <- suppressWarnings(suppressMessages(
+        build_image(tag = "my-analysis:dev", dry_run = TRUE) |>
+            push_image(
+                namespace   = "erwin.lares",
+                project     = "my-analysis",
+                tag         = "1.0.0",
+                check_login = FALSE,
+                dry_run     = TRUE
+            )
+    ))
+    expect_identical(uri, "registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0")
 })
 
 # ---------------------------------------------------------------------------
@@ -649,13 +704,19 @@ test_that("push_image() successfully pushes a real image to the registry", {
 
     push_tag <- as.character(as.integer(Sys.time()))
 
-    expect_no_error(
-        push_image(
-            image_id  = build_tag,
-            namespace = test_namespace,
-            project   = test_project,
-            tag       = push_tag
-        )
+    # A plain call rather than expect_no_error() wrapping it -- an error
+    # here still fails the test, and this way the returned URI (C-G1) is
+    # captured directly rather than depending on whether expect_no_error()
+    # passes its expression's value through.
+    uri <- push_image(
+        image_id  = build_tag,
+        namespace = test_namespace,
+        project   = test_project,
+        tag       = push_tag
+    )
+    expect_identical(
+        uri,
+        paste0("registry.doit.wisc.edu/", test_namespace, "/", test_project, ":", push_tag)
     )
 })
 

@@ -40,7 +40,12 @@
 #'   argument (C15), which writes annotations into the generated
 #'   `Dockerfile` instead.
 #'
-#' @return Called for its side effects. Returns `invisible(NULL)`.
+#' @return If `tag` was supplied, the same character string, returned
+#'   invisibly -- so it can be captured or piped straight into
+#'   `push_image(image_id = )` without retyping it (C-G1). If `tag` is
+#'   `NULL` (the default), there is no name to hand back yet; returns
+#'   `invisible(NULL)`, and [list_images()] is how you find the built
+#'   image's ID.
 #'
 #' @section Prerequisites:
 #' Before calling `build_image()`, ensure the following are in place:
@@ -104,6 +109,14 @@
 #'   verbose  = TRUE,
 #'   comments = TRUE
 #' )
+#'
+#' # Chain straight into push_image() -- build_image() returns its own
+#' # tag argument invisibly, and push_image()'s first parameter is
+#' # image_id, so a simple local tag flows through the pipe into the
+#' # full registry destination with nothing retyped or captured in an
+#' # intermediate variable (C-G1)
+#' build_image(tag = "my-analysis:dev") |>
+#'   push_image(namespace = "erwin.lares", project = "my-analysis", tag = "1.0.0")
 #' }
 build_image <- function(dockerfile      = "Dockerfile",
                         tag              = NULL,
@@ -236,7 +249,7 @@ build_image <- function(dockerfile      = "Dockerfile",
             "v" = "Dry run -- command that would be executed:",
             " " = "{.code {cmd}}"
         ))
-        return(invisible(NULL))
+        return(invisible(tag))
     }
 
     if (verbose) cli::cli_inform("Running: {.code {cmd}}")
@@ -259,5 +272,10 @@ build_image <- function(dockerfile      = "Dockerfile",
         }
     }
 
-    invisible(NULL)
+    # Hand back the tag so it can be captured or piped straight into
+    # push_image(image_id = ) rather than retyped or looked up again via
+    # list_images() (C-G1). NULL when no tag was applied -- there is
+    # nothing reliable to hand back in that case; list_images() is the
+    # documented way to find the built image's ID.
+    invisible(tag)
 }

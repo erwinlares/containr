@@ -439,7 +439,13 @@ test_that("push_image() warns when tag is 'latest'", {
     )
 })
 
-test_that("push_image() returns invisible NULL on dry_run", {
+test_that("push_image() returns the destination URI invisibly on dry_run", {
+    # C-G1: push_image() used to return invisible(NULL) unconditionally.
+    # It now returns the full registry destination invisibly -- dry_run
+    # included, so a dry-run and a real push are indistinguishable to the
+    # caller in terms of what comes back -- so a piped chain like
+    # build_image(tag = ) |> push_image(...) can be dry-run tested the
+    # same way it is used for real.
     local_mocked_bindings(
         `.resolve_tool` = function(...) "podman",
         .package = "containr"
@@ -451,7 +457,7 @@ test_that("push_image() returns invisible NULL on dry_run", {
         check_login = FALSE,
         dry_run     = TRUE
     ))
-    expect_null(result)
+    expect_equal(result, "registry.doit.wisc.edu/erwin.lares/container-registry:latest")
 })
 
 # ---------------------------------------------------------------------------

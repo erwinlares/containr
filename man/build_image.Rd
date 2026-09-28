@@ -51,7 +51,12 @@ argument (C15), which writes annotations into the generated
 \code{Dockerfile} instead.}
 }
 \value{
-Called for its side effects. Returns \code{invisible(NULL)}.
+If \code{tag} was supplied, the same character string, returned
+invisibly -- so it can be captured or piped straight into
+\code{push_image(image_id = )} without retyping it (C-G1). If \code{tag} is
+\code{NULL} (the default), there is no name to hand back yet; returns
+\code{invisible(NULL)}, and \code{\link[=list_images]{list_images()}} is how you find the built
+image's ID.
 }
 \description{
 \code{build_image()} builds a container image from a \code{Dockerfile} using either
@@ -135,5 +140,13 @@ build_image(
   verbose  = TRUE,
   comments = TRUE
 )
+
+# Chain straight into push_image() -- build_image() returns its own
+# tag argument invisibly, and push_image()'s first parameter is
+# image_id, so a simple local tag flows through the pipe into the
+# full registry destination with nothing retyped or captured in an
+# intermediate variable (C-G1)
+build_image(tag = "my-analysis:dev") |>
+  push_image(namespace = "erwin.lares", project = "my-analysis", tag = "1.0.0")
 }
 }

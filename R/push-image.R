@@ -69,7 +69,12 @@
 #'   argument (C15), which writes annotations into the generated
 #'   `Dockerfile` instead.
 #'
-#' @return Called for its side effects. Returns `invisible(NULL)`.
+#' @return The full registry URI the image was tagged and pushed as (or
+#'   would be, under `dry_run = TRUE`) -- `"{registry}/{namespace}/{project}:{tag}"`,
+#'   e.g. `"registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"` -- as a
+#'   character string, returned invisibly. Capture it to hand off to
+#'   `submitr::htc_gen_submit(container_image = )` without reassembling
+#'   or retyping the URI by hand (C-G1).
 #'
 #' @section Prerequisites:
 #' Before calling `push_image()` against the default
@@ -148,6 +153,18 @@
 #'   project   = "my-analysis",
 #'   registry  = "ghcr.io"
 #' )
+#'
+#' # Capture the full registry URI to hand off to submitr -- e.g.
+#' # submitr::htc_gen_submit(container_image = uri) -- instead of
+#' # reassembling it by hand from registry/namespace/project/tag (C-G1)
+#' uri <- push_image(
+#'   image_id  = "974123909a36",
+#'   namespace = "erwin.lares",
+#'   project   = "my-analysis",
+#'   tag       = "1.0.0"
+#' )
+#' uri
+#' #> [1] "registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"
 #' }
 push_image <- function(image_id        = NULL,
                        namespace        = NULL,
@@ -201,7 +218,11 @@ push_image <- function(image_id        = NULL,
     }
 
     # -- 3. Assemble destination tag -------------------------------------------
-    destination <- glue::glue("{registry}/{namespace}/{project}:{tag}")
+    # as.character() strips glue's own S3 class immediately, so the value
+    # this function eventually returns (C-G1) is a plain character string
+    # rather than a "glue" object leaking into whatever the caller does
+    # with it downstream (e.g. passing it to submitr::htc_gen_submit()).
+    destination <- as.character(glue::glue("{registry}/{namespace}/{project}:{tag}"))
 
     if (verbose) {
         cli::cli_inform("Destination: {.val {destination}}")
@@ -306,7 +327,7 @@ push_image <- function(image_id        = NULL,
             " " = "{.code {tag_cmd}}",
             " " = "{.code {push_cmd}}"
         ))
-        return(invisible(NULL))
+        return(invisible(destination))
     }
 
     # -- 8. Tag ----------------------------------------------------------------
@@ -343,5 +364,8 @@ push_image <- function(image_id        = NULL,
         "Image {.val {destination}} pushed successfully."
     )
 
-    invisible(NULL)
+    # Hand back the full registry URI so it can be captured or piped
+    # straight into submitr::htc_gen_submit(container_image = ) instead of
+    # being reassembled by hand from registry/namespace/project/tag (C-G1).
+    invisible(destination)
 }

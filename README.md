@@ -86,12 +86,6 @@ and `renv::snapshot()` will produce the lockfile that `containr` needs. If you
 did not use `toolero`, run `renv::snapshot()` in your project root before
 proceeding.
 
-The folder names, path conventions, and shared vocabulary used consistently
-across all three packages are collected in one place --
-[CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
-maintained in the `toolero` repository, since that's where those conventions
-are authored.
-
 ---
 
 ## Before you start
@@ -149,7 +143,7 @@ library(containr)
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/sample.csv",
-  code_file = "analysis.R",
+  code_file = "R/analysis.R",
   output    = ".",
   comments  = TRUE
 )
@@ -229,7 +223,7 @@ generate_dockerfile(r_version = "4.4.0", output = ".")
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/penguins.csv",
-  code_file = "analysis.R",
+  code_file = "R/analysis.R",
   output    = "."
 )
 
@@ -340,6 +334,8 @@ base image and install the R package environment from scratch. Later builds are
 usually faster because Podman and Docker reuse cached layers when the earlier
 parts of the `Dockerfile` have not changed.
 
+When you supply a `tag`, `build_image()` returns that same string invisibly, so it can be captured or piped straight into `push_image(image_id = )` -- see the `push_image()` section below for the piped example. Without a tag, there's nothing reliable to hand back yet; `list_images()` remains the way to find the built image's ID, exactly as in "A first workflow" above.
+
 ```r
 # Build for linux/amd64 (default) -- suitable for CHTC and most clusters
 build_image(verbose = TRUE)
@@ -432,6 +428,15 @@ push_image(
 Use explicit version tags such as `"1.0.0"` rather than `"latest"`. The
 `"latest"` tag is overwritten on every push, which makes it harder to
 reconstruct which image was used for a specific result.
+
+`push_image()` returns the full registry destination URI it just tagged and pushed, invisibly -- `dry_run` returns the same value a real push would, so the two are interchangeable as far as what comes back. That makes it possible to chain a build directly into a push, with nothing captured in an intermediate variable and nothing retyped between the two calls:
+
+```r
+build_image(tag = "my-analysis:dev") |>
+  push_image(namespace = "your.netid", project = "my-analysis", tag = "1.0.0")
+```
+
+The returned URI can also be captured for later use -- passed directly to `submitr::htc_gen_submit(container_image = )`, for example, without reassembling it by hand from `registry/namespace/project/tag`.
 
 ---
 
@@ -538,6 +543,12 @@ conceptual relationship between `renv` and containers:
 - **containr** -- containerize the project (this package)
 - [submitr](https://github.com/erwinlares/submitr) -- submit containerized R
   jobs to CHTC and retrieve results
+
+The folder names, path conventions, and shared vocabulary used consistently
+across all three packages are collected in one place,
+[CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
+maintained in the `toolero` repository, since that is where those conventions
+are authored.
 
 ---
 

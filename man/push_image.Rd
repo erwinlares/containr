@@ -71,7 +71,12 @@ argument (C15), which writes annotations into the generated
 \code{Dockerfile} instead.}
 }
 \value{
-Called for its side effects. Returns \code{invisible(NULL)}.
+The full registry URI the image was tagged and pushed as (or
+would be, under \code{dry_run = TRUE}) -- \code{"{registry}/{namespace}/{project}:{tag}"},
+e.g. \code{"registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"} -- as a
+character string, returned invisibly. Capture it to hand off to
+\code{submitr::htc_gen_submit(container_image = )} without reassembling
+or retyping the URI by hand (C-G1).
 }
 \description{
 \code{push_image()} tags a locally built container image with a full registry
@@ -164,5 +169,17 @@ push_image(
   project   = "my-analysis",
   registry  = "ghcr.io"
 )
+
+# Capture the full registry URI to hand off to submitr -- e.g.
+# submitr::htc_gen_submit(container_image = uri) -- instead of
+# reassembling it by hand from registry/namespace/project/tag (C-G1)
+uri <- push_image(
+  image_id  = "974123909a36",
+  namespace = "erwin.lares",
+  project   = "my-analysis",
+  tag       = "1.0.0"
+)
+uri
+#> [1] "registry.doit.wisc.edu/erwin.lares/my-analysis:1.0.0"
 }
 }
