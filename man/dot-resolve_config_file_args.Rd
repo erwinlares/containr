@@ -2,7 +2,7 @@
 % Please edit documentation in R/generate-dockerfile.R
 \name{.resolve_config_file_args}
 \alias{.resolve_config_file_args}
-\title{Resolve file arguments from a toolero project manifest}
+\title{Resolve file arguments from a toolero project config}
 \usage{
 .resolve_config_file_args(config)
 }
@@ -10,19 +10,24 @@
 \item{config}{Character. Path to a \verb{_toolero.yml} file.}
 }
 \value{
-A named list with elements \code{data_file}, \code{code_file}, and
-\code{misc_file}, each a single character string or \code{NULL}; and \code{folders},
-a character vector of every folder the manifest declares (possibly
-empty), for deriving the \code{mkdir -p} block (C07).
+A named list with elements \code{data_file} and \code{misc_file}, each a
+single character string or \code{NULL}; and \code{folders}, a character vector
+of every folder the config declares (possibly empty), for deriving the
+\code{mkdir -p} block (C07).
 }
 \description{
 Internal helper backing \code{\link[=generate_dockerfile]{generate_dockerfile()}}'s \code{config} argument.
 Parses \verb{_toolero.yml} and returns the file arguments it can derive from
-the manifest's declared \verb{folders:} -- one element per argument the file
+the config's declared \verb{folders:} -- one element per argument the file
 has an opinion about, \code{NULL} for one it does not. Never validates that
 the derived paths actually exist on disk; a stale or hand-edited
-manifest surfaces as the same "does not exist" error from
+config surfaces as the same "does not exist" error from
 \code{.validate_file_arg()} that a caller's own typo would, rather than a
 separate failure mode here.
+}
+\details{
+\code{code_file} is not among the derived arguments (C32). The analysis
+script travels with each cluster job rather than being baked into the
+image, so the config's \code{script_dir} convention is not read at all.
 }
 \keyword{internal}

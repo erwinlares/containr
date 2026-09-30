@@ -77,7 +77,14 @@ matching Shiny Server's own default app directory regardless of
 container -- see \code{data_file} for vector and directory behavior. The
 local directory structure is preserved under the mode's copy root
 (\code{home_dir} for four of the six modes) -- see \code{data_file}. Every path
-must be inside the current working directory. Defaults to \code{NULL}.}
+must be inside the current working directory. Defaults to \code{NULL}.
+Leave it out for an image that will run cluster jobs: in that workflow
+the analysis script travels with each job (\code{submitr} uploads it
+alongside the data subset), so the image holds the environment and the
+data, and editing the script never means rebuilding the image. Pass
+\code{code_file} when the image itself has to run the code -- a Shiny app,
+or a self-contained image handed to a collaborator. \code{config} never
+fills it in; see \code{config}.}
 
 \item{misc_file}{A character vector or \code{NULL}. Path(s) to miscellaneous
 file(s) (e.g. images, shell scripts, or branding assets) and/or
@@ -158,30 +165,35 @@ reads both the same way round: explanation first, instruction second.}
 of the Dockerfile is written. Defaults to \code{FALSE}.}
 
 \item{config}{A character string. Path to a \verb{_toolero.yml} project
-manifest, such as the one \code{\link[toolero:init_project]{toolero::init_project()}} writes. When
-supplied, fills in \code{data_file}, \code{code_file}, and \code{misc_file} from the
-manifest's declared \verb{folders:} -- but only an argument left at its own
-\code{NULL} default. An argument you do supply always wins; \code{config} never
-overrides an explicit call. \code{code_file} is derived from the folder
-named by the manifest's \code{script_dir} convention (\code{"R"} by default) when
-that folder is present; \code{misc_file} is derived from \code{"assets"} when
-present, the branding folder \code{init_project(branding = ...)} creates;
-\code{data_file} is derived from \code{"data-raw"} when present, the folder this
-family's own documentation uses as the canonical home for input data --
-there is no dedicated manifest key naming it, so this one is
-\code{containr}'s own convention rather than something the file states
-explicitly. Reading \verb{_toolero.yml} is not a dependency on \code{toolero}: the
-schema is the contract, and a manifest written by hand is as valid an
+config, such as the one \code{\link[toolero:init_project]{toolero::init_project()}} writes. When
+supplied, fills in \code{data_file} and \code{misc_file} from the config's
+declared \verb{folders:} -- but only an argument left at its own \code{NULL}
+default. An argument you do supply always wins; \code{config} never
+overrides an explicit call. \code{data_file} is derived from \code{"data-raw"}
+when present, the folder this family's own documentation uses as the
+canonical home for input data -- there is no dedicated config key
+naming it, so this one is \code{containr}'s own convention rather than
+something the file states explicitly; \code{misc_file} is derived from
+\code{"assets"} when present, the branding folder
+\code{init_project(branding = ...)} creates. \code{code_file} is deliberately
+never derived, and the config's \code{script_dir} convention is not
+consulted: the analysis script travels with each cluster job rather
+than living in the image (see \code{code_file}), so a script copied in
+because the project happens to have an \verb{R/} folder would be a second,
+stale copy that nothing runs. Pass \code{code_file} yourself when the image
+does need it. Reading \verb{_toolero.yml} is not a dependency on \code{toolero}:
+the schema is the contract, and a config written by hand is as valid an
 input as one \code{init_project()} created. In \code{verbose} mode, reports which
-of \code{data_file}, \code{code_file}, and \code{misc_file} came from \code{config} rather
-than from the call, since a generated \code{Dockerfile} whose \code{COPY} lines
-came from somewhere invisible to the caller undermines the
-reproducibility this package exists to support. A \code{schema_version} the
-file does not declare is treated as schema \code{1}; any other declared
-value produces a warning, not an abort, and the file is still read on a
-best-effort basis either way. When supplied, \code{config} also adds a
+of \code{data_file} and \code{misc_file} came from \code{config} rather than from the
+call, and notes that \code{code_file} did not, since a generated
+\code{Dockerfile} whose \code{COPY} lines came from somewhere invisible to the
+caller undermines the reproducibility this package exists to support.
+A \code{schema_version} the file does not declare is treated as schema \code{1};
+any other declared value produces a warning, not an abort, and the file
+is still read on a best-effort basis either way. When supplied,
+\code{config} also adds a
 \verb{RUN mkdir -p} instruction, right after \code{WORKDIR}, creating every
-folder the manifest's \verb{folders:} declares under \code{home_dir} (C07) --
+folder the config's \verb{folders:} declares under \code{home_dir} (C07) --
 so a script's first write into one of them (via
 \code{toolero::save_output()}, or a bare \code{ggsave()}/\code{write.csv()} call)
 does not fail the way it would on a fresh checkout with no \code{config}
@@ -238,26 +250,27 @@ generate_dockerfile(
   output          = "."
 )
 
-# Include a data file -- directory structure is preserved in the container
+# Include a data file -- directory structure is preserved in the container.
+# No code_file: for cluster jobs the script travels with each job.
 generate_dockerfile(
   r_version = "4.3.0",
   data_file = "data-raw/penguins.csv",
-  code_file = "analysis.R",
   comments  = TRUE,
   output    = "."
 )
 
-# Multiple scripts and a whole assets folder -- pass assets/ via misc_file
-# so that branding files (styles.css, header.html, footer.html) are present
-# inside the container when Quarto renders the .qmd
+# Several data files and a whole assets folder -- pass assets/ via
+# misc_file so that branding files (styles.css, header.html, footer.html)
+# are present inside the container when Quarto renders the .qmd
 generate_dockerfile(
   r_version = "4.3.0",
-  code_file = c("R/prepare.R", "R/model.R"),
+  data_file = c("data-raw/penguins.csv", "data-raw/islands.csv"),
   misc_file = "assets/",
   output    = "."
 )
 
-# Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+# Serve a Shiny app -- the image runs the app itself, so its code goes in
+# via code_file. Files land under /srv/shiny-server/ automatically
 generate_dockerfile(
   r_version = "4.3.0",
   r_mode    = "shiny_server",
@@ -283,8 +296,9 @@ generate_dockerfile(
   output         = "."
 )
 
-# Fill in data_file, code_file, and misc_file from a toolero project
-# manifest instead of retyping paths the project already declares
+# Fill in data_file and misc_file from a toolero project config instead
+# of retyping paths the project already declares (code_file is never
+# filled in from config)
 generate_dockerfile(
   r_version = "4.3.0",
   config    = "_toolero.yml",

@@ -1,10 +1,11 @@
 # tests/testthat/test-generate-dockerfile-config.R
 #
 # Tests for the config argument (C01): generate_dockerfile() can fill in
-# data_file, code_file, and misc_file from a _toolero.yml project manifest,
-# but only an argument the caller left NULL, and never silently -- in
-# verbose mode it names which arguments came from config rather than from
-# the call. These tests write _toolero.yml fixtures by hand rather than
+# data_file and misc_file from a _toolero.yml project config, but only an
+# argument the caller left NULL, and never silently -- in verbose mode it
+# names which arguments came from config rather than from the call. It
+# never fills in code_file (C32): the analysis script travels with each
+# cluster job rather than living in the image. These tests write _toolero.yml fixtures by hand rather than
 # depending on toolero being installed, since the schema (schema_version,
 # folders:, conventions:) is the contract, not the package that usually
 # writes it.
@@ -55,7 +56,7 @@ test_that("config = NULL changes nothing (the default)", {
     expect_length(project_copies, 0)
 })
 
-test_that("data_file, code_file, and misc_file are all derived when the caller supplies none", {
+test_that("data_file and misc_file are derived when the caller supplies neither", {
     tmp <- withr::local_tempdir()
     writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
@@ -85,8 +86,79 @@ test_that("data_file, code_file, and misc_file are all derived when the caller s
     # path is not part of this test's contract, only that the right
     # directory lands under the right place in copy_root.
     expect_true(any(grepl("^COPY data-raw/?\\s+/home/data-raw/?$", lines)))
-    expect_true(any(grepl("^COPY R/?\\s+/home/R/?$", lines)))
     expect_true(any(grepl("^COPY assets/?\\s+/home/assets/?$", lines)))
+})
+
+test_that("code_file is never derived from config, even with R/ declared and script_dir set (C32)", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    dir.create("R")
+    writeLines("1 + 1", file.path("R", "analysis.R"))
+    write_toolero_yml(
+        "_toolero.yml",
+        folders     = c("R", "output"),
+        conventions = list(output_dir = "output", script_dir = "R")
+    )
+
+    generate_dockerfile(r_version = "4.3.0", config = "_toolero.yml", output = tmp)
+    lines <- readLines(file.path(tmp, "Dockerfile"))
+
+    expect_false(any(grepl("^COPY R", lines)))
+    expect_false(any(grepl("analysis\\.R", lines)))
+})
+
+test_that("a script_dir naming some other folder does not derive code_file either", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    dir.create("src")
+    writeLines("1 + 1", file.path("src", "analysis.R"))
+    write_toolero_yml(
+        "_toolero.yml",
+        folders     = c("src"),
+        conventions = list(script_dir = "src")
+    )
+
+    generate_dockerfile(r_version = "4.3.0", config = "_toolero.yml", output = tmp)
+    lines <- readLines(file.path(tmp, "Dockerfile"))
+
+    project_copies <- lines[grepl("^COPY ", lines) & !grepl("renv\\.lock", lines)]
+    expect_length(project_copies, 0)
+})
+
+test_that("an explicit code_file still works alongside config", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    dir.create("data-raw")
+    writeLines("a,b", file.path("data-raw", "sample.csv"))
+    dir.create("R")
+    writeLines("1 + 1", file.path("R", "analysis.R"))
+    write_toolero_yml("_toolero.yml", folders = c("data-raw", "R"))
+
+    generate_dockerfile(
+        r_version = "4.3.0",
+        config    = "_toolero.yml",
+        code_file = "R/analysis.R",
+        output    = tmp
+    )
+    lines <- readLines(file.path(tmp, "Dockerfile"))
+
+    expect_true(any(grepl("^COPY R/analysis\\.R /home/R/analysis\\.R$", lines)))
+    expect_true(any(grepl("^COPY data-raw/?\\s+/home/data-raw/?$", lines)))
 })
 
 test_that("an explicit file argument is never overridden by config", {
@@ -97,22 +169,22 @@ test_that("an explicit file argument is never overridden by config", {
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
-    writeLines("x", "override.R")
+    dir.create("data-raw")
+    writeLines("a,b", file.path("data-raw", "sample.csv"))
+    writeLines("a,b", "override.csv")
 
-    write_toolero_yml("_toolero.yml", folders = c("R"))
+    write_toolero_yml("_toolero.yml", folders = c("data-raw"))
 
     generate_dockerfile(
         r_version = "4.3.0",
         config    = "_toolero.yml",
-        code_file = "override.R",
+        data_file = "override.csv",
         output    = tmp
     )
     lines <- readLines(file.path(tmp, "Dockerfile"))
 
-    expect_true(any(grepl("^COPY override\\.R /home/override\\.R$", lines)))
-    expect_false(any(grepl("^COPY R/ ", lines)))
+    expect_true(any(grepl("^COPY override\\.csv /home/override\\.csv$", lines)))
+    expect_false(any(grepl("^COPY data-raw", lines)))
 })
 
 test_that("verbose = TRUE reports which arguments came from config", {
@@ -123,9 +195,9 @@ test_that("verbose = TRUE reports which arguments came from config", {
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
-    write_toolero_yml("_toolero.yml", folders = c("R"))
+    dir.create("data-raw")
+    writeLines("a,b", file.path("data-raw", "sample.csv"))
+    write_toolero_yml("_toolero.yml", folders = c("data-raw"))
 
     expect_message(
         generate_dockerfile(
@@ -134,8 +206,52 @@ test_that("verbose = TRUE reports which arguments came from config", {
             verbose   = TRUE,
             output    = tmp
         ),
-        "code_file.*not supplied.*_toolero\\.yml"
+        "data_file.*not supplied.*_toolero\\.yml"
     )
+})
+
+test_that("verbose = TRUE notes that code_file was not filled in from config", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    write_toolero_yml("_toolero.yml", folders = c("R"))
+
+    msgs <- testthat::capture_messages(
+        generate_dockerfile(
+            r_version = "4.3.0",
+            config    = "_toolero.yml",
+            verbose   = TRUE,
+            output    = tmp
+        )
+    )
+    expect_true(any(grepl("code_file", msgs) & grepl("travels", msgs)))
+})
+
+test_that("the code_file note is absent when code_file is supplied", {
+    tmp <- withr::local_tempdir()
+    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+    withr::local_dir(tmp)
+    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
+    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
+    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
+
+    writeLines("1 + 1", "analysis.R")
+    write_toolero_yml("_toolero.yml", folders = c("R"))
+
+    msgs <- testthat::capture_messages(
+        generate_dockerfile(
+            r_version = "4.3.0",
+            config    = "_toolero.yml",
+            code_file = "analysis.R",
+            verbose   = TRUE,
+            output    = tmp
+        )
+    )
+    expect_false(any(grepl("travels", msgs)))
 })
 
 test_that("verbose = FALSE emits no config-related messages", {
@@ -146,9 +262,9 @@ test_that("verbose = FALSE emits no config-related messages", {
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
-    write_toolero_yml("_toolero.yml", folders = c("R"))
+    dir.create("data-raw")
+    writeLines("a,b", file.path("data-raw", "sample.csv"))
+    write_toolero_yml("_toolero.yml", folders = c("data-raw"))
 
     expect_no_message(
         generate_dockerfile(
@@ -168,15 +284,15 @@ test_that("a missing schema_version is treated as schema 1, without warning", {
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
-    write_toolero_yml("_toolero.yml", folders = c("R"), schema_version = NULL)
+    dir.create("data-raw")
+    writeLines("a,b", file.path("data-raw", "sample.csv"))
+    write_toolero_yml("_toolero.yml", folders = c("data-raw"), schema_version = NULL)
 
     expect_no_warning(
         generate_dockerfile(r_version = "4.3.0", config = "_toolero.yml", output = tmp)
     )
     lines <- readLines(file.path(tmp, "Dockerfile"))
-    expect_true(any(grepl("^COPY R/?\\s+/home/R/?$", lines)))
+    expect_true(any(grepl("^COPY data-raw/?\\s+/home/data-raw/?$", lines)))
 })
 
 test_that("an unrecognized schema_version warns but is still read on a best-effort basis", {
@@ -187,16 +303,16 @@ test_that("an unrecognized schema_version warns but is still read on a best-effo
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
-    write_toolero_yml("_toolero.yml", folders = c("R"), schema_version = 2L)
+    dir.create("data-raw")
+    writeLines("a,b", file.path("data-raw", "sample.csv"))
+    write_toolero_yml("_toolero.yml", folders = c("data-raw"), schema_version = 2L)
 
     expect_warning(
         generate_dockerfile(r_version = "4.3.0", config = "_toolero.yml", output = tmp),
         "does not recognize"
     )
     lines <- readLines(file.path(tmp, "Dockerfile"))
-    expect_true(any(grepl("^COPY R/?\\s+/home/R/?$", lines)))
+    expect_true(any(grepl("^COPY data-raw/?\\s+/home/data-raw/?$", lines)))
 })
 
 test_that("a nonexistent config path errors clearly", {
@@ -242,28 +358,7 @@ test_that("a config with no folders: entry contributes nothing", {
     expect_length(project_copies, 0)
 })
 
-test_that("a conventions block missing script_dir falls back to the 'R' default", {
-    tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
-    withr::local_dir(tmp)
-    local_mocked_bindings(`.r_ver_exists`  = function(...) TRUE,         .package = "containr")
-    local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
-    local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
-
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
-    write_toolero_yml(
-        "_toolero.yml",
-        folders     = c("R"),
-        conventions = list(output_dir = "output")
-    )
-
-    generate_dockerfile(r_version = "4.3.0", config = "_toolero.yml", output = tmp)
-    lines <- readLines(file.path(tmp, "Dockerfile"))
-    expect_true(any(grepl("^COPY R/?\\s+/home/R/?$", lines)))
-})
-
-test_that("only the folders actually present are derived -- no data-raw or R means no data_file or code_file", {
+test_that("only the folders actually present are derived -- no data-raw means no data_file", {
     tmp <- withr::local_tempdir()
     writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
     withr::local_dir(tmp)
@@ -302,15 +397,13 @@ test_that("mkdir -p is emitted for every folder declared in config, right after 
     local_mocked_bindings(`.fetch_sysreqs` = function(...) character(0), .package = "containr")
     local_mocked_bindings(`status`         = function(...) list(synchronized = TRUE), .package = "renv")
 
-    # data-raw and R are also special folder names ("data-raw" derives
-    # data_file, "R" is the default script_dir and derives code_file), so
-    # both have to actually exist on disk for .validate_file_arg() not to
-    # abort -- this also exercises mkdir and a config-derived COPY sharing
-    # the same folder without conflict.
+    # data-raw is also a special folder name (it derives data_file), so it
+    # has to exist on disk for .validate_file_arg() not to abort -- this
+    # also exercises mkdir and a config-derived COPY sharing the same
+    # folder without conflict. R/ is created empty by the mkdir and never
+    # copied (C32), so it need not exist here.
     dir.create("data-raw")
     writeLines("a,b", file.path("data-raw", "sample.csv"))
-    dir.create("R")
-    writeLines("1 + 1", file.path("R", "analysis.R"))
 
     write_toolero_yml(
         "_toolero.yml",
@@ -332,6 +425,7 @@ test_that("mkdir -p is emitted for every folder declared in config, right after 
     workdir_idx <- which(grepl("^WORKDIR ", lines))
     expect_length(workdir_idx, 1)
     expect_true(mkdir_idx > workdir_idx)
+    expect_false(any(grepl("^COPY R", lines)))
 })
 
 test_that("mkdir -p tracks a custom home_dir", {

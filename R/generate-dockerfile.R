@@ -53,6 +53,13 @@
 #'   local directory structure is preserved under the mode's copy root
 #'   (`home_dir` for four of the six modes) -- see `data_file`. Every path
 #'   must be inside the current working directory. Defaults to `NULL`.
+#'   Leave it out for an image that will run cluster jobs: in that workflow
+#'   the analysis script travels with each job (`submitr` uploads it
+#'   alongside the data subset), so the image holds the environment and the
+#'   data, and editing the script never means rebuilding the image. Pass
+#'   `code_file` when the image itself has to run the code -- a Shiny app,
+#'   or a self-contained image handed to a collaborator. `config` never
+#'   fills it in; see `config`.
 #' @param misc_file A character vector or `NULL`. Path(s) to miscellaneous
 #'   file(s) (e.g. images, shell scripts, or branding assets) and/or
 #'   directories to copy into the container -- see `data_file` for vector
@@ -123,30 +130,35 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages as each section
 #'   of the Dockerfile is written. Defaults to `FALSE`.
 #' @param config A character string. Path to a `_toolero.yml` project
-#'   manifest, such as the one [toolero::init_project()] writes. When
-#'   supplied, fills in `data_file`, `code_file`, and `misc_file` from the
-#'   manifest's declared `folders:` -- but only an argument left at its own
-#'   `NULL` default. An argument you do supply always wins; `config` never
-#'   overrides an explicit call. `code_file` is derived from the folder
-#'   named by the manifest's `script_dir` convention (`"R"` by default) when
-#'   that folder is present; `misc_file` is derived from `"assets"` when
-#'   present, the branding folder `init_project(branding = ...)` creates;
-#'   `data_file` is derived from `"data-raw"` when present, the folder this
-#'   family's own documentation uses as the canonical home for input data --
-#'   there is no dedicated manifest key naming it, so this one is
-#'   `containr`'s own convention rather than something the file states
-#'   explicitly. Reading `_toolero.yml` is not a dependency on `toolero`: the
-#'   schema is the contract, and a manifest written by hand is as valid an
+#'   config, such as the one [toolero::init_project()] writes. When
+#'   supplied, fills in `data_file` and `misc_file` from the config's
+#'   declared `folders:` -- but only an argument left at its own `NULL`
+#'   default. An argument you do supply always wins; `config` never
+#'   overrides an explicit call. `data_file` is derived from `"data-raw"`
+#'   when present, the folder this family's own documentation uses as the
+#'   canonical home for input data -- there is no dedicated config key
+#'   naming it, so this one is `containr`'s own convention rather than
+#'   something the file states explicitly; `misc_file` is derived from
+#'   `"assets"` when present, the branding folder
+#'   `init_project(branding = ...)` creates. `code_file` is deliberately
+#'   never derived, and the config's `script_dir` convention is not
+#'   consulted: the analysis script travels with each cluster job rather
+#'   than living in the image (see `code_file`), so a script copied in
+#'   because the project happens to have an `R/` folder would be a second,
+#'   stale copy that nothing runs. Pass `code_file` yourself when the image
+#'   does need it. Reading `_toolero.yml` is not a dependency on `toolero`:
+#'   the schema is the contract, and a config written by hand is as valid an
 #'   input as one `init_project()` created. In `verbose` mode, reports which
-#'   of `data_file`, `code_file`, and `misc_file` came from `config` rather
-#'   than from the call, since a generated `Dockerfile` whose `COPY` lines
-#'   came from somewhere invisible to the caller undermines the
-#'   reproducibility this package exists to support. A `schema_version` the
-#'   file does not declare is treated as schema `1`; any other declared
-#'   value produces a warning, not an abort, and the file is still read on a
-#'   best-effort basis either way. When supplied, `config` also adds a
+#'   of `data_file` and `misc_file` came from `config` rather than from the
+#'   call, and notes that `code_file` did not, since a generated
+#'   `Dockerfile` whose `COPY` lines came from somewhere invisible to the
+#'   caller undermines the reproducibility this package exists to support.
+#'   A `schema_version` the file does not declare is treated as schema `1`;
+#'   any other declared value produces a warning, not an abort, and the file
+#'   is still read on a best-effort basis either way. When supplied,
+#'   `config` also adds a
 #'   `RUN mkdir -p` instruction, right after `WORKDIR`, creating every
-#'   folder the manifest's `folders:` declares under `home_dir` (C07) --
+#'   folder the config's `folders:` declares under `home_dir` (C07) --
 #'   so a script's first write into one of them (via
 #'   `toolero::save_output()`, or a bare `ggsave()`/`write.csv()` call)
 #'   does not fail the way it would on a fresh checkout with no `config`
@@ -195,26 +207,27 @@
 #'   output          = "."
 #' )
 #'
-#' # Include a data file -- directory structure is preserved in the container
+#' # Include a data file -- directory structure is preserved in the container.
+#' # No code_file: for cluster jobs the script travels with each job.
 #' generate_dockerfile(
 #'   r_version = "4.3.0",
 #'   data_file = "data-raw/penguins.csv",
-#'   code_file = "analysis.R",
 #'   comments  = TRUE,
 #'   output    = "."
 #' )
 #'
-#' # Multiple scripts and a whole assets folder -- pass assets/ via misc_file
-#' # so that branding files (styles.css, header.html, footer.html) are present
-#' # inside the container when Quarto renders the .qmd
+#' # Several data files and a whole assets folder -- pass assets/ via
+#' # misc_file so that branding files (styles.css, header.html, footer.html)
+#' # are present inside the container when Quarto renders the .qmd
 #' generate_dockerfile(
 #'   r_version = "4.3.0",
-#'   code_file = c("R/prepare.R", "R/model.R"),
+#'   data_file = c("data-raw/penguins.csv", "data-raw/islands.csv"),
 #'   misc_file = "assets/",
 #'   output    = "."
 #' )
 #'
-#' # Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+#' # Serve a Shiny app -- the image runs the app itself, so its code goes in
+#' # via code_file. Files land under /srv/shiny-server/ automatically
 #' generate_dockerfile(
 #'   r_version = "4.3.0",
 #'   r_mode    = "shiny_server",
@@ -240,8 +253,9 @@
 #'   output         = "."
 #' )
 #'
-#' # Fill in data_file, code_file, and misc_file from a toolero project
-#' # manifest instead of retyping paths the project already declares
+#' # Fill in data_file and misc_file from a toolero project config instead
+#' # of retyping paths the project already declares (code_file is never
+#' # filled in from config)
 #' generate_dockerfile(
 #'   r_version = "4.3.0",
 #'   config    = "_toolero.yml",
@@ -290,11 +304,12 @@ generate_dockerfile <- function(r_version       = "current",
         ))
     }
 
-    # -- 2b. Fill in file arguments from a toolero project manifest, if -------
+    # -- 2b. Fill in file arguments from a toolero project config, if ---------
     # config was supplied. Only ever fills an argument the caller left at
-    # its own NULL default -- an explicit data_file/code_file/misc_file
-    # always wins, so config never changes the behavior of a call that
-    # also states its own file arguments. Must run before file argument
+    # its own NULL default -- an explicit data_file/misc_file always wins,
+    # so config never changes the behavior of a call that also states its
+    # own file arguments. code_file is never filled (C32): the analysis
+    # script travels with each cluster job, not inside the image. Must run before file argument
     # validation below, since a config-derived path is validated exactly
     # like one the caller typed.
     # config_folders backs the C07 mkdir block below: every folder in
@@ -309,13 +324,19 @@ generate_dockerfile <- function(r_version       = "current",
         data_file <- .apply_config_default(
             data_file, from_config$data_file, "data_file", config, verbose
         )
-        code_file <- .apply_config_default(
-            code_file, from_config$code_file, "code_file", config, verbose
-        )
         misc_file <- .apply_config_default(
             misc_file, from_config$misc_file, "misc_file", config, verbose
         )
         config_folders <- from_config$folders
+
+        if (verbose && is.null(code_file)) {
+            cli::cli_inform(c(
+                "i" = "{.arg code_file} is not filled in from {.file {config}}: the
+                       analysis script travels with each job rather than living in
+                       the image.",
+                " " = "Pass {.arg code_file} if this image has to run the code itself."
+            ))
+        }
     }
 
     # -- 3. Validate file arguments --------------------------------------------
@@ -619,7 +640,7 @@ generate_dockerfile <- function(r_version       = "current",
         # specific output/figures + output/tables (cheap but bakes in a
         # convention containr does not own), or derive it from folders: in
         # _toolero.yml only when config was actually supplied. This is
-        # that third answer: every folder the manifest declares is created
+        # that third answer: every folder the config declares is created
         # under home_dir, right after WORKDIR, so a script's first write
         # into any of them -- via toolero::save_output() or a bare
         # ggsave()/write.csv() call -- lands somewhere that already
@@ -839,7 +860,7 @@ generate_dockerfile <- function(r_version       = "current",
 }
 
 
-# -- Helpers backing the config argument (C01) --------------------------------
+# -- Helpers backing the config argument (C01, C32) ---------------------------
 #
 # Reading _toolero.yml is not a dependency on toolero: the schema is the
 # contract (schema_version, folders:, conventions:), and a project that
@@ -854,23 +875,27 @@ generate_dockerfile <- function(r_version       = "current",
 # reproduce.
 
 
-#' Resolve file arguments from a toolero project manifest
+#' Resolve file arguments from a toolero project config
 #'
 #' Internal helper backing [generate_dockerfile()]'s `config` argument.
 #' Parses `_toolero.yml` and returns the file arguments it can derive from
-#' the manifest's declared `folders:` -- one element per argument the file
+#' the config's declared `folders:` -- one element per argument the file
 #' has an opinion about, `NULL` for one it does not. Never validates that
 #' the derived paths actually exist on disk; a stale or hand-edited
-#' manifest surfaces as the same "does not exist" error from
+#' config surfaces as the same "does not exist" error from
 #' `.validate_file_arg()` that a caller's own typo would, rather than a
 #' separate failure mode here.
 #'
+#' `code_file` is not among the derived arguments (C32). The analysis
+#' script travels with each cluster job rather than being baked into the
+#' image, so the config's `script_dir` convention is not read at all.
+#'
 #' @param config Character. Path to a `_toolero.yml` file.
 #'
-#' @return A named list with elements `data_file`, `code_file`, and
-#'   `misc_file`, each a single character string or `NULL`; and `folders`,
-#'   a character vector of every folder the manifest declares (possibly
-#'   empty), for deriving the `mkdir -p` block (C07).
+#' @return A named list with elements `data_file` and `misc_file`, each a
+#'   single character string or `NULL`; and `folders`, a character vector
+#'   of every folder the config declares (possibly empty), for deriving the
+#'   `mkdir -p` block (C07).
 #'
 #' @keywords internal
 .resolve_config_file_args <- function(config) {
@@ -896,7 +921,7 @@ generate_dockerfile <- function(r_version       = "current",
     # -- schema version --------------------------------------------------
     # containr currently understands schema 1 only. A file with no
     # schema_version is treated as schema 1, matching toolero's own
-    # reader, so a manifest written before the field existed still works.
+    # reader, so a config written before the field existed still works.
     # Anything else is read anyway: a config this version of containr
     # cannot fully understand is still more useful consulted than ignored,
     # and the file arguments it can derive (plain folder names) are
@@ -920,31 +945,26 @@ generate_dockerfile <- function(r_version       = "current",
 
     # -- folders and conventions ------------------------------------------
     # A missing folders: entry is not an error here the way it is for
-    # toolero's own check_project() -- a manifest containr can't derive
+    # toolero's own check_project() -- a config containr can't derive
     # anything useful from just means config contributes nothing, and the
     # call proceeds as if it had not been supplied.
     folders <- parsed[["folders"]]
     folders <- if (is.null(folders)) character(0) else as.character(folders)
 
-    conventions <- parsed[["conventions"]]
-    script_dir  <- NULL
-    if (is.list(conventions)) {
-        script_dir <- conventions[["script_dir"]]
-    }
-    if (is.null(script_dir) || !nzchar(script_dir)) {
-        script_dir <- "R"
-    }
+    # conventions: is deliberately not read. Its script_dir used to derive
+    # code_file, until C32: the analysis script travels with each cluster
+    # job, so an R/ folder in folders: is created empty by the mkdir block
+    # below and nothing is copied into it.
 
     list(
-        # No dedicated conventions: key names the input-data folder, unlike
-        # script_dir -- "data-raw" here is containr's own convention,
-        # matching how this family's own documentation uses it everywhere
-        # else, not something _toolero.yml states explicitly.
+        # No conventions: key names the input-data folder -- "data-raw"
+        # here is containr's own convention, matching how this family's own
+        # documentation uses it everywhere else, not something _toolero.yml
+        # states explicitly.
         data_file = if ("data-raw" %in% folders) "data-raw" else NULL,
-        code_file = if (script_dir %in% folders) script_dir else NULL,
         misc_file = if ("assets" %in% folders) "assets" else NULL,
-        # C07: every folder the manifest declares, verbatim, regardless of
-        # whether containr recognizes it as data-raw/script_dir/assets --
+        # C07: every folder the config declares, verbatim, regardless of
+        # whether containr recognizes it as data-raw or assets --
         # used to derive the mkdir -p block below, so a folder this version
         # of containr has no special meaning for (a future convention, or a
         # user's own addition to folders:) still gets created instead of

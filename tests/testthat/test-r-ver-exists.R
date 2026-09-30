@@ -43,7 +43,7 @@ test_that(".r_ver_exists rejects malformed version strings", {
 })
 
 test_that(".r_ver_exists accepts well-formed version strings without error (format only)", {
-    # These pass format validation — network call is skipped via mocking
+    # These pass format validation -- network call is skipped via mocking
     mock_tags <- list(image = "rocker/r-ver", tags = c("4.3.0", "latest", "devel"), source = "https://hub.docker.com/v2/repositories")
 
     with_mocked_bindings(

@@ -33,24 +33,27 @@
 ## New features
 
 * `generate_dockerfile()` gains a `config` argument: the path to a
-  `_toolero.yml` project manifest, such as the one `toolero::init_project()`
-  writes. When supplied, it fills in `data_file`, `code_file`, and
-  `misc_file` from the manifest's declared `folders:` -- but only an
-  argument the call left at its own `NULL` default. An explicit
-  `data_file`/`code_file`/`misc_file` always wins, so passing `config` never
-  changes the behavior of a call that already states its own file
-  arguments. `code_file` is derived from the folder named by the manifest's
-  `script_dir` convention (`"R"` when the manifest does not say otherwise);
-  `misc_file` is derived from `"assets"` when present, the branding folder
-  `init_project(branding = ...)` creates; `data_file` is derived from
-  `"data-raw"` when present. In `verbose` mode, `generate_dockerfile()`
-  reports which of the three arguments came from `config` rather than from
-  the call. A `schema_version` the file does not declare is treated as
-  schema `1`; any other declared value warns rather than aborts, and the
-  file is still read on a best-effort basis either way. Reading
-  `_toolero.yml` is not a dependency on `toolero`: the schema is the
-  contract, and a manifest written by hand is as valid an input as one
-  `init_project()` created (#C01).
+  `_toolero.yml` project config, such as the one `toolero::init_project()`
+  writes. When supplied, it fills in `data_file` and `misc_file` from the
+  config's declared `folders:` -- but only an argument the call left at its
+  own `NULL` default. An explicit `data_file`/`misc_file` always wins, so
+  passing `config` never changes the behavior of a call that already states
+  its own file arguments. `data_file` is derived from `"data-raw"` when
+  present; `misc_file` is derived from `"assets"` when present, the
+  branding folder `init_project(branding = ...)` creates. `code_file` is
+  deliberately never derived, and the config's `script_dir` convention is
+  not read: in this family's cluster workflow the analysis script travels
+  with each job as an uploaded input rather than living in the image, so
+  copying `R/` in because the config declares it would only add a second,
+  stale copy that nothing runs. Pass `code_file` explicitly for an image
+  that runs the code itself, such as a Shiny app (#C32). In `verbose` mode,
+  `generate_dockerfile()` reports which arguments came from `config` rather
+  than from the call, and notes that `code_file` did not. A
+  `schema_version` the file does not declare is treated as schema `1`; any
+  other declared value warns rather than aborts, and the file is still read
+  on a best-effort basis either way. Reading `_toolero.yml` is not a
+  dependency on `toolero`: the schema is the contract, and a config written
+  by hand is as valid an input as one `init_project()` created (#C01).
 
 * When `config` is supplied, `generate_dockerfile()` now also adds a
   `RUN mkdir -p` instruction, right after `WORKDIR`, creating every folder
@@ -60,7 +63,9 @@
   because that function creates parents recursively, but a bare
   `ggsave("output/figures/x.png")` failed inside the container exactly as
   it would on an execute node with no `output/` yet created. A call that
-  never passes `config` sees no new instruction (#C07).
+  never passes `config` sees no new instruction (#C07). A declared `R/` is
+  created empty, since `config` never copies the analysis script in
+  (#C32).
 
 * Two new `r_mode` values on `generate_dockerfile()`: `"shiny_server"`
   (`rocker/shiny`) for serving Shiny apps, and `"rstudio_shiny"`
@@ -307,16 +312,23 @@
   rather than a hardcoded `/home/`, reflecting the `copy_root` fix above
   (#C24).
 
-* The canonical `generate_dockerfile()` examples in the README and in the
-  `containr-workflow` vignette passed `code_file = "analysis.R"`
-  (`c("analysis.R", "helpers.R")` in the vignette), copying the script to
-  the image root. `toolero` settled `R/` as the home for a derived
-  analysis script; both examples now pass `code_file = "R/analysis.R"`
-  (`c("R/analysis.R", "R/helpers.R")` in the vignette) to match. This was
-  previously blocked on `submitr`'s own tarball-naming fix, since
-  `htc_gen_executable()` derived its results-tarball name in a way that
-  broke on a `code_file` under a subdirectory; that landed in `submitr`
-  first, so the two packages' documented conventions now agree (#C02).
+* The canonical `generate_dockerfile()` examples in the README, the
+  `containr-workflow` vignette, and `?generate_dockerfile` no longer copy
+  the analysis script into the image. They used to pass `code_file`
+  (`"analysis.R"`, later `"R/analysis.R"`), baking in a script that a
+  cluster job never runs: `submitr` uploads the script with each job, so
+  the image holds the environment and the data, and editing the script
+  means re-uploading it rather than rebuilding and re-pushing the image. A
+  new README section, "Where the analysis script goes", explains the
+  split and keeps `code_file` for images that run the code themselves,
+  such as the Shiny examples (#C33, replacing #C02).
+
+* The README now documents `generate_dockerfile(config = )` and the
+  project config it reads, in a new section, "Describing a project with
+  `_toolero.yml`": what the file looks like, which arguments it fills in,
+  what it deliberately leaves out, and the rules that keep it predictable.
+  The `containr-workflow` vignette gains a shorter version of the same
+  (#C34).
 
 ## Internal changes
 
@@ -358,7 +370,8 @@
 * Added `tests/testthat/test-readme-workflow.R`, which extracts the actual
   `generate_dockerfile()` call from the README's "A first workflow" section,
   runs it exactly as printed, and confirms the resulting `Dockerfile` pins
-  the requested R version and copies in the referenced files. The other
+  the requested R version, copies in the referenced data, and leaves the
+  project's analysis script out. The other
   three steps in that workflow (`build_image()`, `list_images()`,
   `push_image()`) need a live container engine and registry and can't run
   in CI, but `generate_dockerfile()` needs nothing but a lockfile in a
