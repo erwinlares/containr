@@ -145,7 +145,14 @@ matching Shiny Server's own default app directory regardless of
 container – see <code>data_file</code> for vector and directory behavior. The
 local directory structure is preserved under the mode's copy root
 (<code>home_dir</code> for four of the six modes) – see <code>data_file</code>. Every path
-must be inside the current working directory. Defaults to <code>NULL</code>.</p></dd>
+must be inside the current working directory. Defaults to <code>NULL</code>.
+Leave it out for an image that will run cluster jobs: in that workflow
+the analysis script travels with each job (<code>submitr</code> uploads it
+alongside the data subset), so the image holds the environment and the
+data, and editing the script never means rebuilding the image. Pass
+<code>code_file</code> when the image itself has to run the code – a Shiny app,
+or a self-contained image handed to a collaborator. <code>config</code> never
+fills it in; see <code>config</code>.</p></dd>
 
 
 <dt id="arg-misc-file">misc_file<a class="anchor" aria-label="anchor" href="#arg-misc-file"></a></dt>
@@ -246,30 +253,35 @@ of the Dockerfile is written. Defaults to <code>FALSE</code>.</p></dd>
 
 <dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
 <dd><p>A character string. Path to a <code>_toolero.yml</code> project
-manifest, such as the one <code>toolero::init_project()</code> writes. When
-supplied, fills in <code>data_file</code>, <code>code_file</code>, and <code>misc_file</code> from the
-manifest's declared <code>folders:</code> – but only an argument left at its own
-<code>NULL</code> default. An argument you do supply always wins; <code>config</code> never
-overrides an explicit call. <code>code_file</code> is derived from the folder
-named by the manifest's <code>script_dir</code> convention (<code>"R"</code> by default) when
-that folder is present; <code>misc_file</code> is derived from <code>"assets"</code> when
-present, the branding folder <code>init_project(branding = ...)</code> creates;
-<code>data_file</code> is derived from <code>"data-raw"</code> when present, the folder this
-family's own documentation uses as the canonical home for input data –
-there is no dedicated manifest key naming it, so this one is
-<code>containr</code>'s own convention rather than something the file states
-explicitly. Reading <code>_toolero.yml</code> is not a dependency on <code>toolero</code>: the
-schema is the contract, and a manifest written by hand is as valid an
+config, such as the one <code>toolero::init_project()</code> writes. When
+supplied, fills in <code>data_file</code> and <code>misc_file</code> from the config's
+declared <code>folders:</code> – but only an argument left at its own <code>NULL</code>
+default. An argument you do supply always wins; <code>config</code> never
+overrides an explicit call. <code>data_file</code> is derived from <code>"data-raw"</code>
+when present, the folder this family's own documentation uses as the
+canonical home for input data – there is no dedicated config key
+naming it, so this one is <code>containr</code>'s own convention rather than
+something the file states explicitly; <code>misc_file</code> is derived from
+<code>"assets"</code> when present, the branding folder
+<code>init_project(branding = ...)</code> creates. <code>code_file</code> is deliberately
+never derived, and the config's <code>script_dir</code> convention is not
+consulted: the analysis script travels with each cluster job rather
+than living in the image (see <code>code_file</code>), so a script copied in
+because the project happens to have an <code>R/</code> folder would be a second,
+stale copy that nothing runs. Pass <code>code_file</code> yourself when the image
+does need it. Reading <code>_toolero.yml</code> is not a dependency on <code>toolero</code>:
+the schema is the contract, and a config written by hand is as valid an
 input as one <code>init_project()</code> created. In <code>verbose</code> mode, reports which
-of <code>data_file</code>, <code>code_file</code>, and <code>misc_file</code> came from <code>config</code> rather
-than from the call, since a generated <code>Dockerfile</code> whose <code>COPY</code> lines
-came from somewhere invisible to the caller undermines the
-reproducibility this package exists to support. A <code>schema_version</code> the
-file does not declare is treated as schema <code>1</code>; any other declared
-value produces a warning, not an abort, and the file is still read on a
-best-effort basis either way. When supplied, <code>config</code> also adds a
+of <code>data_file</code> and <code>misc_file</code> came from <code>config</code> rather than from the
+call, and notes that <code>code_file</code> did not, since a generated
+<code>Dockerfile</code> whose <code>COPY</code> lines came from somewhere invisible to the
+caller undermines the reproducibility this package exists to support.
+A <code>schema_version</code> the file does not declare is treated as schema <code>1</code>;
+any other declared value produces a warning, not an abort, and the file
+is still read on a best-effort basis either way. When supplied,
+<code>config</code> also adds a
 <code>RUN mkdir -p</code> instruction, right after <code>WORKDIR</code>, creating every
-folder the manifest's <code>folders:</code> declares under <code>home_dir</code> (C07) –
+folder the config's <code>folders:</code> declares under <code>home_dir</code> (C07) –
 so a script's first write into one of them (via
 <code>toolero::save_output()</code>, or a bare <code>ggsave()</code>/<code><a href="https://rdrr.io/r/utils/write.table.html" class="external-link">write.csv()</a></code> call)
 does not fail the way it would on a fresh checkout with no <code>config</code>
@@ -323,26 +335,27 @@ when calling <code>generate_dockerfile()</code>. No code change is required;
 <span class="r-in"><span>  output          <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Include a data file -- directory structure is preserved in the container</span></span></span>
+<span class="r-in"><span><span class="co"># Include a data file -- directory structure is preserved in the container.</span></span></span>
+<span class="r-in"><span><span class="co"># No code_file: for cluster jobs the script travels with each job.</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
 <span class="r-in"><span>  data_file <span class="op">=</span> <span class="st">"data-raw/penguins.csv"</span>,</span></span>
-<span class="r-in"><span>  code_file <span class="op">=</span> <span class="st">"analysis.R"</span>,</span></span>
 <span class="r-in"><span>  comments  <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Multiple scripts and a whole assets folder -- pass assets/ via misc_file</span></span></span>
-<span class="r-in"><span><span class="co"># so that branding files (styles.css, header.html, footer.html) are present</span></span></span>
-<span class="r-in"><span><span class="co"># inside the container when Quarto renders the .qmd</span></span></span>
+<span class="r-in"><span><span class="co"># Several data files and a whole assets folder -- pass assets/ via</span></span></span>
+<span class="r-in"><span><span class="co"># misc_file so that branding files (styles.css, header.html, footer.html)</span></span></span>
+<span class="r-in"><span><span class="co"># are present inside the container when Quarto renders the .qmd</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
-<span class="r-in"><span>  code_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R/prepare.R"</span>, <span class="st">"R/model.R"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  data_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"data-raw/penguins.csv"</span>, <span class="st">"data-raw/islands.csv"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  misc_file <span class="op">=</span> <span class="st">"assets/"</span>,</span></span>
 <span class="r-in"><span>  output    <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Serve a Shiny app -- files land under /srv/shiny-server/ automatically</span></span></span>
+<span class="r-in"><span><span class="co"># Serve a Shiny app -- the image runs the app itself, so its code goes in</span></span></span>
+<span class="r-in"><span><span class="co"># via code_file. Files land under /srv/shiny-server/ automatically</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
 <span class="r-in"><span>  r_mode    <span class="op">=</span> <span class="st">"shiny_server"</span>,</span></span>
@@ -368,8 +381,9 @@ when calling <code>generate_dockerfile()</code>. No code change is required;
 <span class="r-in"><span>  output         <span class="op">=</span> <span class="st">"."</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Fill in data_file, code_file, and misc_file from a toolero project</span></span></span>
-<span class="r-in"><span><span class="co"># manifest instead of retyping paths the project already declares</span></span></span>
+<span class="r-in"><span><span class="co"># Fill in data_file and misc_file from a toolero project config instead</span></span></span>
+<span class="r-in"><span><span class="co"># of retyping paths the project already declares (code_file is never</span></span></span>
+<span class="r-in"><span><span class="co"># filled in from config)</span></span></span>
 <span class="r-in"><span><span class="fu">generate_dockerfile</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  r_version <span class="op">=</span> <span class="st">"4.3.0"</span>,</span></span>
 <span class="r-in"><span>  config    <span class="op">=</span> <span class="st">"_toolero.yml"</span>,</span></span>

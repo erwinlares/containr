@@ -120,31 +120,60 @@ generate_dockerfile(
 )
 ```
 
-If your analysis depends on data files, scripts, or other assets that
-should be available inside the container, pass them via `data_file`,
-`code_file`, and `misc_file`. The generated `COPY` instructions preserve
-your local directory structure under `home_dir` (`/home/` by default) –
-a file at `data-raw/sample.csv` locally becomes
-`/home/data-raw/sample.csv` in the container, and setting
-`home_dir = "/workspace"` moves both `WORKDIR` and these `COPY`
-destinations together. (`"shiny_server"` and `"rstudio_shiny"` are the
-exception: files land under `/srv/shiny-server/` regardless of
-`home_dir`, matching Shiny Server’s own default app directory.) All
-files must be inside the current working directory (the build context).
-Each argument accepts a single path, a character vector of paths, or a
-path to a directory – a directory is copied whole rather than one file
-at a time, and files and directories can be mixed freely within the same
-vector.
+If your analysis depends on data files or other assets that should be
+available inside the container, pass them via `data_file` and
+`misc_file`. The generated `COPY` instructions preserve your local
+directory structure under `home_dir` (`/home/` by default) – a file at
+`data-raw/sample.csv` locally becomes `/home/data-raw/sample.csv` in the
+container, and setting `home_dir = "/workspace"` moves both `WORKDIR`
+and these `COPY` destinations together. (`"shiny_server"` and
+`"rstudio_shiny"` are the exception: files land under
+`/srv/shiny-server/` regardless of `home_dir`, matching Shiny Server’s
+own default app directory.) All files must be inside the current working
+directory (the build context). Each argument accepts a single path, a
+character vector of paths, or a path to a directory – a directory is
+copied whole rather than one file at a time, and files and directories
+can be mixed freely within the same vector.
 
 ``` r
 
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/sample.csv",
-  code_file = c("R/analysis.R", "R/helpers.R"),
   misc_file = "assets/",
   output    = ".",
   comments  = TRUE
+)
+```
+
+The call copies in the data and the branding assets, but not the
+analysis script, and that is deliberate. When the image is headed for a
+cluster, the script travels with each job instead: `submitr` uploads it
+alongside the job’s data subset, and the execute node runs the uploaded
+copy. Editing the script then means re-uploading one small file rather
+than rebuilding and re-pushing the whole image. The third file argument,
+`code_file`, is for images that run the code themselves, such as a Shiny
+app or an image handed to a collaborator; pass the script there
+explicitly when that is what you are building.
+
+If your project was scaffolded with `toolero::init_project()`, it has a
+project config, `_toolero.yml`, that already lists its folders. Pass it
+as `config` and
+[`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+fills in `data_file` from `data-raw/` and `misc_file` from `assets/`
+when the config declares them, and creates every declared folder inside
+the image so the analysis can write to `output/` straight away. It never
+fills in `code_file`, for the reason above. An argument you pass
+yourself always wins, and `verbose = TRUE` reports which values came
+from the file:
+
+``` r
+
+generate_dockerfile(
+  r_version = "4.4.0",
+  config    = "_toolero.yml",
+  output    = ".",
+  verbose   = TRUE
 )
 ```
 
@@ -287,7 +316,7 @@ imgs
 
 The `image_id` column contains the hash you pass to
 [`push_image()`](https://erwinlares.github.io/containr/reference/push_image.md).
-Untagged images — those built without a name — appear with `<none>` in
+Untagged images – those built without a name – appear with `<none>` in
 the `repository` and `tag` columns. These accumulate during development
 as you rebuild with different settings and can be pruned periodically.
 

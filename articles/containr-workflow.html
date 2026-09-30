@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>A first containerization workflow with containr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-09-28</h4>
+updated 2026-09-30</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/containr/blob/main/vignettes/containr-workflow.Rmd" class="external-link"><code>vignettes/containr-workflow.Rmd</code></a></small>
       <div class="d-none name"><code>containr-workflow.Rmd</code></div>
@@ -178,9 +178,8 @@ unusual system library requirements that
 <span>  output          <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  install_syslibs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"libuv1-dev"</span>, <span class="st">"libwebp-dev"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>If your analysis depends on data files, scripts, or other assets that
-should be available inside the container, pass them via
-<code>data_file</code>, <code>code_file</code>, and
+<p>If your analysis depends on data files or other assets that should be
+available inside the container, pass them via <code>data_file</code> and
 <code>misc_file</code>. The generated <code>COPY</code> instructions
 preserve your local directory structure under <code>home_dir</code>
 (<code>/home/</code> by default) – a file at
@@ -200,15 +199,41 @@ within the same vector.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  data_file <span class="op">=</span> <span class="st">"data-raw/sample.csv"</span>,</span>
-<span>  code_file <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R/analysis.R"</span>, <span class="st">"R/helpers.R"</span><span class="op">)</span>,</span>
 <span>  misc_file <span class="op">=</span> <span class="st">"assets/"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  comments  <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+<p>The call copies in the data and the branding assets, but not the
+analysis script, and that is deliberate. When the image is headed for a
+cluster, the script travels with each job instead: <code>submitr</code>
+uploads it alongside the job’s data subset, and the execute node runs
+the uploaded copy. Editing the script then means re-uploading one small
+file rather than rebuilding and re-pushing the whole image. The third
+file argument, <code>code_file</code>, is for images that run the code
+themselves, such as a Shiny app or an image handed to a collaborator;
+pass the script there explicitly when that is what you are building.</p>
+<p>If your project was scaffolded with
+<code>toolero::init_project()</code>, it has a project config,
+<code>_toolero.yml</code>, that already lists its folders. Pass it as
+<code>config</code> and <code><a href="../reference/generate_dockerfile.html">generate_dockerfile()</a></code> fills in
+<code>data_file</code> from <code>data-raw/</code> and
+<code>misc_file</code> from <code>assets/</code> when the config
+declares them, and creates every declared folder inside the image so the
+analysis can write to <code>output/</code> straight away. It never fills
+in <code>code_file</code>, for the reason above. An argument you pass
+yourself always wins, and <code>verbose = TRUE</code> reports which
+values came from the file:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  config    <span class="op">=</span> <span class="st">"_toolero.yml"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span>,</span>
+<span>  verbose   <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <p>If your project uses RStudio Server rather than plain R, pass
 <code>r_mode = "rstudio"</code> to use the <code>rocker/rstudio</code>
 base image instead:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  r_mode    <span class="op">=</span> <span class="st">"rstudio"</span>,</span>
@@ -230,7 +255,7 @@ and errors if no matching release exists. Either way, the resolved
 version is recorded in the <code>Dockerfile</code> as
 <code>ENV QUARTO_VERSION=...</code>, so it’s recoverable from a running
 container without the original <code>Dockerfile</code> on hand.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/generate_dockerfile.html">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version      <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
 <span>  install_quarto <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -250,7 +275,7 @@ Podman or Docker and builds the image locally. The first build pulls the
 base image and installs every R package in your <code>renv.lock</code>
 from scratch, so it can take several minutes depending on the size of
 your package library and your network connection.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>The <code>platform</code> argument defaults to
 <code>"linux/amd64"</code>, which is the architecture used by CHTC and
@@ -265,7 +290,7 @@ emitted about potential emulation issues.</p>
 Podman’s QEMU emulation layer. If builds fail with segfaults under
 Podman, try <code>tool_preference = "docker"</code> or build on a native
 x86_64 machine.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build for the host architecture (e.g. local use on Apple Silicon)</span></span>
 <span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>platform <span class="op">=</span> <span class="cn">NULL</span>, verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
@@ -274,20 +299,20 @@ x86_64 machine.</p>
 <p>With <code>verbose = TRUE</code>, the build output streams to the
 console so you can watch the installation progress. The output looks
 something like this:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="ex">i</span> Resolving tool: using <span class="st">"docker"</span></span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="ex">i</span> Target platform: <span class="st">"linux/amd64"</span></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="ex">i</span> Building image <span class="er">(</span><span class="ex">no</span> tag applied<span class="kw">)</span></span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="ex">i</span> Build context: /home/user/my-analysis, Dockerfile: Dockerfile</span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="ex">STEP</span> 1/7: FROM rocker/r-ver:4.4.0</span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="ex">STEP</span> 2/7: ENV DEBIAN_FRONTEND=noninteractive</span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="ex">STEP</span> 3/7: RUN apt-get update <span class="kw">&amp;&amp;</span> <span class="ex">apt-get</span> install <span class="at">-y</span> ...</span>
-<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="ex">...</span></span>
-<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="ex">STEP</span> 6/7: RUN R <span class="at">-e</span> <span class="st">"install.packages('renv', ...)"</span></span>
-<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="ex">STEP</span> 7/7: RUN R <span class="at">-e</span> <span class="st">"renv::restore()"</span></span>
-<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="ex">v</span> Image built successfully.</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="ex">i</span> Resolving tool: using <span class="st">"docker"</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="ex">i</span> Target platform: <span class="st">"linux/amd64"</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="ex">i</span> Building image <span class="er">(</span><span class="ex">no</span> tag applied<span class="kw">)</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="ex">i</span> Build context: /home/user/my-analysis, Dockerfile: Dockerfile</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="ex">STEP</span> 1/7: FROM rocker/r-ver:4.4.0</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="ex">STEP</span> 2/7: ENV DEBIAN_FRONTEND=noninteractive</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="ex">STEP</span> 3/7: RUN apt-get update <span class="kw">&amp;&amp;</span> <span class="ex">apt-get</span> install <span class="at">-y</span> ...</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="ex">...</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="ex">STEP</span> 6/7: RUN R <span class="at">-e</span> <span class="st">"install.packages('renv', ...)"</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="ex">STEP</span> 7/7: RUN R <span class="at">-e</span> <span class="st">"renv::restore()"</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="ex">v</span> Image built successfully.</span></code></pre></div>
 <p>If you want to preview the build command without running it:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/build_image.html">build_image</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; docker buildx build --platform linux/amd64 --load -f Dockerfile .</span></span></code></pre></div>
 <p>Subsequent builds are usually faster because Podman and Docker cache
@@ -308,15 +333,15 @@ library to <code>install_syslibs</code> in
 <p><code><a href="../reference/list_images.html">list_images()</a></code> returns a data frame of images in the
 local image store. It is the R equivalent of
 <code>podman image ls</code> or <code>docker image ls</code>.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/list_images.html">list_images</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">imgs</span></span></code></pre></div>
 <pre><code>                                    repository   tag      image_id    created    size
 1  registry.doit.wisc.edu/your.netid/my-analysis  1.0.0  974123909a36  2 hours ago  1.59 GB
 2                                         &lt;none&gt;  &lt;none&gt;  3b8f20dc1a47  3 hours ago  1.21 GB</code></pre>
 <p>The <code>image_id</code> column contains the hash you pass to
-<code><a href="../reference/push_image.html">push_image()</a></code>. Untagged images — those built without a name
-— appear with <code>&lt;none&gt;</code> in the <code>repository</code>
+<code><a href="../reference/push_image.html">push_image()</a></code>. Untagged images – those built without a name
+– appear with <code>&lt;none&gt;</code> in the <code>repository</code>
 and <code>tag</code> columns. These accumulate during development as you
 rebuild with different settings and can be pruned periodically.</p>
 <p>Use <code>imgs$image_id[1]</code> to pass the most recently built
@@ -332,7 +357,7 @@ pushes it to a container registry. Before pushing, authenticate with the
 registry once in a terminal. <code>containr</code> checks whether you
 are logged in before attempting the push and errors with clear
 instructions if not.</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
@@ -347,7 +372,7 @@ instructions if not.</p>
 ✔ Image pushed successfully.
 ℹ Image URI: docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0</code></pre>
 <p>To preview the tag and push commands without running them:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/push_image.html">push_image</a></span><span class="op">(</span></span>
 <span>  image_id  <span class="op">=</span> <span class="va">imgs</span><span class="op">$</span><span class="va">image_id</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>,</span>
 <span>  namespace <span class="op">=</span> <span class="st">"your.netid"</span>,</span>
@@ -371,7 +396,7 @@ data management plans.</p>
 </h2>
 <p>The complete workflow from a project with a <code>renv.lock</code> to
 a pushed container image takes four function calls:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/erwinlares/containr" class="external-link">containr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 1. Generate the Dockerfile</span></span>

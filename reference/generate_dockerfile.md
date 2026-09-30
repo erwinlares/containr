@@ -104,7 +104,14 @@ generate_dockerfile(
   `data_file` for vector and directory behavior. The local directory
   structure is preserved under the mode's copy root (`home_dir` for four
   of the six modes) – see `data_file`. Every path must be inside the
-  current working directory. Defaults to `NULL`.
+  current working directory. Defaults to `NULL`. Leave it out for an
+  image that will run cluster jobs: in that workflow the analysis script
+  travels with each job (`submitr` uploads it alongside the data
+  subset), so the image holds the environment and the data, and editing
+  the script never means rebuilding the image. Pass `code_file` when the
+  image itself has to run the code – a Shiny app, or a self-contained
+  image handed to a collaborator. `config` never fills it in; see
+  `config`.
 
 - misc_file:
 
@@ -205,33 +212,36 @@ generate_dockerfile(
 
 - config:
 
-  A character string. Path to a `_toolero.yml` project manifest, such as
+  A character string. Path to a `_toolero.yml` project config, such as
   the one `toolero::init_project()` writes. When supplied, fills in
-  `data_file`, `code_file`, and `misc_file` from the manifest's declared
-  `folders:` – but only an argument left at its own `NULL` default. An
-  argument you do supply always wins; `config` never overrides an
-  explicit call. `code_file` is derived from the folder named by the
-  manifest's `script_dir` convention (`"R"` by default) when that folder
-  is present; `misc_file` is derived from `"assets"` when present, the
-  branding folder `init_project(branding = ...)` creates; `data_file` is
-  derived from `"data-raw"` when present, the folder this family's own
-  documentation uses as the canonical home for input data – there is no
-  dedicated manifest key naming it, so this one is `containr`'s own
-  convention rather than something the file states explicitly. Reading
-  `_toolero.yml` is not a dependency on `toolero`: the schema is the
-  contract, and a manifest written by hand is as valid an input as one
-  `init_project()` created. In `verbose` mode, reports which of
-  `data_file`, `code_file`, and `misc_file` came from `config` rather
-  than from the call, since a generated `Dockerfile` whose `COPY` lines
-  came from somewhere invisible to the caller undermines the
-  reproducibility this package exists to support. A `schema_version` the
-  file does not declare is treated as schema `1`; any other declared
-  value produces a warning, not an abort, and the file is still read on
-  a best-effort basis either way. When supplied, `config` also adds a
-  `RUN mkdir -p` instruction, right after `WORKDIR`, creating every
-  folder the manifest's `folders:` declares under `home_dir` (C07) – so
-  a script's first write into one of them (via `toolero::save_output()`,
-  or a bare
+  `data_file` and `misc_file` from the config's declared `folders:` –
+  but only an argument left at its own `NULL` default. An argument you
+  do supply always wins; `config` never overrides an explicit call.
+  `data_file` is derived from `"data-raw"` when present, the folder this
+  family's own documentation uses as the canonical home for input data –
+  there is no dedicated config key naming it, so this one is
+  `containr`'s own convention rather than something the file states
+  explicitly; `misc_file` is derived from `"assets"` when present, the
+  branding folder `init_project(branding = ...)` creates. `code_file` is
+  deliberately never derived, and the config's `script_dir` convention
+  is not consulted: the analysis script travels with each cluster job
+  rather than living in the image (see `code_file`), so a script copied
+  in because the project happens to have an `R/` folder would be a
+  second, stale copy that nothing runs. Pass `code_file` yourself when
+  the image does need it. Reading `_toolero.yml` is not a dependency on
+  `toolero`: the schema is the contract, and a config written by hand is
+  as valid an input as one `init_project()` created. In `verbose` mode,
+  reports which of `data_file` and `misc_file` came from `config` rather
+  than from the call, and notes that `code_file` did not, since a
+  generated `Dockerfile` whose `COPY` lines came from somewhere
+  invisible to the caller undermines the reproducibility this package
+  exists to support. A `schema_version` the file does not declare is
+  treated as schema `1`; any other declared value produces a warning,
+  not an abort, and the file is still read on a best-effort basis either
+  way. When supplied, `config` also adds a `RUN mkdir -p` instruction,
+  right after `WORKDIR`, creating every folder the config's `folders:`
+  declares under `home_dir` (C07) – so a script's first write into one
+  of them (via `toolero::save_output()`, or a bare
   `ggsave()`/[`write.csv()`](https://rdrr.io/r/utils/write.table.html)
   call) does not fail the way it would on a fresh checkout with no
   `config` supplied. This is unconditional on which folders those are; a
@@ -286,26 +296,27 @@ generate_dockerfile(
   output          = "."
 )
 
-# Include a data file -- directory structure is preserved in the container
+# Include a data file -- directory structure is preserved in the container.
+# No code_file: for cluster jobs the script travels with each job.
 generate_dockerfile(
   r_version = "4.3.0",
   data_file = "data-raw/penguins.csv",
-  code_file = "analysis.R",
   comments  = TRUE,
   output    = "."
 )
 
-# Multiple scripts and a whole assets folder -- pass assets/ via misc_file
-# so that branding files (styles.css, header.html, footer.html) are present
-# inside the container when Quarto renders the .qmd
+# Several data files and a whole assets folder -- pass assets/ via
+# misc_file so that branding files (styles.css, header.html, footer.html)
+# are present inside the container when Quarto renders the .qmd
 generate_dockerfile(
   r_version = "4.3.0",
-  code_file = c("R/prepare.R", "R/model.R"),
+  data_file = c("data-raw/penguins.csv", "data-raw/islands.csv"),
   misc_file = "assets/",
   output    = "."
 )
 
-# Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+# Serve a Shiny app -- the image runs the app itself, so its code goes in
+# via code_file. Files land under /srv/shiny-server/ automatically
 generate_dockerfile(
   r_version = "4.3.0",
   r_mode    = "shiny_server",
@@ -331,8 +342,9 @@ generate_dockerfile(
   output         = "."
 )
 
-# Fill in data_file, code_file, and misc_file from a toolero project
-# manifest instead of retyping paths the project already declares
+# Fill in data_file and misc_file from a toolero project config instead
+# of retyping paths the project already declares (code_file is never
+# filled in from config)
 generate_dockerfile(
   r_version = "4.3.0",
   config    = "_toolero.yml",

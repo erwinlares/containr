@@ -15,17 +15,17 @@ you are collaborating with someone whose machine behaves differently
 from yours. Maybe you want to move an analysis from your laptop to a
 computing cluster and you are not sure how to make sure it still runs.
 Maybe you have had the experience of returning to an old project months
-later and finding that something no longer works — a package updated, a
+later and finding that something no longer works – a package updated, a
 dependency changed, and the analysis quietly broke.
 
 The question this vignette tries to answer is: if `renv` already records
 your R packages, what else could go wrong? And why might a container be
 the answer?
 
-## What renv does — and does not do
+## What renv does – and does not do
 
 `renv` is excellent at what it does. It records the R packages your
-project uses — their names, versions, and sources — in a `renv.lock`
+project uses – their names, versions, and sources – in a `renv.lock`
 file. When a collaborator runs
 [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html),
 they get the same package versions you used. That is a genuine
@@ -36,7 +36,7 @@ But `renv` records the R package layer. Below that layer sits everything
 else the analysis depends on: the R version itself, the operating
 system, the system libraries that R packages compile against, and any
 external tools the analysis calls. `renv` does not capture any of those.
-It cannot — that is not what it was designed to do.
+It cannot – that is not what it was designed to do.
 
 In practice this means that
 [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html)
@@ -52,7 +52,7 @@ file rather than anything obviously R-related.
 You install a newer version of R and try to rerun an analysis from six
 months ago. Most packages restore fine, but one package was compiled
 against a system library that has since been updated. The behavior
-changes subtly — or the package simply fails to load.
+changes subtly – or the package simply fails to load.
 
 You want to run your analysis on a computing cluster. The cluster runs
 Linux. Your laptop runs macOS. Your `renv.lock` is intact, but the
@@ -74,7 +74,7 @@ ties everything together.
 
 When you run a containerized analysis, you are not running it on your
 operating system directly. You are running it inside a controlled
-environment that is defined by a recipe — a `Dockerfile` — and that
+environment that is defined by a recipe – a `Dockerfile` – and that
 recipe can be shared, versioned, archived, and run on any machine that
 can execute containers.
 
@@ -85,7 +85,7 @@ installation and package library.
 
 It is worth being precise about what this means in practice. A container
 does not guarantee that your analysis produces the same numerical
-results on every machine — floating-point arithmetic and hardware
+results on every machine – floating-point arithmetic and hardware
 differences can still introduce variation at the margins. What it does
 guarantee is that the software environment is identical: the same R
 version, the same package versions, the same system libraries. That is a
@@ -94,8 +94,8 @@ much stronger reproducibility guarantee than `renv` alone can provide.
 ## The Dockerfile as a reproducibility artifact
 
 The recipe for a container is a plain text file called a `Dockerfile`.
-It specifies a base image — typically a Linux distribution with R
-pre-installed — and then a sequence of instructions: install system
+It specifies a base image – typically a Linux distribution with R
+pre-installed – and then a sequence of instructions: install system
 libraries, install R packages, copy files, set the working directory.
 
 A `Dockerfile` is a reproducibility artifact in the same way that
@@ -137,8 +137,8 @@ that connects the R workflow researchers already use to the container
 workflow they need when a project is ready to move beyond a single
 machine.
 
-The connection point is `renv.lock`. If you already use `renv` — and if
-you are reading this, you probably do — then `containr` needs almost
+The connection point is `renv.lock`. If you already use `renv` – and if
+you are reading this, you probably do – then `containr` needs almost
 nothing else from you. It reads the lockfile, works out what the project
 needs at the system level, and produces a `Dockerfile` you can build and
 push without leaving R.
@@ -159,7 +159,7 @@ ready to containerize a project, that is the right place to start.
 
 If you are not yet sure whether containerization is the right step for
 your project, the framing in this vignette may be enough for now. You
-can return to `containr` when the moment arrives — when you are
+can return to `containr` when the moment arrives – when you are
 preparing to share an analysis, archive a workflow, or move an analysis
 to a computing cluster. The `renv.lock` you already have is the starting
 point.

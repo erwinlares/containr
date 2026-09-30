@@ -143,11 +143,10 @@ happens once in the terminal before you push.
 
 library(containr)
 
-# 1. Generate a Dockerfile from renv.lock
+# 1. Generate a Dockerfile from renv.lock, copying in the input data
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/sample.csv",
-  code_file = "R/analysis.R",
   output    = ".",
   comments  = TRUE
 )
@@ -171,6 +170,13 @@ For a first pass, use `comments = TRUE` when generating the `Dockerfile`
 and `dry_run = TRUE` before running commands that build or push. The
 annotations and previews make the container workflow easier to inspect,
 teach, and debug.
+
+Notice what step 1 leaves out: the analysis script. For work sent to a
+cluster, the image carries the environment and the data, and the script
+travels with each job; “Where the analysis script goes” below explains
+why. If your project was scaffolded with `toolero`,
+`config = "_toolero.yml"` can fill in `data_file` for you; see
+“Describing a project with `_toolero.yml`”.
 
 ------------------------------------------------------------------------
 
@@ -231,14 +237,13 @@ generate_dockerfile(r_version = "4.4.0", output = ".")
 generate_dockerfile(
   r_version = "4.4.0",
   data_file = "data-raw/penguins.csv",
-  code_file = "R/analysis.R",
   output    = "."
 )
 
-# Multiple scripts and a whole assets folder, copied in one call
+# Several data files and a whole assets folder, copied in one call
 generate_dockerfile(
   r_version = "4.4.0",
-  code_file = c("R/prepare.R", "R/model.R"),
+  data_file = c("data-raw/penguins.csv", "data-raw/islands.csv"),
   misc_file = "assets/",
   output    = "."
 )
@@ -250,7 +255,8 @@ generate_dockerfile(
   output    = "."
 )
 
-# Serve a Shiny app -- files land under /srv/shiny-server/ automatically
+# Serve a Shiny app -- the image runs the app itself, so its code goes in
+# via code_file. Files land under /srv/shiny-server/ automatically
 generate_dockerfile(
   r_version = "4.4.0",
   r_mode    = "shiny_server",
@@ -310,6 +316,101 @@ releases and errors if no matching release exists. Either way, the
 resolved version is recorded in the `Dockerfile` as
 `ENV QUARTO_VERSION=...`, so it’s recoverable from a running container
 without the original `Dockerfile` on hand.
+
+### Describing a project with `_toolero.yml`
+
+A project scaffolded with `toolero::init_project()` carries a small file
+at its root, `_toolero.yml`, that records which folders the project has
+and a few naming conventions. The family calls it the *project config*.
+It looks like this:
+
+``` yaml
+schema_version: 1
+folders:
+  - data-raw
+  - data
+  - R
+  - scripts
+  - output/figures
+  - output/tables
+  - reports
+  - assets
+conventions:
+  output_dir: output
+  script_dir: R
+  split_dir: data/jobs
+```
+
+Rather than retyping what that file already says, point
+[`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+at it:
+
+``` r
+
+generate_dockerfile(
+  r_version = "4.4.0",
+  config    = "_toolero.yml",
+  output    = ".",
+  verbose   = TRUE
+)
+```
+
+From the config,
+[`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+takes three things:
+
+1.  `data-raw`, when it is declared, becomes `data_file`, so the input
+    data is copied into the image.
+2.  `assets`, when it is declared, becomes `misc_file`, so the branding
+    files a rendered `.qmd` needs are there too.
+3.  Every declared folder is created in the image with one
+    `RUN mkdir -p` line, so a script’s first write into
+    `output/figures/` does not fail for want of the folder.
+
+It deliberately does not take the analysis script. `R/` is created
+empty, and `script_dir` is not read: the script travels with each job
+instead (see the next section), so copying it in because the project
+happens to have an `R/` folder would only put a second, stale copy in
+the image.
+
+Three rules keep this predictable. An argument you pass yourself always
+wins over the config, so `config` only fills in what you left out. With
+`verbose = TRUE`,
+[`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+says which arguments came from the file, so no `COPY` line appears from
+somewhere you cannot see. And reading the file is not a dependency on
+`toolero`: the file is plain YAML, a config you write by hand is as
+valid as one `init_project()` wrote, and a `schema_version` this
+`containr` does not know produces a warning rather than an error. The
+file’s full description lives in [section 6 of
+CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md#6-_tooleroyml).
+
+### Where the analysis script goes
+
+For work sent to a cluster, the image holds the environment and the
+data, and the analysis script travels separately. `submitr` uploads the
+script with each job, alongside that job’s data subset, and the execute
+node runs the uploaded copy. The practical payoff is that fixing a typo
+in the script means re-uploading one small file and resubmitting, not
+rebuilding a multi-gigabyte image and pushing it to the registry again.
+That is why none of the examples above pass `code_file`, and why
+`config` never fills it in.
+
+`code_file` is still there for images that have to run the code
+themselves: a Shiny app served from the image (see the
+`r_mode = "shiny_server"` example), or a self-contained image handed to
+a collaborator who will run it without `submitr`. In those cases, pass
+the script explicitly:
+
+``` r
+
+generate_dockerfile(
+  r_version = "4.4.0",
+  data_file = "data-raw/sample.csv",
+  code_file = "R/analysis.R",
+  output    = "."
+)
+```
 
 ------------------------------------------------------------------------
 
