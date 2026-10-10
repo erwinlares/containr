@@ -26,7 +26,9 @@ generate_dockerfile(
   os_version = NULL,
   comments = FALSE,
   verbose = FALSE,
-  config = NULL
+  config = NULL,
+  binary_packages = TRUE,
+  ppm_snapshot = "latest"
 )
 ```
 
@@ -184,7 +186,11 @@ generate_dockerfile(
   Ubuntu release actually backing some R versions and not others.
   Supplying a value overrides the derivation entirely, for a project
   that needs to query against a different Ubuntu release than the one
-  its `r_version` would normally resolve to. Ignored when
+  its `r_version` would normally resolve to. If `remotes` does not
+  accept the release (its list lags behind Ubuntu: remotes 2.5.0 stops
+  at `"22.04"`, while R 4.4.2 and later are backed by `"24.04"`), the
+  lookup uses the newest release `remotes` does accept that is not newer
+  than this one, and says so in a message. Ignored when
   `auto_syslibs = FALSE`, since no sysreqs lookup happens in that case.
 
 - comments:
@@ -248,6 +254,37 @@ generate_dockerfile(
   folder this version of `containr` has no other special meaning for is
   still created. Defaults to `NULL`, so nothing about this argument
   changes the behavior of a call that does not use it.
+
+- binary_packages:
+
+  Logical. If `TRUE` (the default), the image restores R packages from
+  Posit Package Manager's precompiled Linux binaries instead of
+  compiling each one from source. A source restore compiles every
+  package in `renv.lock`, which is slow, especially under
+  cross-architecture emulation; a binary restore skips the compilation.
+  It does not skip the system libraries: the binaries are still linked
+  against them, so the `apt-get` block that `auto_syslibs` and
+  `install_syslibs` produce matters just as much as it does for a source
+  restore (the `-dev` packages in it also pull in the matching runtime
+  libraries). The Package Manager repository is chosen for the Ubuntu
+  release that backs `r_version`, not for `os_version`, which only
+  steers the system-requirements lookup, since a binary built for one
+  release is not guaranteed to load on another. A package version the
+  repository has no binary for is installed from source instead. If no
+  repository exists for the image's Ubuntu release, a warning says so
+  and the restore stays a source restore. Set to `FALSE` to restore from
+  the repositories recorded in `renv.lock`.
+
+- ppm_snapshot:
+
+  A character string. Which Package Manager snapshot
+  `binary_packages = TRUE` restores from: `"latest"` (the default), or a
+  date in `"YYYY-MM-DD"` form. `"latest"` serves the current version of
+  each package, so a lockfile written some time ago may record versions
+  with no binary left in that snapshot; renv then installs those from
+  the CRAN archive, which compiles them and needs their system
+  libraries. Pin a date only when you want the repository frozen at a
+  known day. Ignored when `binary_packages = FALSE`.
 
 ## Value
 

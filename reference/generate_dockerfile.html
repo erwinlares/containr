@@ -72,7 +72,9 @@ inline documentation comments.</p>
 <span>  os_version <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  comments <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  config <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  config <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  binary_packages <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  ppm_snapshot <span class="op">=</span> <span class="st">"latest"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -227,7 +229,11 @@ hardcoded value that only matched the Ubuntu release actually backing
 some R versions and not others. Supplying a value overrides the
 derivation entirely, for a project that needs to query against a
 different Ubuntu release than the one its <code>r_version</code> would normally
-resolve to. Ignored when <code>auto_syslibs = FALSE</code>, since no sysreqs
+resolve to. If <code>remotes</code> does not accept the release (its list lags
+behind Ubuntu: remotes 2.5.0 stops at <code>"22.04"</code>, while R 4.4.2 and
+later are backed by <code>"24.04"</code>), the lookup uses the newest release
+<code>remotes</code> does accept that is not newer than this one, and says so in
+a message. Ignored when <code>auto_syslibs = FALSE</code>, since no sysreqs
 lookup happens in that case.</p></dd>
 
 
@@ -289,6 +295,37 @@ supplied. This is unconditional on which folders those are; a folder
 this version of <code>containr</code> has no other special meaning for is still
 created. Defaults to <code>NULL</code>, so nothing about this argument changes
 the behavior of a call that does not use it.</p></dd>
+
+
+<dt id="arg-binary-packages">binary_packages<a class="anchor" aria-label="anchor" href="#arg-binary-packages"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default), the image
+restores R packages from Posit Package Manager's precompiled Linux
+binaries instead of compiling each one from source. A source restore
+compiles every package in <code>renv.lock</code>, which is slow, especially under
+cross-architecture emulation; a binary restore skips the compilation.
+It does not skip the system libraries: the binaries are still linked
+against them, so the <code>apt-get</code> block that <code>auto_syslibs</code> and
+<code>install_syslibs</code> produce matters just as much as it does for a source
+restore (the <code>-dev</code> packages in it also pull in the matching runtime
+libraries). The Package Manager repository is chosen for the Ubuntu
+release that backs <code>r_version</code>, not for <code>os_version</code>, which only steers
+the system-requirements lookup, since a binary built for one release
+is not guaranteed to load on another. A package version the repository
+has no binary for is installed from source instead. If no repository
+exists for the image's Ubuntu release, a warning says so and the
+restore stays a source restore. Set to <code>FALSE</code> to restore from the
+repositories recorded in <code>renv.lock</code>.</p></dd>
+
+
+<dt id="arg-ppm-snapshot">ppm_snapshot<a class="anchor" aria-label="anchor" href="#arg-ppm-snapshot"></a></dt>
+<dd><p>A character string. Which Package Manager snapshot
+<code>binary_packages = TRUE</code> restores from: <code>"latest"</code> (the default), or a
+date in <code>"YYYY-MM-DD"</code> form. <code>"latest"</code> serves the current version of
+each package, so a lockfile written some time ago may record versions
+with no binary left in that snapshot; renv then installs those from
+the CRAN archive, which compiles them and needs their system
+libraries. Pin a date only when you want the repository frozen at a
+known day. Ignored when <code>binary_packages = FALSE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -55,7 +55,12 @@ lookup fails.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.fetch_sysreqs</span><span class="op">(</span><span class="va">packages</span>, os_version <span class="op">=</span> <span class="st">"22.04"</span>, verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.fetch_sysreqs</span><span class="op">(</span></span>
+<span>  <span class="va">packages</span>,</span>
+<span>  os_version <span class="op">=</span> <span class="st">"22.04"</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  chunk_size <span class="op">=</span> <span class="fl">50L</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -78,12 +83,37 @@ others.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
-<dd><p>Logical. If <code>TRUE</code>, prints progress messages.</p></dd>
+<dd><p>Logical. If <code>TRUE</code>, prints progress messages and the
+per-package report.</p></dd>
+
+
+<dt id="arg-chunk-size">chunk_size<a class="anchor" aria-label="anchor" href="#arg-chunk-size"></a></dt>
+<dd><p>A positive integer. The most packages sent to
+<code><a href="https://remotes.r-lib.org/reference/system_requirements.html" class="external-link">remotes::system_requirements()</a></code> in one request, a guard against very
+long request URLs for large lockfiles. Defaults to <code>50L</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A deduplicated character vector of <code>apt</code> package names.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p><code><a href="https://remotes.r-lib.org/reference/system_requirements.html" class="external-link">remotes::system_requirements()</a></code> validates the Ubuntu release against a
+fixed internal list (remotes 2.5.0 stops at <code>"22.04"</code>), so asking about a
+newer release, such as the <code>"24.04"</code> that backs R 4.4.2 and later, is
+rejected before any lookup happens. When that happens, the error message
+itself names the releases <code>remotes</code> accepts, so this function reads that
+list, picks the newest accepted release that is not newer than the one
+requested, and repeats the lookup against it, with a message saying so.
+Nothing about the accepted releases is hardcoded here, which means that
+once <code>remotes</code> learns about a newer release the fallback simply stops
+being needed. A failure that is not a rejected release, a network error
+for instance, is never retried.</p>
+<p>With <code>verbose = TRUE</code>, the function also reports which package asked for
+which library, by looking each package up on its own (see
+<code><a href="dot-report_sysreqs_sources.html">.report_sysreqs_sources()</a></code>). The report never changes the returned
+value.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
