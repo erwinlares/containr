@@ -113,7 +113,11 @@
 #'   some R versions and not others. Supplying a value overrides the
 #'   derivation entirely, for a project that needs to query against a
 #'   different Ubuntu release than the one its `r_version` would normally
-#'   resolve to. Ignored when `auto_syslibs = FALSE`, since no sysreqs
+#'   resolve to. If `remotes` does not accept the release (its list lags
+#'   behind Ubuntu: remotes 2.5.0 stops at `"22.04"`, while R 4.4.2 and
+#'   later are backed by `"24.04"`), the lookup uses the newest release
+#'   `remotes` does accept that is not newer than this one, and says so in
+#'   a message. Ignored when `auto_syslibs = FALSE`, since no sysreqs
 #'   lookup happens in that case.
 #' @param comments Logical. If `TRUE`, annotates each Dockerfile instruction
 #'   with an explanatory comment, written on the line above the instruction
@@ -166,6 +170,31 @@
 #'   this version of `containr` has no other special meaning for is still
 #'   created. Defaults to `NULL`, so nothing about this argument changes
 #'   the behavior of a call that does not use it.
+#' @param binary_packages Logical. If `TRUE` (the default), the image
+#'   restores R packages from Posit Package Manager's precompiled Linux
+#'   binaries instead of compiling each one from source. A source restore
+#'   compiles every package in `renv.lock`, which is slow, especially under
+#'   cross-architecture emulation; a binary restore skips the compilation.
+#'   It does not skip the system libraries: the binaries are still linked
+#'   against them, so the `apt-get` block that `auto_syslibs` and
+#'   `install_syslibs` produce matters just as much as it does for a source
+#'   restore (the `-dev` packages in it also pull in the matching runtime
+#'   libraries). The Package Manager repository is chosen for the Ubuntu
+#'   release that backs `r_version`, not for `os_version`, which only steers
+#'   the system-requirements lookup, since a binary built for one release
+#'   is not guaranteed to load on another. A package version the repository
+#'   has no binary for is installed from source instead. If no repository
+#'   exists for the image's Ubuntu release, a warning says so and the
+#'   restore stays a source restore. Set to `FALSE` to restore from the
+#'   repositories recorded in `renv.lock`.
+#' @param ppm_snapshot A character string. Which Package Manager snapshot
+#'   `binary_packages = TRUE` restores from: `"latest"` (the default), or a
+#'   date in `"YYYY-MM-DD"` form. `"latest"` serves the current version of
+#'   each package, so a lockfile written some time ago may record versions
+#'   with no binary left in that snapshot; renv then installs those from
+#'   the CRAN archive, which compiles them and needs their system
+#'   libraries. Pin a date only when you want the repository frozen at a
+#'   known day. Ignored when `binary_packages = FALSE`.
 #'
 #' @return Called for its side effects. Writes a `Dockerfile` to `output`.
 #'   Returns `invisible(NULL)`.
@@ -278,7 +307,23 @@ generate_dockerfile <- function(r_version       = "current",
                                 os_version      = NULL,
                                 comments        = FALSE,
                                 verbose         = FALSE,
-                                config          = NULL) {
+                                config          = NULL,
+                                binary_packages = TRUE,
+                                ppm_snapshot    = "latest") {
+
+    # -- 0. Validate the binary-restore arguments early -------------------------
+    if (!is.logical(binary_packages) || length(binary_packages) != 1L ||
+        is.na(binary_packages)) {
+        cli::cli_abort("{.arg binary_packages} must be {.code TRUE} or {.code FALSE}.")
+    }
+
+    if (!is.character(ppm_snapshot) || length(ppm_snapshot) != 1L ||
+        !grepl("^(latest|[0-9]{4}-[0-9]{2}-[0-9]{2})$", ppm_snapshot)) {
+        cli::cli_abort(c(
+            "{.arg ppm_snapshot} must be {.val latest} or a date like {.val 2026-10-07}.",
+            "x" = "Got {.val {ppm_snapshot}}."
+        ))
+    }
 
     # -- 1. Validate r_mode early ----------------------------------------------
     if (!r_mode %in% names(.r_mode_registry)) {
@@ -503,9 +548,37 @@ generate_dockerfile <- function(r_version       = "current",
     all_syslibs <- unique(c(baseline_syslibs, auto_detected, install_syslibs))
 
     if (verbose && length(all_syslibs) > 0) {
-        cli::cli_inform(
-            "Installing {length(all_syslibs)} system librar{?y/ies}."
-        )
+        cli::cli_inform(c(
+            "System libraries: {length(baseline_syslibs)} baseline, {length(auto_detected)} detected from {.file renv.lock}, {length(setdiff(install_syslibs, c(baseline_syslibs, auto_detected)))} added through {.arg install_syslibs}.",
+            "i" = "Installing {length(all_syslibs)} system librar{?y/ies} in all."
+        ))
+    }
+
+    # -- 7b. Decide how packages are restored ----------------------------------
+    # binary_packages = TRUE restores from Posit Package Manager's
+    # precompiled Linux binaries. The codename comes from the Ubuntu release
+    # backing the image's FROM line, derived from resolved_version, and
+    # deliberately NOT from os_version: an os_version override only steers
+    # the sysreqs lookup, and a binary built for jammy is not guaranteed to
+    # load on noble. A release with no known codename keeps the source
+    # restore, with a warning, rather than aborting a call that used to work.
+    binary_restore <- NULL
+
+    if (binary_packages) {
+        image_os_version <- .resolve_os_version(resolved_version)
+        binary_restore   <- .binary_restore_instructions(image_os_version, ppm_snapshot)
+
+        if (is.null(binary_restore)) {
+            cli::cli_warn(c(
+                "No Posit Package Manager binary repository is known for Ubuntu {.val {image_os_version}}.",
+                "i" = "Keeping the source restore, which compiles every package and is much slower.",
+                " " = "Set {.code binary_packages = FALSE} to silence this warning."
+            ))
+        } else if (verbose) {
+            cli::cli_inform(
+                "Restoring packages from Posit Package Manager binaries ({.val {ppm_snapshot}} snapshot)."
+            )
+        }
     }
 
     # -- 8. Build Dockerfile instruction strings -------------------------------
@@ -713,12 +786,20 @@ generate_dockerfile <- function(r_version       = "current",
             # resolved under site-library, not under a hidden renv/
             # directory. No change needed; recorded here so nobody has
             # to re-derive this from scratch.
-            instruction = readr::read_lines(
-                system.file("extdata", "install_and_restore_packages.sh",
-                            package = "containr")
-            ),
+            instruction = if (!is.null(binary_restore)) {
+                binary_restore
+            } else {
+                readr::read_lines(
+                    system.file("extdata", "install_and_restore_packages.sh",
+                                package = "containr")
+                )
+            },
             verbose_msg = "Install renv and restore project library",
-            comment     = "Restore the R package environment as specified in renv.lock"
+            comment     = if (!is.null(binary_restore)) {
+                "Restore the R package environment from precompiled Linux binaries, as specified in renv.lock"
+            } else {
+                "Restore the R package environment as specified in renv.lock"
+            }
         ),
         data = list(
             instruction = if (!is.null(data_file)) {
