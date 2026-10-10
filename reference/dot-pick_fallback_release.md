@@ -18,7 +18,7 @@ one direction, and a lookup against a future release would be guessing.
 - accepted:
 
   Character vector. The releases `remotes` accepts, from
-  `.accepted_releases()`.
+  [`.accepted_releases()`](https://erwinlares.github.io/containr/reference/dot-accepted_releases.md).
 
 ## Value
 

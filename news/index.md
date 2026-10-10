@@ -4,6 +4,11 @@
 
 ### Breaking changes
 
+- The default restore step changed. A call that does not pass
+  `binary_packages` now produces `renv::restore(repos = c(CRAN = ...))`
+  against Posit Package Manager rather than the repositories recorded in
+  `renv.lock`. Pass `binary_packages = FALSE` for the previous output.
+
 - `r_mode = "tidystudio"` has been removed. Renamed to `"verse"`,
   matching the Rocker project’s own name for the underlying image
   (`rocker/verse`) – `"studio"` was misleading, since RStudio Server is
@@ -38,6 +43,36 @@
   `netid = ...` calls to `namespace = ...`.
 
 ### New features
+
+- [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  gained `binary_packages` and `ppm_snapshot`. With
+  `binary_packages = TRUE`, which is now the default, the image restores
+  R packages from Posit Package Manager’s precompiled Linux binaries
+  instead of compiling every package from source. That skips
+  compilation, which is where almost all of a source restore’s time goes
+  (and the slowest part of building under cross-architecture emulation).
+  It does not remove the need for system libraries: the binaries are
+  still linked against them, so the `apt-get` block still matters, and a
+  package version with no binary in the snapshot is installed from
+  source and needs its `-dev` headers. The repository is chosen for the
+  Ubuntu release backing `r_version`, never for an `os_version`
+  override. If there is no repository for that release, a warning says
+  so and the source restore is kept. `ppm_snapshot` is `"latest"` by
+  default; pass a `"YYYY-MM-DD"` date to freeze the repository at a
+  known day. Set `binary_packages = FALSE` to restore the way earlier
+  versions did.
+
+- With `verbose = TRUE`,
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  now says where the system libraries came from: how many are the
+  baseline, how many were detected from `renv.lock`, and how many were
+  added through `install_syslibs`. It also looks each package up on its
+  own and prints, for every library, the packages that reported it (for
+  instance `libfreetype6-dev: ragg, systemfonts`), so a library missing
+  from the image can be traced to a package, or to the lockfile not
+  recording that package at all. The report never changes the `apt-get`
+  block; a library it finds that the grouped lookup did not is named,
+  and can be added through `install_syslibs`.
 
 - [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
   gains a `config` argument: the path to a `_toolero.yml` project
@@ -190,6 +225,30 @@
   `dry_run` check.
 
 ### Bug fixes
+
+- The system-requirements lookup no longer returns nothing for R 4.4.2
+  and later.
+  [`remotes::system_requirements()`](https://remotes.r-lib.org/reference/system_requirements.html)
+  validates the Ubuntu release against a fixed internal list that stops
+  at `"22.04"` (remotes 2.5.0), and
+  [`generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.md)
+  derives `"24.04"` for those R versions, so the lookup was rejected
+  before it began. The result was a `Dockerfile` whose `apt-get` block
+  held only `curl`, and a restore that failed partway through on a
+  missing system library. The lookup now reads the list of accepted
+  releases out of the error message, falls back to the newest accepted
+  release that is not newer than the one requested, and says so in a
+  message. Nothing about the accepted releases is hardcoded, so the
+  fallback stops being needed once `remotes` learns about the newer
+  release. Package names are usually the same across releases, so read
+  the `apt-get` block before building. A failure that is not a rejected
+  release, a network error for instance, is still never retried.
+
+- A very large `renv.lock` is now sent to `remotes` in groups of at most
+  50 packages (internal `chunk_size` argument of
+  [`.fetch_sysreqs()`](https://erwinlares.github.io/containr/reference/dot-fetch_sysreqs.md))
+  and the answers are combined, as a guard against very long request
+  URLs.
 
 - The generated `Dockerfile` now restores the `renv` project library
   immediately after copying `renv.lock`, before any of the `data_file`,
