@@ -21,7 +21,9 @@ generate_dockerfile(
   os_version = NULL,
   comments = FALSE,
   verbose = FALSE,
-  config = NULL
+  config = NULL,
+  binary_packages = TRUE,
+  ppm_snapshot = "latest"
 )
 }
 \arguments{
@@ -145,7 +147,11 @@ hardcoded value that only matched the Ubuntu release actually backing
 some R versions and not others. Supplying a value overrides the
 derivation entirely, for a project that needs to query against a
 different Ubuntu release than the one its \code{r_version} would normally
-resolve to. Ignored when \code{auto_syslibs = FALSE}, since no sysreqs
+resolve to. If \code{remotes} does not accept the release (its list lags
+behind Ubuntu: remotes 2.5.0 stops at \code{"22.04"}, while R 4.4.2 and
+later are backed by \code{"24.04"}), the lookup uses the newest release
+\code{remotes} does accept that is not newer than this one, and says so in
+a message. Ignored when \code{auto_syslibs = FALSE}, since no sysreqs
 lookup happens in that case.}
 
 \item{comments}{Logical. If \code{TRUE}, annotates each Dockerfile instruction
@@ -201,6 +207,33 @@ supplied. This is unconditional on which folders those are; a folder
 this version of \code{containr} has no other special meaning for is still
 created. Defaults to \code{NULL}, so nothing about this argument changes
 the behavior of a call that does not use it.}
+
+\item{binary_packages}{Logical. If \code{TRUE} (the default), the image
+restores R packages from Posit Package Manager's precompiled Linux
+binaries instead of compiling each one from source. A source restore
+compiles every package in \code{renv.lock}, which is slow, especially under
+cross-architecture emulation; a binary restore skips the compilation.
+It does not skip the system libraries: the binaries are still linked
+against them, so the \code{apt-get} block that \code{auto_syslibs} and
+\code{install_syslibs} produce matters just as much as it does for a source
+restore (the \code{-dev} packages in it also pull in the matching runtime
+libraries). The Package Manager repository is chosen for the Ubuntu
+release that backs \code{r_version}, not for \code{os_version}, which only steers
+the system-requirements lookup, since a binary built for one release
+is not guaranteed to load on another. A package version the repository
+has no binary for is installed from source instead. If no repository
+exists for the image's Ubuntu release, a warning says so and the
+restore stays a source restore. Set to \code{FALSE} to restore from the
+repositories recorded in \code{renv.lock}.}
+
+\item{ppm_snapshot}{A character string. Which Package Manager snapshot
+\code{binary_packages = TRUE} restores from: \code{"latest"} (the default), or a
+date in \code{"YYYY-MM-DD"} form. \code{"latest"} serves the current version of
+each package, so a lockfile written some time ago may record versions
+with no binary left in that snapshot; renv then installs those from
+the CRAN archive, which compiles them and needs their system
+libraries. Pin a date only when you want the repository frozen at a
+known day. Ignored when \code{binary_packages = FALSE}.}
 }
 \value{
 Called for its side effects. Writes a \code{Dockerfile} to \code{output}.

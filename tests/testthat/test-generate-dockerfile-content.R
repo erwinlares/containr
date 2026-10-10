@@ -1125,35 +1125,42 @@ test_that("verbose = FALSE produces no messages", {
 # list without needing to be rewritten (per the audit's own recommendation).
 
 test_that("renv_restore runs right after renv_lock and before any project-content COPY, and syslibs before quarto", {
-    tmp <- withr::local_tempdir()
-    writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
-    withr::local_dir(tmp)
-    local_mocked_bindings(`.r_ver_exists`       = function(...) TRUE,         .package = "containr")
-    local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")
-    local_mocked_bindings(`.fetch_sysreqs`      = function(...) character(0), .package = "containr")
-    local_mocked_bindings(`status`              = function(...) list(synchronized = TRUE), .package = "renv")
+    for (binary in c(TRUE, FALSE)) {
+        tmp <- withr::local_tempdir()
+        writeLines('{"R":{"Version":"4.3.0"},"Packages":{"cli":{"Package":"cli","Version":"3.6.0"}}}', file.path(tmp, "renv.lock"))
+        withr::local_dir(tmp)
+        local_mocked_bindings(`.r_ver_exists`       = function(...) TRUE,         .package = "containr")
+        local_mocked_bindings(`.get_quarto_version` = function(...) "1.5.57",    .package = "containr")
+        local_mocked_bindings(`.fetch_sysreqs`      = function(...) character(0), .package = "containr")
+        local_mocked_bindings(`status`              = function(...) list(synchronized = TRUE), .package = "renv")
 
-    writeLines("x",   "script.R")
-    writeLines("a,b", "data.csv")
+        writeLines("x",   "script.R")
+        writeLines("a,b", "data.csv")
 
-    generate_dockerfile(
-        r_version      = "4.3.0",
-        code_file      = "script.R",
-        data_file      = "data.csv",
-        install_quarto = TRUE,
-        output         = tmp
-    )
-    lines <- read_dockerfile(tmp)
+        generate_dockerfile(
+            r_version       = "4.3.0",
+            code_file       = "script.R",
+            data_file       = "data.csv",
+            install_quarto  = TRUE,
+            binary_packages = binary,
+            output          = tmp
+        )
+        lines <- read_dockerfile(tmp)
 
-    idx <- function(pattern) min(which(grepl(pattern, lines)))
+        idx <- function(pattern) {
+            hits <- which(grepl(pattern, lines))
+            expect_true(length(hits) > 0L, info = paste("no match for", pattern))
+            min(hits)
+        }
 
-    syslibs_idx      <- idx("^RUN apt-get update")
-    quarto_idx       <- idx("QUARTO_VERSION")
-    renv_lock_idx    <- idx("^COPY renv\\.lock ")
-    renv_restore_idx <- idx("renv::restore\\(\\)")
-    first_copy_idx   <- min(idx("^COPY script\\.R "), idx("^COPY data\\.csv "))
+        syslibs_idx      <- idx("^RUN apt-get update")
+        quarto_idx       <- idx("QUARTO_VERSION")
+        renv_lock_idx    <- idx("^COPY renv\\.lock ")
+        renv_restore_idx <- idx("renv::restore\\(")
+        first_copy_idx   <- min(idx("^COPY script\\.R "), idx("^COPY data\\.csv "))
 
-    expect_true(syslibs_idx      < quarto_idx)
-    expect_true(renv_lock_idx    < renv_restore_idx)
-    expect_true(renv_restore_idx < first_copy_idx)
+        expect_true(syslibs_idx      < quarto_idx)
+        expect_true(renv_lock_idx    < renv_restore_idx)
+        expect_true(renv_restore_idx < first_copy_idx)
+    }
 })
